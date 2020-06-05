@@ -89,6 +89,9 @@ func Post(url string, data string) string {
 	_ = json.Unmarshal(result, &re)
 
 	if re.Code == 200 {
+		if !strings.Contains(url, "login") {
+			return re.Message
+		}
 		return re.Data.XToken
 	} else {
 		return re.Message
