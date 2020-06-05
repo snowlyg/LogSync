@@ -120,9 +120,8 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			//logger.Printf("当前路径3：%s ,当前层级：%d", cDir, index)
 
 			// 日期
-			timeStr := time.Now().Format("2006-01-02 15:04:05")
-			logMsg.LogAt = timeStr
-			if s.Name == timeStr {
+			logMsg.LogAt = time.Now().Format("2006-01-02 15:04:05")
+			if s.Name == time.Now().Format("2006-01-02") {
 				err = Next(c, s.Name, logMsg, index)
 				if err != nil {
 					logger.Error(err)
