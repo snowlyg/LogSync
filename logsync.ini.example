@@ -1,0 +1,21 @@
+[config]
+;医院编码
+hospital_code=
+
+;exts 后缀
+exts=.log,.txt
+
+;根目录名称，默认 log
+root=log
+
+;外网服务器配置
+host=
+port=80
+appid=wxcw846rde12w3fb9p
+appsecret=489r67esrqa341vcnb1m16azfm789nbmnhj8
+
+[ftp]
+;ftp 服务器ip,账号，密码
+ip=10.0.0.23
+username=admin
+password=123456
