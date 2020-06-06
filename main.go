@@ -145,7 +145,6 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				//defer r.Close()
 
 				buf, err := ioutil.ReadAll(r)
-
 				faultMsg := new(FaultMsg)
 				faultMsg.Name = s.Name
 				faultMsg.Content = string(buf)
@@ -174,14 +173,15 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			Where("log_at = ?", logMsg.LogAt).
 			Order("created_at desc").
 			First(&oldMsg)
-		if oldMsg.ID == 0 || oldMsg.FaultMsg != logMsg.FaultMsg { //如果信息有更新就存储，并推送
-			db.SQLite.Save(&logMsg)
-		}
-		data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
-		res := utils.Post("platform/report/device", data)
-		logger.Error("PostLogMsg:%s", res)
 
-		logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+		if oldMsg.ID == 0 || utils.MD5(oldMsg.FaultMsg) != utils.MD5(oldMsg.FaultMsg) { //如果信息有更新就存储，并推送
+			db.SQLite.Save(&logMsg)
+			data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
+			res := utils.Post("platform/report/device", data)
+			logger.Error("PostLogMsg:%s", res)
+
+			logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+		}
 	}
 
 	err = c.ChangeDirToParent()
