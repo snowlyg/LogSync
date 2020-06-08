@@ -278,6 +278,7 @@ func (p *program) run() {
 				serverMsg.ServiceName = server.ServiceName
 				serverMsg.ServiceTitle = server.ServiceTitle
 				serverMsg.PlatformServiceId = server.Id
+				serverMsg.CreatedAt = time.Now()
 
 				switch server.ServiceName {
 				case "MySQL":
@@ -438,8 +439,8 @@ func (p *program) run() {
 
 				serverMsgs = append(serverMsgs, &serverMsg)
 			}
-
-			data := fmt.Sprintf("fault_data=%s", serverMsgs)
+			serverMsgJson, _ := json.Marshal(&serverMsgs)
+			data := fmt.Sprintf("fault_data=%s", string(serverMsgJson))
 			res := utils.PostServices(data)
 
 			log.Printf("serverMsgs: %s", res)
