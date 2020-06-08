@@ -66,6 +66,7 @@ func (d DirName) String() string {
 	return "错误设备类型"
 }
 
+// 循环扫描日志目录，最多层级为4层
 func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 	var faultMsgs []*FaultMsg
@@ -246,17 +247,18 @@ func (p *program) run() {
 	go func() {
 		for range ticker.C {
 
-			// 扫描错误日志
+			// 扫描错误日志，设备监控
 			c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(5*time.Second))
 			if err != nil {
 				log.Println(err)
 			}
-
+			// 登录ftp
 			err = c.Login(username, password)
 			if err != nil {
 				log.Println(err)
 			}
 
+			// 扫描日志目录，记录日志信息
 			var logMsg models.LogMsg
 			logMsg.HospitalCode = getHospitalCode()
 			getDirs(c, "/", logMsg, 0)
@@ -361,6 +363,7 @@ func (p *program) run() {
 						rabbitmq.Destory()
 						break
 					}
+
 				case "FileZilla Server":
 					// 扫描错误日志
 					c, err := ftp.Dial(fmt.Sprintf("%s:%d", server.Ip, server.Port), ftp.DialWithTimeout(5*time.Second))
