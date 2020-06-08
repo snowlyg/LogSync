@@ -1,16 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-
 	"io/ioutil"
 	"log"
+	"net"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/antlinker/go-mqtt/client"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jander/golog/logger"
 	"github.com/jlaffaye/ftp"
 	"github.com/kardianos/service"
@@ -28,6 +31,11 @@ import (
 //'fault_msg.require'          => '故障信息不能为空！',  string
 //'create_at.require'          => '创建时间不能为空！' 时间格式
 //'dir_name.require'          => '目录名称' 时间格式
+
+type Process struct {
+	pid int
+	cpu float64
+}
 
 type FaultMsg struct {
 	Name    string
@@ -150,7 +158,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				faultMsg.Content = string(buf)
 				faultMsgs = append(faultMsgs, faultMsg)
 
-				r.Close()
+				_ = r.Close()
 			}
 
 		default:
@@ -177,7 +185,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		if oldMsg.ID == 0 || utils.MD5(oldMsg.FaultMsg) != utils.MD5(oldMsg.FaultMsg) { //如果信息有更新就存储，并推送
 			db.SQLite.Save(&logMsg)
 			data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
-			res := utils.Post("platform/report/device", data)
+			res := utils.PostDevices(data)
 			logger.Error("PostLogMsg:%s", res)
 
 			logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
@@ -228,14 +236,17 @@ func (p *program) run() {
 		panic(err)
 	}
 	defer models.Close()
+
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 
 	var ch chan int
-	ticker := time.NewTicker(time.Minute * 4)
+	ticker := time.NewTicker(time.Second * 10)
 	go func() {
 		for range ticker.C {
+
+			// 扫描错误日志
 			c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(5*time.Second))
 			if err != nil {
 				log.Println(err)
@@ -248,12 +259,191 @@ func (p *program) run() {
 
 			var logMsg models.LogMsg
 			logMsg.HospitalCode = getHospitalCode()
-
 			getDirs(c, "/", logMsg, 0)
 
 			if err := c.Quit(); err != nil {
 				log.Println(err)
 			}
+
+			// 监控服务
+			// platform_service_id ，service_type_id，create_at，fault_msg
+			//http://fyxt.t.chindeo.com/platform/report/service  服务故障上报url
+			serverList := utils.GetServices()
+			var serverMsgs []*models.ServerMsg
+
+			for _, server := range serverList {
+
+				var serverMsg models.ServerMsg
+				serverMsg.ServiceTypeId = server.ServiceTypeId
+				serverMsg.ServiceName = server.ServiceName
+				serverMsg.ServiceTitle = server.ServiceTitle
+				serverMsg.PlatformServiceId = server.Id
+
+				switch server.ServiceName {
+				case "MySQL":
+					conn := fmt.Sprintf("%s:%s@%s:%d/mysql?charset=utf8", server.Account, server.Pwd, server.Ip, server.Port)
+					_, err := sql.Open("mysql", conn)
+					if err != nil {
+						log.Printf("mysql conn error: %v ", err)
+						serverMsg.Status = false
+						serverMsg.FaultMsg = err.Error()
+						break
+					} else {
+						log.Println("mysql conn success")
+						serverMsg.Status = true
+						break
+					}
+				case "EMQX":
+					addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
+					mqttClient, err := client.CreateClient(client.MqttOption{
+						Addr:               addr,
+						ReconnTimeInterval: 1,
+						UserName:           server.Account,
+						Password:           server.Pwd,
+					})
+
+					if err != nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = err.Error()
+						log.Printf("mqtt client create error: %v ", err)
+						break
+					}
+
+					if mqttClient == nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = "连接失败"
+						log.Printf("mqtt conn error: 连接失败 ")
+						break
+					} else {
+						//建立连接
+						err = mqttClient.Connect()
+						if err != nil {
+							serverMsg.Status = false
+							serverMsg.FaultMsg = err.Error()
+							log.Printf("mqtt conn error: %v ", err)
+							break
+						}
+
+						serverMsg.Status = true
+						log.Println("mqtt conn success")
+						//断开连接
+						mqttClient.Disconnect()
+						break
+					}
+
+				case "RabbitMQ":
+					mqurl := fmt.Sprintf("amqp://%s:%s@%s:%d/shop", server.Account, server.Pwd, server.Ip, server.Port)
+					rabbitmq, err := NewRabbitMQSimple("imoocSimple", mqurl)
+					if err != nil {
+						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
+							serverMsg.Status = true
+							log.Println("RabbitMq conn success")
+
+							break
+						}
+
+						serverMsg.Status = false
+						serverMsg.FaultMsg = err.Error()
+						log.Printf("RabbitMq conn error: %v ", err)
+						break
+					}
+
+					if rabbitmq == nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = "连接失败"
+						log.Printf("RabbitMq conn error: 连接失败 ")
+						break
+					} else {
+						serverMsg.Status = true
+						log.Println("RabbitMq conn success")
+						//断开连接
+						rabbitmq.Destory()
+						break
+					}
+				case "FileZilla Server":
+					// 扫描错误日志
+					c, err := ftp.Dial(fmt.Sprintf("%s:%d", server.Ip, server.Port), ftp.DialWithTimeout(5*time.Second))
+					if err != nil {
+						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
+							serverMsg.Status = true
+							log.Println("FTP conn success")
+							//断开连接
+							if err := c.Quit(); err != nil {
+								log.Println(err)
+							}
+							break
+						}
+						serverMsg.Status = false
+						serverMsg.FaultMsg = err.Error()
+						log.Printf("FTP conn error: %v ", err)
+						break
+					}
+
+					if c == nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = "连接失败"
+						log.Printf("FTP conn error: 连接失败 ")
+						break
+					} else {
+						err = c.Login(server.Account, server.Pwd)
+						if err != nil {
+							serverMsg.Status = false
+							serverMsg.FaultMsg = err.Error()
+							log.Printf("FTP conn error: %v ", err)
+							break
+						} else {
+							serverMsg.Status = true
+							log.Println("FTP conn success")
+							//断开连接
+							if err := c.Quit(); err != nil {
+								log.Println(err)
+							}
+							break
+						}
+					}
+
+				default:
+					conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", server.Ip, server.Port))
+					if err != nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = err.Error()
+						log.Printf("FTP conn error: %v ", err)
+						break
+					}
+
+					if conn == nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = "连接失败"
+						log.Printf("FTP conn error: 连接失败 ")
+						break
+					}
+
+					serverMsg.Status = true
+					log.Printf("%s conn success", server.ServiceName)
+					break
+
+					conn.Close()
+				}
+
+				// 本机存储数据
+				var oldServerMsg models.ServerMsg
+				db.SQLite.Where("service_type_id = ?", server.Id).First(&oldServerMsg)
+				if oldServerMsg.ID > 0 {
+					oldServerMsg.Status = serverMsg.Status
+					oldServerMsg.FaultMsg = serverMsg.FaultMsg
+					db.SQLite.Save(&oldServerMsg)
+				} else {
+					db.SQLite.Save(&serverMsg)
+				}
+
+				serverMsgs = append(serverMsgs, &serverMsg)
+			}
+
+			data := fmt.Sprintf("fault_data=%s", serverMsgs)
+			res := utils.PostServices(data)
+
+			log.Printf("serverMsgs: %s", res)
+
 		}
 		ch <- 1
 	}()
@@ -262,6 +452,15 @@ func (p *program) run() {
 
 func (p *program) Stop(s service.Service) error {
 	return nil
+}
+
+// 获取医院编码
+func getHospitalCode() string {
+	hospitalCode := utils.Conf().Section("config").Key("hospital_code").MustString("")
+	if len(hospitalCode) == 0 {
+		log.Fatal(errors.New("医院编码"))
+	}
+	return hospitalCode
 }
 
 func main() {
@@ -283,13 +482,13 @@ func main() {
 
 	if len(os.Args) > 1 {
 		if os.Args[1] == "install" {
-			s.Install()
+			_ = s.Install()
 			logger.Println("服务安装成功")
 			return
 		}
 
 		if os.Args[1] == "remove" {
-			s.Uninstall()
+			_ = s.Uninstall()
 			logger.Println("服务卸载成功")
 			return
 		}
@@ -299,13 +498,4 @@ func main() {
 	if err != nil {
 		logger.Error(err)
 	}
-
-}
-
-func getHospitalCode() string {
-	hospitalCode := utils.Conf().Section("config").Key("hospital_code").MustString("")
-	if len(hospitalCode) == 0 {
-		log.Fatal(errors.New("医院编码"))
-	}
-	return hospitalCode
 }
