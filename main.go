@@ -244,7 +244,7 @@ func (p *program) run() {
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 
 	var ch chan int
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Minute * 4)
 	go func() {
 		for range ticker.C {
 
