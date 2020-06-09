@@ -107,11 +107,13 @@ func DoGET(url string) []byte {
 	if err != nil {
 		log.Printf("请求出错：%v", err)
 	}
-	defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
+		result, _ := ioutil.ReadAll(resp.Body)
+		return result
+	}
 
-	result, _ := ioutil.ReadAll(resp.Body)
-
-	return result
+	return nil
 }
 
 //http://fyxt.t.chindeo.com/platform/application/login
@@ -146,10 +148,13 @@ func DoPOST(url string, data string) []byte {
 	if err != nil {
 		log.Printf("请求出错：%v", err)
 	}
-	defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
+		result, _ := ioutil.ReadAll(resp.Body)
+		return result
+	}
 
-	result, _ := ioutil.ReadAll(resp.Body)
-	return result
+	return nil
 }
 
 func getClient(reType string, url string, data string) (*http.Client, *http.Request) {
