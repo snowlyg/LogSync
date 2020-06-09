@@ -12,7 +12,6 @@ require (
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/garyburd/redigo v1.6.0 // indirect
-	github.com/go-cmd/cmd v1.2.0
 	github.com/go-ini/ini v1.57.0
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/jander/golog v0.0.0-20150917071935-954a5be801fc
@@ -26,11 +25,12 @@ require (
 	github.com/lestrrat-go/strftime v1.0.1 // indirect
 	github.com/onsi/ginkgo v1.12.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
+	github.com/sirupsen/logrus v1.6.0
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
 	github.com/tebeka/strftime v0.1.4 // indirect
 	github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf
-	github.com/thegomachine/go-shex v0.0.0-20180723150415-d4eefa55ee03
 	gopkg.in/bsm/ratelimit.v1 v1.0.0-20160220154919-db14e161995a // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect

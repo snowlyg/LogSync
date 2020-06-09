@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -31,11 +30,6 @@ import (
 //'fault_msg.require'          => '故障信息不能为空！',  string
 //'create_at.require'          => '创建时间不能为空！' 时间格式
 //'dir_name.require'          => '目录名称' 时间格式
-
-type Process struct {
-	pid int
-	cpu float64
-}
 
 type FaultMsg struct {
 	Name    string
@@ -64,6 +58,13 @@ func (d DirName) String() string {
 	}
 
 	return "错误设备类型"
+}
+
+func init() {
+	rotatingHandler := logger.NewRotatingHandler(utils.LogDir(), "logsync.log", 4, 4*1024*1024)
+
+	// logger set handlers: console, rotating
+	logger.SetHandlers(logger.Console, rotatingHandler)
 }
 
 // 循环扫描日志目录，最多层级为4层
@@ -243,19 +244,19 @@ func (p *program) run() {
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 
 	var ch chan int
-	ticker := time.NewTicker(time.Minute * 4)
+	ticker := time.NewTicker(time.Second * 10)
 	go func() {
 		for range ticker.C {
 
 			// 扫描错误日志，设备监控
 			c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(5*time.Second))
 			if err != nil {
-				log.Println(err)
+				logger.Println(err)
 			}
 			// 登录ftp
 			err = c.Login(username, password)
 			if err != nil {
-				log.Println(err)
+				logger.Println(err)
 			}
 
 			// 扫描日志目录，记录日志信息
@@ -264,7 +265,7 @@ func (p *program) run() {
 			getDirs(c, "/", logMsg, 0)
 
 			if err := c.Quit(); err != nil {
-				log.Println(err)
+				logger.Println(err)
 			}
 
 			// 监控服务
@@ -287,12 +288,12 @@ func (p *program) run() {
 					conn := fmt.Sprintf("%s:%s@%s:%d/mysql?charset=utf8", server.Account, server.Pwd, server.Ip, server.Port)
 					_, err := sql.Open("mysql", conn)
 					if err != nil {
-						log.Printf("mysql conn error: %v ", err)
+						logger.Printf("mysql conn error: %v ", err)
 						serverMsg.Status = false
 						serverMsg.FaultMsg = err.Error()
 						break
 					} else {
-						log.Println("mysql conn success")
+						logger.Println("mysql conn success")
 						serverMsg.Status = true
 						break
 					}
@@ -308,14 +309,14 @@ func (p *program) run() {
 					if err != nil {
 						serverMsg.Status = false
 						serverMsg.FaultMsg = err.Error()
-						log.Printf("mqtt client create error: %v ", err)
+						logger.Printf("mqtt client create error: %v ", err)
 						break
 					}
 
 					if mqttClient == nil {
 						serverMsg.Status = false
 						serverMsg.FaultMsg = "连接失败"
-						log.Printf("mqtt conn error: 连接失败 ")
+						logger.Printf("mqtt conn error: 连接失败 ")
 						break
 					} else {
 						//建立连接
@@ -323,12 +324,12 @@ func (p *program) run() {
 						if err != nil {
 							serverMsg.Status = false
 							serverMsg.FaultMsg = err.Error()
-							log.Printf("mqtt conn error: %v ", err)
+							logger.Printf("mqtt conn error: %v ", err)
 							break
 						}
 
 						serverMsg.Status = true
-						log.Println("mqtt conn success")
+						logger.Println("mqtt conn success")
 						//断开连接
 						mqttClient.Disconnect()
 						break
@@ -340,25 +341,25 @@ func (p *program) run() {
 					if err != nil {
 						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
 							serverMsg.Status = true
-							log.Println("RabbitMq conn success")
+							logger.Println("RabbitMq conn success")
 
 							break
 						}
 
 						serverMsg.Status = false
 						serverMsg.FaultMsg = err.Error()
-						log.Printf("RabbitMq conn error: %v ", err)
+						logger.Printf("RabbitMq conn error: %v ", err)
 						break
 					}
 
 					if rabbitmq == nil {
 						serverMsg.Status = false
 						serverMsg.FaultMsg = "连接失败"
-						log.Printf("RabbitMq conn error: 连接失败 ")
+						logger.Printf("RabbitMq conn error: 连接失败 ")
 						break
 					} else {
 						serverMsg.Status = true
-						log.Println("RabbitMq conn success")
+						logger.Println("RabbitMq conn success")
 						//断开连接
 						rabbitmq.Destory()
 						break
@@ -370,37 +371,37 @@ func (p *program) run() {
 					if err != nil {
 						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
 							serverMsg.Status = true
-							log.Println("FTP conn success")
+							logger.Println("FTP conn success")
 							//断开连接
 							if err := c.Quit(); err != nil {
-								log.Println(err)
+								logger.Println(err)
 							}
 							break
 						}
 						serverMsg.Status = false
 						serverMsg.FaultMsg = err.Error()
-						log.Printf("FTP conn error: %v ", err)
+						logger.Printf("FTP conn error: %v ", err)
 						break
 					}
 
 					if c == nil {
 						serverMsg.Status = false
 						serverMsg.FaultMsg = "连接失败"
-						log.Printf("FTP conn error: 连接失败 ")
+						logger.Printf("FTP conn error: 连接失败 ")
 						break
 					} else {
 						err = c.Login(server.Account, server.Pwd)
 						if err != nil {
 							serverMsg.Status = false
 							serverMsg.FaultMsg = err.Error()
-							log.Printf("FTP conn error: %v ", err)
+							logger.Printf("FTP conn error: %v ", err)
 							break
 						} else {
 							serverMsg.Status = true
-							log.Println("FTP conn success")
+							logger.Println("FTP conn success")
 							//断开连接
 							if err := c.Quit(); err != nil {
-								log.Println(err)
+								logger.Println(err)
 							}
 							break
 						}
@@ -411,19 +412,19 @@ func (p *program) run() {
 					if err != nil {
 						serverMsg.Status = false
 						serverMsg.FaultMsg = err.Error()
-						log.Printf("FTP conn error: %v ", err)
+						logger.Printf("FTP conn error: %v ", err)
 						break
 					}
 
 					if conn == nil {
 						serverMsg.Status = false
 						serverMsg.FaultMsg = "连接失败"
-						log.Printf("FTP conn error: 连接失败 ")
+						logger.Printf("FTP conn error: 连接失败 ")
 						break
 					}
 
 					serverMsg.Status = true
-					log.Printf("%s conn success", server.ServiceName)
+					logger.Printf("%s conn success", server.ServiceName)
 					break
 
 					conn.Close()
@@ -446,7 +447,7 @@ func (p *program) run() {
 			data := fmt.Sprintf("fault_data=%s", string(serverMsgJson))
 			res := utils.PostServices(data)
 
-			log.Printf("serverMsgs: %s", res)
+			logger.Printf("serverMsgs: %s", res)
 
 		}
 		ch <- 1
@@ -462,12 +463,13 @@ func (p *program) Stop(s service.Service) error {
 func getHospitalCode() string {
 	hospitalCode := utils.Conf().Section("config").Key("hospital_code").MustString("")
 	if len(hospitalCode) == 0 {
-		log.Fatal(errors.New("医院编码"))
+		logger.Error(errors.New("医院编码"))
 	}
 	return hospitalCode
 }
 
 func main() {
+
 	svcConfig := &service.Config{
 		Name:        "LogSync",  //服务显示名称
 		DisplayName: "LogSync",  //服务名称
@@ -477,11 +479,11 @@ func main() {
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Error(err)
 	}
 
 	if err != nil {
-		logger.Fatal(err)
+		logger.Error(err)
 	}
 
 	if len(os.Args) > 1 {
