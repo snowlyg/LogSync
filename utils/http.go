@@ -63,7 +63,10 @@ func GetRequestHostname(r *http.Request) (hostname string) {
 func GetServices() []*Server {
 	var re getServer
 	result := DoGET("platform/report/getService")
-	_ = json.Unmarshal(result, &re)
+	err := json.Unmarshal(result, &re)
+	if err != nil {
+		log.Printf("GetServices json.Unmarshal error：%v", err)
+	}
 
 	if re.Code == 200 {
 		return re.Data
@@ -78,7 +81,10 @@ func PostDevices(data string) interface{} {
 	var re getServer
 
 	result := DoPOST("platform/report/device", data)
-	_ = json.Unmarshal(result, &re)
+	err := json.Unmarshal(result, &re)
+	if err != nil {
+		log.Printf("PostDevices json.Unmarshal error：%v", err)
+	}
 
 	return re.Message
 }
@@ -87,8 +93,10 @@ func PostDevices(data string) interface{} {
 func PostServices(data string) interface{} {
 	var re getServer
 	result := DoPOST("platform/report/service", data)
-	_ = json.Unmarshal(result, &re)
-
+	err := json.Unmarshal(result, &re)
+	if err != nil {
+		log.Printf("PostServices json.Unmarshal error：%v", err)
+	}
 	return re.Message
 }
 
@@ -109,7 +117,11 @@ func DoGET(url string) []byte {
 	}
 	if resp != nil {
 		defer resp.Body.Close()
-		result, _ := ioutil.ReadAll(resp.Body)
+		result, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("DoGET error：%v", err)
+		}
+
 		return result
 	}
 
@@ -125,7 +137,10 @@ func GetToken() string {
 	appsecret := Conf().Section("config").Key("appsecret").MustString("")
 
 	result := DoPOST("platform/application/login", fmt.Sprintf("appid=%s&appsecret=%s&apptype=%s", appid, appsecret, "hospital"))
-	_ = json.Unmarshal(result, &re)
+	err := json.Unmarshal(result, &re)
+	if err != nil {
+		log.Printf("GetToken error：%v", err)
+	}
 
 	if re.Code == 200 {
 		return re.Data.XToken
@@ -150,7 +165,10 @@ func DoPOST(url string, data string) []byte {
 	}
 	if resp != nil {
 		defer resp.Body.Close()
-		result, _ := ioutil.ReadAll(resp.Body)
+		result, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("DoPOST error：%v", err)
+		}
 		return result
 	}
 
