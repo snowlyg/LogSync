@@ -9,8 +9,7 @@ exts=.log,.txt
 root=log
 
 ;外网服务器配置
-host=
-port=80
+host=127.0.0.1:80
 appid=wxcw846rde12w3fb9p
 appsecret=489r67esrqa341vcnb1m16azfm789nbmnhj8
 

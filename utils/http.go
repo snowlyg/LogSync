@@ -159,11 +159,10 @@ func DoPOST(url string, data string) []byte {
 
 func getClient(reType string, url string, data string) (*http.Client, *http.Request) {
 	host := Conf().Section("config").Key("host").MustString("")
-	port := Conf().Section("config").Key("port").MustString("80")
 
 	// 超时时间：5秒
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest(reType, fmt.Sprintf("http://%s:%s/%s", host, port, url), strings.NewReader(data))
+	req, err := http.NewRequest(reType, fmt.Sprintf("http://%s/%s", host, url), strings.NewReader(data))
 	if err != nil {
 		log.Printf("请求出错：%v", err)
 	}
