@@ -364,7 +364,7 @@ func Next(c *ftp.ServerConn, name string, logMsg models.LogMsg, index int) error
 func SyncDeviceLog() {
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
-	password := utils.Conf().Section("ftp").Key("password").MustString("123456")
+	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 
 	// 扫描错误日志，设备监控
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(30*time.Second))
