@@ -9,7 +9,7 @@ func Init() (err error) {
 	if err != nil {
 		return
 	}
-	db.SQLite.AutoMigrate(LogMsg{}, ServerMsg{})
+	db.SQLite.AutoMigrate(LogMsg{}, ServerMsg{}, CfDevice{}, TelphoneGroup{}, Telphone{})
 
 	return
 }
