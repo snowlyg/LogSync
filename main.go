@@ -94,7 +94,7 @@ func syncDevice() {
 
 func syncDeviceLog() {
 	var ch chan int
-	t := utils.Conf().Section("time").Key("sync_data").MustString("m")
+	t := utils.Conf().Section("time").Key("sync_log").MustString("m")
 	var ticker *time.Ticker
 	switch t {
 	case "h":

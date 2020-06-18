@@ -364,17 +364,17 @@ func Next(c *ftp.ServerConn, name string, logMsg models.LogMsg, index int) error
 func SyncDeviceLog() {
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
-	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
+	password := utils.Conf().Section("ftp").Key("password").MustString("123456")
 
 	// 扫描错误日志，设备监控
-	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(5*time.Second))
+	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(30*time.Second))
 	if err != nil {
-		logger.Println(err)
+		logger.Println(fmt.Sprintf("ftp 连接错误 %v", err))
 	}
 	// 登录ftp
 	err = c.Login(username, password)
 	if err != nil {
-		logger.Println(err)
+		logger.Println(fmt.Sprintf("ftp 登录错误 %v", err))
 	}
 
 	// 扫描日志目录，记录日志信息
