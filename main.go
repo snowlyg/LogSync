@@ -152,33 +152,49 @@ func main() {
 		logger.Error(err)
 	}
 
-	if len(os.Args) > 1 {
+	if len(os.Args) == 2 {
 		if os.Args[1] == "install" {
-			_ = s.Install()
+			err := s.Install()
+			if err != nil {
+				panic(err)
+			}
 			logger.Println("服务安装成功")
 			return
 		}
 
 		if os.Args[1] == "remove" {
-			_ = s.Uninstall()
+			err := s.Uninstall()
+			if err != nil {
+				panic(err)
+			}
 			logger.Println("服务卸载成功")
 			return
 		}
 
 		if os.Args[1] == "start" {
-			_ = s.Start()
+			err := s.Start()
+			if err != nil {
+				panic(err)
+			}
 			logger.Println("服务启动成功")
 			return
 		}
 
 		if os.Args[1] == "stop" {
-			_ = s.Stop()
+			err := s.Stop()
+			if err != nil {
+				panic(err)
+			}
 			logger.Println("服务停止成功")
 			return
 		}
 
 		if os.Args[1] == "restart" {
-			_ = s.Restart()
+			err := s.Restart()
+			if err != nil {
+				panic(err)
+			}
+
 			logger.Println("服务重启成功")
 			return
 		}
