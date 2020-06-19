@@ -9,9 +9,7 @@ import (
 	"github.com/jander/golog/logger"
 	"github.com/jinzhu/gorm"
 	"github.com/jlaffaye/ftp"
-	"github.com/snowlyg/LogSync/db"
 	"github.com/snowlyg/LogSync/models"
-	"github.com/snowlyg/LogSync/ssh"
 	"github.com/snowlyg/LogSync/utils"
 	"io/ioutil"
 	"net"
@@ -112,10 +110,10 @@ func createDevices(sqlDb *gorm.DB) {
 	}
 
 	if len(cfDevices) > 0 {
-		if db.SQLite != nil {
-			db.SQLite.Exec("DELETE FROM t_cf_devices;")
+		if utils.SQLite != nil {
+			utils.SQLite.Exec("DELETE FROM t_cf_devices;")
 			for _, cfD := range cfDevices {
-				db.SQLite.Create(&cfD)
+				utils.SQLite.Create(&cfD)
 			}
 
 			cfDeviceJson, _ := json.Marshal(&cfDevices)
@@ -149,10 +147,10 @@ func createTelphones(sqlDb *gorm.DB) {
 	}
 
 	if len(telphones) > 0 {
-		if db.SQLite != nil {
-			db.SQLite.Exec("DELETE FROM t_telphones;")
+		if utils.SQLite != nil {
+			utils.SQLite.Exec("DELETE FROM t_telphones;")
 			for _, cfD := range telphones {
-				db.SQLite.Create(&cfD)
+				utils.SQLite.Create(&cfD)
 			}
 
 			telphoneJson, _ := json.Marshal(&telphones)
@@ -185,10 +183,10 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 	}
 
 	if len(telphoneGroups) > 0 {
-		if db.SQLite != nil {
-			db.SQLite.Exec("DELETE FROM t_telphone_groups;")
+		if utils.SQLite != nil {
+			utils.SQLite.Exec("DELETE FROM t_telphone_groups;")
 			for _, cfD := range telphoneGroups {
-				db.SQLite.Create(&cfD)
+				utils.SQLite.Create(&cfD)
 			}
 
 			telphoneGroupJson, _ := json.Marshal(&telphoneGroups)
@@ -273,8 +271,6 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		case 3:
 			//logger.Printf("当前路径3：%s ,当前层级：%d", cDir, index)
 
-			// 日期
-
 			if s.Name == time.Now().Format("2006-01-02") {
 				err = Next(c, s.Name, logMsg, index)
 				if err != nil {
@@ -323,19 +319,20 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		logMsg.FaultMsg = string(faultMsgsJson)
 
 		var oldMsg models.LogMsg
-		db.SQLite.Where("dir_name = ?", logMsg.DirName).
+		utils.SQLite.Where("dir_name = ?", logMsg.DirName).
 			Where("hospital_code = ?", logMsg.HospitalCode).
 			Where("device_code = ?", logMsg.DeviceCode).
 			Where("log_at = ?", logMsg.LogAt).
 			Order("created_at desc").
 			First(&oldMsg)
 		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
-			db.SQLite.Save(&logMsg)
+			utils.SQLite.Save(&logMsg)
 			data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
 			res := utils.PostServices("platform/report/device", data)
 			logger.Error("PostLogMsg:%s", res)
 
 			logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+
 		} else {
 
 			subT := logMsg.UpdateAt.Sub(oldMsg.UpdateAt)
@@ -386,12 +383,12 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				androidAccount := utils.Conf().Section("android").Key("account").MustString("root")
 				androidPassword := utils.Conf().Section("android").Key("password").MustString("Chindeo")
 				var device models.CfDevice
-				db.SQLite.Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
+				utils.SQLite.Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
 				logger.Printf("dev_code %v", device)
 				if len(device.DevIp) > 0 {
 
 					var faultMags []*FaultMsg
-					cli := ssh.New(device.DevIp, androidAccount, androidPassword, 22)
+					cli := utils.New(device.DevIp, androidAccount, androidPassword, 22)
 					if cli != nil {
 
 						shell := fmt.Sprintf("ps -ef")
@@ -419,7 +416,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 								}
 
 								logMsg.FaultMsg = string(faultMsgsJson)
-								db.SQLite.Save(&logMsg)
+								utils.SQLite.Save(&logMsg)
 								data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
 								res := utils.PostServices("platform/report/device", data)
 								logger.Error("PostLogMsg:%s", res)
@@ -663,13 +660,13 @@ func SyncDeviceLog() {
 
 		// 本机存储数据
 		var oldServerMsg models.ServerMsg
-		db.SQLite.Where("service_type_id = ?", server.Id).First(&oldServerMsg)
+		utils.SQLite.Where("service_type_id = ?", server.Id).First(&oldServerMsg)
 		if oldServerMsg.ID > 0 {
 			oldServerMsg.Status = serverMsg.Status
 			oldServerMsg.FaultMsg = serverMsg.FaultMsg
-			db.SQLite.Save(&oldServerMsg)
+			utils.SQLite.Save(&oldServerMsg)
 		} else {
-			db.SQLite.Save(&serverMsg)
+			utils.SQLite.Save(&serverMsg)
 		}
 
 		serverMsgs = append(serverMsgs, &serverMsg)

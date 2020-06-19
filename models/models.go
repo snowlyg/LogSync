@@ -1,19 +1,19 @@
 package models
 
 import (
-	"github.com/snowlyg/LogSync/db"
+	"github.com/snowlyg/LogSync/utils"
 )
 
 func Init() (err error) {
-	err = db.Init()
+	err = utils.Init()
 	if err != nil {
 		return
 	}
-	db.SQLite.AutoMigrate(LogMsg{}, ServerMsg{}, CfDevice{}, TelphoneGroup{}, Telphone{})
+	utils.SQLite.AutoMigrate(LogMsg{}, ServerMsg{}, CfDevice{}, TelphoneGroup{}, Telphone{})
 
 	return
 }
 
 func Close() {
-	db.Close()
+	utils.Close()
 }

@@ -19,8 +19,6 @@ import (
 
 func init() {
 	rotatingHandler := logger.NewRotatingHandler(utils.LogDir(), "logsync.log", 4, 4*1024*1024)
-
-	// logger set handlers: console, rotating
 	logger.SetHandlers(logger.Console, rotatingHandler)
 }
 
@@ -28,8 +26,8 @@ type program struct {
 	httpServer *http.Server
 }
 
-// StartRTSP 启动 rtsp
-func (p *program) StartTCP() {
+// StartHTTP
+func (p *program) StartHTTP() {
 	p.httpServer = &http.Server{
 		Addr:              fmt.Sprintf(":%d", 8001),
 		Handler:           routers.Router,
@@ -45,6 +43,7 @@ func (p *program) StartTCP() {
 	}()
 }
 
+// 启动
 func (p *program) Start(s service.Service) error {
 	go p.run()
 	return nil
@@ -61,8 +60,7 @@ func (p *program) run() {
 		return
 	}
 
-	//defer models.Close()
-	p.StartTCP()
+	p.StartHTTP()
 	go syncDeviceLog()
 	go syncDevice()
 
@@ -164,6 +162,24 @@ func main() {
 		if os.Args[1] == "remove" {
 			_ = s.Uninstall()
 			logger.Println("服务卸载成功")
+			return
+		}
+
+		if os.Args[1] == "start" {
+			_ = s.Start()
+			logger.Println("服务启动成功")
+			return
+		}
+
+		if os.Args[1] == "stop" {
+			_ = s.Stop()
+			logger.Println("服务停止成功")
+			return
+		}
+
+		if os.Args[1] == "restart" {
+			_ = s.Restart()
+			logger.Println("服务重启成功")
 			return
 		}
 	}
