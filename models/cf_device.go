@@ -17,5 +17,8 @@ type CfDevice struct {
 	DevDesc       string `json:"device_desc" gorm:"column:dev_desc;type:varchar(50)"`         // 设备描述
 	DevPosition   string `json:"device_position" gorm:"column:dev_position;type:varchar(50)"` // 位置
 	DevIp         string `json:"device_ip" gorm:"column:dev_ip;type:varchar(40)"`             // ip
+	LocDesc       string `json:"loc_desc" gorm:"column:loc_desc;type:varchar(60)"`            // ip
+	RoomDesc      string `json:"room_desc" gorm:"column:room_desc;type:varchar(60)"`          // ip
+	BedCode       string `json:"bed_code" gorm:"column:bed_code;type:varchar(255)"`           // ip
 	DevCreateTime string `json:"create_at" gorm:"column:dev_create_time"`                     // 创建时间
 }

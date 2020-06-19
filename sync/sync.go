@@ -11,9 +11,11 @@ import (
 	"github.com/jlaffaye/ftp"
 	"github.com/snowlyg/LogSync/db"
 	"github.com/snowlyg/LogSync/models"
+	"github.com/snowlyg/LogSync/ssh"
 	"github.com/snowlyg/LogSync/utils"
 	"io/ioutil"
 	"net"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -89,7 +91,13 @@ func SyncDevice() {
 // 同步设备
 func createDevices(sqlDb *gorm.DB) {
 	var cfDevices []*models.CfDevice
-	rows, err := sqlDb.Raw("select dev_id ,dev_code ,dev_desc ,dev_position ,dev_type ,dev_ip  ,dev_active ,dev_create_time  from cf_device").Rows()
+	query := "select ct_loc.loc_desc as loc_desc,pac_room.room_desc as room_desc, pac_bed.bed_code as bed_code, dev_id ,dev_code ,dev_desc ,dev_position ,dev_type,dev_active ,dev_create_time,mm.ipaddr as dev_ip from cf_device"
+	query += " left join mqtt.mqtt_device as mm on mm.username = cf_device.dev_code"
+	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
+	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
+	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
+
+	rows, err := sqlDb.Raw(query).Rows()
 	if err != nil {
 		logger.Println(err)
 	}
@@ -266,7 +274,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			//logger.Printf("当前路径3：%s ,当前层级：%d", cDir, index)
 
 			// 日期
-			logMsg.LogAt = time.Now().Format("2006-01-02 15:04:05")
+
 			if s.Name == time.Now().Format("2006-01-02") {
 				err = Next(c, s.Name, logMsg, index)
 				if err != nil {
@@ -284,6 +292,8 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			//logger.Printf("当前路径4：%s ,当前层级：%d,文件后缀：%v", cDir, index, exts)
 
 			if utils.InStrArray(s.Name, exts) {
+				logMsg.LogAt = s.Time.Format("2006-01-02 15:04:05")
+				logMsg.UpdateAt = s.Time
 				r, err := c.Retr(s.Name)
 				if err != nil {
 					logger.Error(err)
@@ -319,7 +329,6 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			Where("log_at = ?", logMsg.LogAt).
 			Order("created_at desc").
 			First(&oldMsg)
-		//utils.MD5(oldMsg.FaultMsg) != utils.MD5(oldMsg.FaultMsg
 		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
 			db.SQLite.Save(&logMsg)
 			data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
@@ -327,7 +336,106 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			logger.Error("PostLogMsg:%s", res)
 
 			logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+		} else {
+
+			subT := logMsg.UpdateAt.Sub(oldMsg.UpdateAt)
+			if subT.Minutes() > 0 && subT.Minutes() < 15 { // ftp 正常
+				data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
+				res := utils.PostServices("platform/report/device", data)
+				logger.Error("PostLogMsg:%s", res)
+
+				// 大屏
+			} else if subT.Minutes() >= 15 && logMsg.DirName == _NIS.String() {
+				logger.Error("日志记录超时,开始排查错误")
+				webIp := utils.Conf().Section("web").Key("ip").MustString("")
+				webAccount := utils.Conf().Section("web").Key("account").MustString("administrator")
+				webPassword := utils.Conf().Section("web").Key("password").MustString("chindeo888")
+				for _, ip := range strings.Split(webIp, ",") {
+					func(ip string) {
+						if len(ip) > 0 {
+							// tasklist /s \\10.0.0.149 /u administrator  /p chindeo888 | findstr "App"
+							args := []string{"/s", fmt.Sprintf("\\\\%s", ip), "/u", webAccount, "/p", webPassword}
+							cmd := exec.Command("tasklist", args...)
+							stdout, err := cmd.StdoutPipe()
+							if err != nil {
+								logger.Printf("Command 执行出错 %v", err)
+							}
+							defer stdout.Close()
+
+							if err := cmd.Start(); err != nil {
+								logger.Printf("tasklist 执行出错 %v", err)
+							}
+
+							if opBytes, err := ioutil.ReadAll(stdout); err != nil {
+								logger.Printf("ReadAll 执行出错 %v", err)
+							} else {
+								logger.Printf("tasklist couts： %v", string(opBytes))
+								if strings.Count(string(opBytes), "exe") == 0 {
+									logMsg.Status = "设备异常"
+								} else if strings.Count(string(opBytes), "App.exe ") != 4 {
+									logMsg.Status = "程序异常"
+								}
+							}
+						}
+					}(ip)
+				}
+
+				// 安卓设备
+			} else if subT.Minutes() >= 15 && logMsg.DirName == _BIS.String() {
+
+				androidAccount := utils.Conf().Section("android").Key("account").MustString("root")
+				androidPassword := utils.Conf().Section("android").Key("password").MustString("Chindeo")
+				var device models.CfDevice
+				db.SQLite.Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
+				logger.Printf("dev_code %v", device)
+				if len(device.DevIp) > 0 {
+
+					var faultMags []*FaultMsg
+					cli := ssh.New(device.DevIp, androidAccount, androidPassword, 22)
+					if cli != nil {
+
+						shell := fmt.Sprintf("ps -ef")
+						output, err := cli.Run(shell)
+
+						shell = fmt.Sprintf("cd /sdcard/chindeo_app/log/%s && ls", time.Now().Format("2006-01-02"))
+						output, err = cli.Run(shell)
+
+						logFiles := strings.Split(output, "\n")
+						for _, name := range logFiles {
+							shell := fmt.Sprintf("cat /sdcard/chindeo_app/log/%s/%s", time.Now().Format("2006-01-02"), name)
+							text, err := cli.Run(shell)
+							if err != nil {
+								logger.Printf("Command 执行出错 %v", err)
+							}
+
+							faultMsg := new(FaultMsg)
+							faultMsg.Name = name
+							faultMsg.Content = text
+							faultMags = append(faultMags, faultMsg)
+							if faultMags != nil {
+								faultMsgsJson, err := json.Marshal(faultMags)
+								if err != nil {
+									logger.Error(err)
+								}
+
+								logMsg.FaultMsg = string(faultMsgsJson)
+								db.SQLite.Save(&logMsg)
+								data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
+								res := utils.PostServices("platform/report/device", data)
+								logger.Error("PostLogMsg:%s", res)
+							}
+						}
+						if err != nil {
+							logger.Printf("Command 执行出错 %v", err)
+						}
+					}
+
+				}
+
+			}
 		}
+
+		logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 	}
 
 	err = c.ChangeDirToParent()

@@ -27,6 +27,7 @@ require (
 	github.com/snowlyg/GoEasyFfmpeg v0.0.0-20200615003025-3990e484eb0a
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
 	github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf
+	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980 // indirect
 	gopkg.in/bsm/ratelimit.v1 v1.0.0-20160220154919-db14e161995a // indirect
