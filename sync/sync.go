@@ -310,22 +310,20 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		var oldMsg models.LogMsg
 		utils.SQLite.Where("dir_name = ?", logMsg.DirName).
 			Where("device_code = ?", logMsg.DeviceCode).
-			Where("log_at = ?", logMsg.LogAt).
 			Order("created_at desc").
 			First(&oldMsg)
+
+		fmt.Println(fmt.Sprintf("dir_name :%s ,device_code :%s oldMsgid :%d", logMsg.DirName, logMsg.DeviceCode, oldMsg.ID))
+
 		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
 			utils.SQLite.Save(&logMsg)
-
 			sendDevice(logMsg)
-
-			logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+			logger.Printf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 
 		} else {
-
-			subT := logMsg.UpdateAt.Sub(oldMsg.UpdateAt)
+			subT := time.Now().Sub(logMsg.UpdateAt)
 			if subT.Minutes() > 0 && subT.Minutes() < 15 { // ftp 正常
 				sendDevice(logMsg)
-
 				// 大屏
 			} else if subT.Minutes() >= 15 && logMsg.DirName == _NIS.String() {
 				logger.Error("日志记录超时,开始排查错误")
@@ -358,6 +356,8 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 									logMsg.Status = "程序异常"
 								}
 							}
+							sendDevice(logMsg)
+							logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 						}
 					}(ip)
 				}
@@ -369,7 +369,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				androidPassword := utils.Conf().Section("android").Key("password").MustString("Chindeo")
 				var device models.CfDevice
 				utils.SQLite.Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
-				logger.Printf("dev_code %v", device)
+				logger.Printf("dev_code : %s", device.DevIp)
 				if len(device.DevIp) > 0 {
 
 					var faultMags []*FaultMsg
@@ -404,6 +404,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 								utils.SQLite.Save(&logMsg)
 
 								sendDevice(logMsg)
+								logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 							}
 						}
 						if err != nil {
