@@ -18,8 +18,6 @@ LogSync.exe restart
 ```txt
 
 [config]
-;医院编码
-hospital_code=ddyy
 
 ;exts 后缀
 exts=.log,.txt

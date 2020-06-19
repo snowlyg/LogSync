@@ -3,7 +3,6 @@ package sync
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/antlinker/go-mqtt/client"
 	"github.com/jander/golog/logger"
@@ -22,7 +21,6 @@ import (
 //http://fyxt.t.chindeo.com/platform/report/device
 //
 
-//'hospital_code.require'          => '医院编码不能为空！',  string
 //'device_code.require'          => '设备编码不能为空！',  string
 //'fault_msg.require'          => '故障信息不能为空！',  string
 //'create_at.require'          => '创建时间不能为空！' 时间格式
@@ -200,15 +198,6 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 	}
 }
 
-// 获取医院编码
-func getHospitalCode() string {
-	hospitalCode := utils.Conf().Section("config").Key("hospital_code").MustString("")
-	if len(hospitalCode) == 0 {
-		logger.Error(errors.New("医院编码"))
-	}
-	return hospitalCode
-}
-
 // 循环扫描日志目录，最多层级为4层
 func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
@@ -320,16 +309,14 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 		var oldMsg models.LogMsg
 		utils.SQLite.Where("dir_name = ?", logMsg.DirName).
-			Where("hospital_code = ?", logMsg.HospitalCode).
 			Where("device_code = ?", logMsg.DeviceCode).
 			Where("log_at = ?", logMsg.LogAt).
 			Order("created_at desc").
 			First(&oldMsg)
 		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
 			utils.SQLite.Save(&logMsg)
-			data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
-			res := utils.PostServices("platform/report/device", data)
-			logger.Error("PostLogMsg:%s", res)
+
+			sendDevice(logMsg)
 
 			logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 
@@ -337,9 +324,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 			subT := logMsg.UpdateAt.Sub(oldMsg.UpdateAt)
 			if subT.Minutes() > 0 && subT.Minutes() < 15 { // ftp 正常
-				data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
-				res := utils.PostServices("platform/report/device", data)
-				logger.Error("PostLogMsg:%s", res)
+				sendDevice(logMsg)
 
 				// 大屏
 			} else if subT.Minutes() >= 15 && logMsg.DirName == _NIS.String() {
@@ -417,9 +402,8 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 								logMsg.FaultMsg = string(faultMsgsJson)
 								utils.SQLite.Save(&logMsg)
-								data := fmt.Sprintf("dir_name=%s&hospital_code=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.HospitalCode, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
-								res := utils.PostServices("platform/report/device", data)
-								logger.Error("PostLogMsg:%s", res)
+
+								sendDevice(logMsg)
 							}
 						}
 						if err != nil {
@@ -447,6 +431,13 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		logger.Error(err)
 	}
 	//logger.Printf("上级当前路径：%s ,当前层级：%d", cDir, index)
+}
+
+// sendDevice 发送请求
+func sendDevice(logMsg models.LogMsg) {
+	data := fmt.Sprintf("dir_name=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
+	res := utils.PostServices("platform/report/device", data)
+	logger.Error("PostLogMsg:%s", res)
 }
 
 // 进入下级目录
@@ -484,7 +475,6 @@ func SyncDeviceLog() {
 
 	// 扫描日志目录，记录日志信息
 	var logMsg models.LogMsg
-	logMsg.HospitalCode = getHospitalCode()
 	getDirs(c, "/", logMsg, 0)
 
 	if err := c.Quit(); err != nil {
