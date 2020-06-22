@@ -361,9 +361,9 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 								} else if strings.Count(string(opBytes), "App.exe ") != 4 {
 									logMsg.Status = "程序异常"
 								}
+								sendDevice(logMsg)
+								logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 							}
-							sendDevice(logMsg)
-							logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 						}
 					}(ip)
 				}
