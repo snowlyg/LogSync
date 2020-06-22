@@ -32,14 +32,16 @@ type FaultMsg struct {
 }
 
 // bis 床头交互系统
-// nis 护理交互系统
+// nis 护理交互系统，大屏
 // nws 护理工作站
+// webapp 前端产品
 type DirName int
 
 const (
 	_BIS DirName = iota
 	_NIS
 	_NWS
+	_WEBAPP
 )
 
 func (d DirName) String() string {
@@ -50,6 +52,8 @@ func (d DirName) String() string {
 		return "nis"
 	case _NWS:
 		return "nws"
+	case _WEBAPP:
+		return "webapp"
 	}
 
 	return "错误设备类型"
@@ -238,6 +242,8 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				logMsg.DirName = _NIS.String()
 			case _NWS.String():
 				logMsg.DirName = _NWS.String()
+			case _WEBAPP.String():
+				logMsg.DirName = _WEBAPP.String()
 			default:
 				logger.Error("错误设备类型")
 			}
