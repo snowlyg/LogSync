@@ -407,18 +407,23 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 								}
 
 								logMsg.FaultMsg = string(faultMsgsJson)
-								utils.SQLite.Save(&logMsg)
 
-								sendDevice(logMsg)
-								logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 							}
 						}
 						if err != nil {
 							logger.Printf("Command 执行出错 %v", err)
 						}
+						logMsg.Status = "程序异常"
+					} else {
+						logMsg.Status = "设备异常"
 					}
 
 				}
+
+				utils.SQLite.Save(&logMsg)
+
+				sendDevice(logMsg)
+				logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 
 			}
 		}
