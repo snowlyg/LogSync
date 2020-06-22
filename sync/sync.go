@@ -442,7 +442,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 // sendDevice 发送请求
 func sendDevice(logMsg models.LogMsg) {
-	data := fmt.Sprintf("dir_name=%s&device_code=%s&fault_msg=%s&create_at=%s", logMsg.DirName, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt)
+	data := fmt.Sprintf("dir_name=%s&device_code=%s&fault_msg=%s&create_at=%s&stats=%s", logMsg.DirName, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt, logMsg.Status)
 	res := utils.PostServices("platform/report/device", data)
 	logger.Error("PostLogMsg:%s", res)
 }
