@@ -54,3 +54,6 @@ account=root
 password=Chindeo
 
 ```
+
+##### 手动执行
+http://localhost:8001/synclog?sync_log=1

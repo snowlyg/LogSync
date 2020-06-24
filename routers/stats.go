@@ -18,6 +18,7 @@ func SyncLog(c *gin.Context) {
 		go func() {
 			sync.SyncDeviceLog()
 		}()
+
 		c.String(http.StatusOK, "成功执行同步")
 	} else {
 		c.String(http.StatusOK, "参数错误，未执行同步")

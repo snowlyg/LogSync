@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/antlinker/go-mqtt/client"
@@ -21,9 +20,9 @@ import (
 //http://fyxt.t.chindeo.com/platform/report/device
 //
 
-//'device_code.require'          => '设备编码不能为空！',  string
-//'fault_msg.require'          => '故障信息不能为空！',  string
-//'create_at.require'          => '创建时间不能为空！' 时间格式
+//'device_code.require'       => '设备编码不能为空！',  string
+//'fault_msg.require'         => '故障信息不能为空！',  string
+//'create_at.require'         => '创建时间不能为空！' 时间格式
 //'dir_name.require'          => '目录名称' 时间格式
 
 type FaultMsg struct {
@@ -283,8 +282,16 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			//logger.Printf("当前路径4：%s ,当前层级：%d,文件后缀：%v", cDir, index, exts)
 
 			if utils.InStrArray(s.Name, exts) {
-				logMsg.LogAt = s.Time.Format("2006-01-02 15:04:05")
-				logMsg.UpdateAt = s.Time
+				location, err := time.LoadLocation("Local")
+				if err != nil {
+					logger.Println(fmt.Sprintf("时区设置错误 %v", err))
+				}
+				if location == nil {
+					logger.Println(fmt.Sprintf("时区设置后为空"))
+				}
+				s.Time.In(location)
+				logMsg.LogAt = s.Time.In(location).Format("2006-01-02 15:04:05")
+				logMsg.UpdateAt = s.Time.In(location)
 				r, err := c.Retr(s.Name)
 				if err != nil {
 					logger.Error(err)
@@ -344,15 +351,18 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 							cmd := exec.Command("tasklist", args...)
 							stdout, err := cmd.StdoutPipe()
 							if err != nil {
+								logMsg.Status = "设备异常"
 								logger.Printf("Command 执行出错 %v", err)
 							}
 							defer stdout.Close()
 
 							if err := cmd.Start(); err != nil {
+								logMsg.Status = "设备异常"
 								logger.Printf("tasklist 执行出错 %v", err)
 							}
 
 							if opBytes, err := ioutil.ReadAll(stdout); err != nil {
+								logMsg.Status = "设备异常"
 								logger.Printf("ReadAll 执行出错 %v", err)
 							} else {
 								logger.Printf("tasklist couts： %v", string(opBytes))
@@ -377,22 +387,29 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				utils.SQLite.Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
 				logger.Printf("dev_code : %s", device.DevIp)
 				if len(device.DevIp) > 0 {
-
 					var faultMags []*FaultMsg
 					cli := utils.New(device.DevIp, androidAccount, androidPassword, 22)
 					if cli != nil {
-
 						shell := fmt.Sprintf("ps -ef")
 						output, err := cli.Run(shell)
+						if err != nil {
+							logMsg.Status = "设备异常"
+							logger.Error(err)
+						}
 
 						shell = fmt.Sprintf("cd /sdcard/chindeo_app/log/%s && ls", time.Now().Format("2006-01-02"))
 						output, err = cli.Run(shell)
+						if err != nil {
+							logMsg.Status = "设备异常"
+							logger.Error(err)
+						}
 
 						logFiles := strings.Split(output, "\n")
 						for _, name := range logFiles {
 							shell := fmt.Sprintf("cat /sdcard/chindeo_app/log/%s/%s", time.Now().Format("2006-01-02"), name)
 							text, err := cli.Run(shell)
 							if err != nil {
+								logMsg.Status = "设备异常"
 								logger.Printf("Command 执行出错 %v", err)
 							}
 
@@ -407,15 +424,12 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 								}
 
 								logMsg.FaultMsg = string(faultMsgsJson)
-
 							}
 						}
-						if err != nil {
-							logger.Printf("Command 执行出错 %v", err)
-						}
+
 						logMsg.Status = "程序异常"
 					} else {
-						logMsg.Status = "设备异常"
+						logMsg.Status = "设备ip不存在"
 					}
 
 					utils.SQLite.Save(&logMsg)
@@ -474,6 +488,7 @@ func SyncDeviceLog() {
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 
 	// 扫描错误日志，设备监控
+
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(30*time.Second))
 	if err != nil {
 		logger.Println(fmt.Sprintf("ftp 连接错误 %v", err))
@@ -510,8 +525,8 @@ func SyncDeviceLog() {
 		switch server.ServiceName {
 		case "MySQL":
 			func() {
-				conn := fmt.Sprintf("%s:%s@%s:%d/mysql?charset=utf8", server.Account, server.Pwd, server.Ip, server.Port)
-				sqlDb, err := sql.Open("mysql", conn)
+				conn := fmt.Sprintf("%s:%s@%s:%d/mysql?charset=utf8&parseTime=True&loc=Local", server.Account, server.Pwd, server.Ip, server.Port)
+				sqlDb, err := gorm.Open("mysql", conn)
 				if err != nil {
 					logger.Printf("mysql conn error: %v ", err)
 					serverMsg.Status = false
