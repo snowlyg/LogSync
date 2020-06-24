@@ -351,19 +351,28 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 							cmd := exec.Command("tasklist", args...)
 							stdout, err := cmd.StdoutPipe()
 							if err != nil {
-								logMsg.Status = "设备异常"
 								logger.Printf("Command 执行出错 %v", err)
+								logMsg.Status = "设备异常"
+								sendDevice(logMsg)
+								logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+								return
 							}
 							defer stdout.Close()
 
 							if err := cmd.Start(); err != nil {
-								logMsg.Status = "设备异常"
 								logger.Printf("tasklist 执行出错 %v", err)
+								logMsg.Status = "设备异常"
+								sendDevice(logMsg)
+								logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+								return
 							}
 
 							if opBytes, err := ioutil.ReadAll(stdout); err != nil {
-								logMsg.Status = "设备异常"
 								logger.Printf("ReadAll 执行出错 %v", err)
+								logMsg.Status = "设备异常"
+								sendDevice(logMsg)
+								logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+								return
 							} else {
 								logger.Printf("tasklist couts： %v", string(opBytes))
 								if strings.Count(string(opBytes), "exe") == 0 {
@@ -373,6 +382,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 								}
 								sendDevice(logMsg)
 								logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+								return
 							}
 						}
 					}(ip)
@@ -393,15 +403,23 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 						shell := fmt.Sprintf("ps -ef")
 						output, err := cli.Run(shell)
 						if err != nil {
-							logMsg.Status = "设备异常"
 							logger.Error(err)
+							logMsg.Status = "设备异常"
+							utils.SQLite.Save(&logMsg)
+							sendDevice(logMsg)
+							logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+							return
 						}
 
 						shell = fmt.Sprintf("cd /sdcard/chindeo_app/log/%s && ls", time.Now().Format("2006-01-02"))
 						output, err = cli.Run(shell)
 						if err != nil {
-							logMsg.Status = "设备异常"
 							logger.Error(err)
+							logMsg.Status = "设备异常"
+							utils.SQLite.Save(&logMsg)
+							sendDevice(logMsg)
+							logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+							return
 						}
 
 						logFiles := strings.Split(output, "\n")
@@ -409,8 +427,12 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 							shell := fmt.Sprintf("cat /sdcard/chindeo_app/log/%s/%s", time.Now().Format("2006-01-02"), name)
 							text, err := cli.Run(shell)
 							if err != nil {
-								logMsg.Status = "设备异常"
 								logger.Printf("Command 执行出错 %v", err)
+								logMsg.Status = "设备异常"
+								utils.SQLite.Save(&logMsg)
+								sendDevice(logMsg)
+								logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+								return
 							}
 
 							faultMsg := new(FaultMsg)
@@ -427,21 +449,24 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 							}
 						}
 
-						logMsg.Status = "程序异常"
+						if logMsg.FaultMsg != "" {
+							logMsg.Status = "程序异常"
+							utils.SQLite.Save(&logMsg)
+							sendDevice(logMsg)
+							logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+							return
+						}
+
 					} else {
 						logMsg.Status = "设备ip不存在"
+						utils.SQLite.Save(&logMsg)
+						sendDevice(logMsg)
+						logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
+						return
 					}
-
-					utils.SQLite.Save(&logMsg)
-
-					sendDevice(logMsg)
-					logger.Printf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
-
 				}
 			}
 		}
-
-		logger.Printf("%s: 记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 	}
 
 	err = c.ChangeDirToParent()
