@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/snowlyg/LogSync/routers"
-	"github.com/snowlyg/LogSync/sync"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +12,8 @@ import (
 	"github.com/jander/golog/logger"
 	"github.com/kardianos/service"
 	"github.com/snowlyg/LogSync/models"
+	"github.com/snowlyg/LogSync/routers"
+	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
 )
 
@@ -26,14 +26,14 @@ type program struct {
 	httpServer *http.Server
 }
 
-// StartHTTP
 func (p *program) StartHTTP() {
+	port := utils.Conf().Section("http").Key("port").MustInt64(8001)
 	p.httpServer = &http.Server{
-		Addr:              fmt.Sprintf(":%d", 8001),
+		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           routers.Router,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	link := fmt.Sprintf("http://%s:%d", utils.LocalIP(), 8001)
+	link := fmt.Sprintf("http://%s:%d", utils.LocalIP(), port)
 	log.Println("http server start -->", link)
 	go func() {
 		if err := p.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -43,7 +43,6 @@ func (p *program) StartHTTP() {
 	}()
 }
 
-// 启动
 func (p *program) Start(s service.Service) error {
 	go p.run()
 	return nil
@@ -54,7 +53,6 @@ func (p *program) run() {
 	if err != nil {
 		panic(err)
 	}
-	// 初始化路由
 	err = routers.Init()
 	if err != nil {
 		return
@@ -67,18 +65,19 @@ func (p *program) run() {
 }
 
 func syncDevice() {
-	t := utils.Conf().Section("time").Key("sync_data").MustString("h")
+	t := utils.Conf().Section("time").Key("sync_data_time").MustInt64(1)
+	v := utils.Conf().Section("time").Key("sync_data").MustString("h")
 	var chSy chan int
 	var tickerSync *time.Ticker
-	switch t {
+	switch v {
 	case "h":
-		tickerSync = time.NewTicker(time.Hour * 1)
+		tickerSync = time.NewTicker(time.Hour * time.Duration(t))
 	case "m":
-		tickerSync = time.NewTicker(time.Minute * 1)
+		tickerSync = time.NewTicker(time.Minute * time.Duration(t))
 	case "s":
-		tickerSync = time.NewTicker(time.Second * 1)
+		tickerSync = time.NewTicker(time.Second * time.Duration(t))
 	default:
-		tickerSync = time.NewTicker(time.Hour * 1)
+		tickerSync = time.NewTicker(time.Hour * time.Duration(t))
 	}
 	go func() {
 		for range tickerSync.C {
@@ -92,17 +91,21 @@ func syncDevice() {
 
 func syncDeviceLog() {
 	var ch chan int
-	t := utils.Conf().Section("time").Key("sync_log").MustString("m")
+	var t int64
+	t = utils.Conf().Section("time").Key("sync_log_time").MustInt64(4)
+	v := utils.Conf().Section("time").Key("sync_log").MustString("m")
 	var ticker *time.Ticker
-	switch t {
+
+	ticker = time.NewTicker(time.Hour * time.Duration(t))
+	switch v {
 	case "h":
-		ticker = time.NewTicker(time.Hour * 4)
+		ticker = time.NewTicker(time.Hour * time.Duration(t))
 	case "m":
-		ticker = time.NewTicker(time.Minute * 4)
+		ticker = time.NewTicker(time.Minute * time.Duration(t))
 	case "s":
-		ticker = time.NewTicker(time.Second * 4)
+		ticker = time.NewTicker(time.Second * time.Duration(t))
 	default:
-		ticker = time.NewTicker(time.Hour * 4)
+		ticker = time.NewTicker(time.Minute * time.Duration(t))
 	}
 	go func() {
 		for range ticker.C {
