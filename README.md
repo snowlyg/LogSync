@@ -15,10 +15,8 @@ LogSync.exe restart
 
 #### 配置
 
-```txt
-
+```ini
 [config]
-
 ;exts 后缀
 exts=.log,.txt
 
@@ -26,7 +24,7 @@ exts=.log,.txt
 root=log
 
 ;外网服务器配置
-host=fyxt.t.chindeo.com:80
+host=test.ims.com:80
 appid=wxcw846rde12w3fb9p
 appsecret=489r67esrqa341vcnb1m16azfm789nbmnhj8
 
@@ -39,9 +37,11 @@ password=Chindeo
 [time]
 ;h,m,s 对应时分秒
 ;扫描日志
-sync_log=s
+sync_log_time=4
+sync_log=m
 ;同步数据到外网
-sync_data=s
+sync_data_time=1
+sync_data=h
 
 [web]
 ; 大屏ip 多个大屏用 , 分隔
@@ -52,6 +52,9 @@ password=chindeo888
 [android]
 account=root
 password=Chindeo
+
+[http]
+port=8001
 
 ```
 
