@@ -110,6 +110,7 @@ func syncDeviceLog() {
 	go func() {
 		for range ticker.C {
 			sync.SyncDeviceLog()
+			sync.CheckDevice()
 		}
 		ch <- 1
 	}()
