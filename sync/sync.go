@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
+	"time"
 )
 
 func SyncDevice() {
@@ -36,11 +37,21 @@ func SyncDevice() {
 				createDevices(sqlDb)
 				createTelphones(sqlDb)
 				createTelphoneGroups(sqlDb)
+				deleteMsg()
 			}()
 		default:
 			continue
 		}
 	}
+}
+
+// 删除七天前的日志记录
+func deleteMsg() {
+	lastWeek := time.Now().AddDate(0, 0, -7).Format("2006-01-02 15:04:05")
+	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
+	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
+
+	logger.Println("delete logs :%s", lastWeek)
 }
 
 // 同步设备
@@ -75,11 +86,11 @@ func createDevices(sqlDb *gorm.DB) {
 
 			cfDeviceJson, _ := json.Marshal(&cfDevices)
 			data := fmt.Sprintf("data=%s", cfDeviceJson)
-			res := utils.PostServices("platform/report/syncdevice", data)
-			logger.Error("PostDevice:%s", res)
+			res := utils.SyncServices("platform/report/syncdevice", data)
+			logger.Println("PostDevice:%s", res)
 
 		} else {
-			logger.Println("db.SQLite is null")
+			logger.Error("db.SQLite is null")
 		}
 	}
 
@@ -112,10 +123,10 @@ func createTelphones(sqlDb *gorm.DB) {
 
 			telphoneJson, _ := json.Marshal(&telphones)
 			data := fmt.Sprintf("data=%s", telphoneJson)
-			res := utils.PostServices("platform/report/synctel", data)
-			logger.Error("PostTel:%s", res)
+			res := utils.SyncServices("platform/report/synctel", data)
+			logger.Println("PostTel:%s", res)
 		} else {
-			logger.Println("db.SQLite is null")
+			logger.Error("db.SQLite is null")
 		}
 	}
 }
@@ -148,11 +159,11 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 
 			telphoneGroupJson, _ := json.Marshal(&telphoneGroups)
 			data := fmt.Sprintf("data=%s", telphoneGroupJson)
-			res := utils.PostServices("platform/report/synctelgroup", data)
+			res := utils.SyncServices("platform/report/synctelgroup", data)
 
-			logger.Error("PostTelGroup:%s", res)
+			logger.Println("PostTelGroup:%s", res)
 		} else {
-			logger.Println("db.SQLite is null")
+			logger.Error("db.SQLite is null")
 		}
 	}
 }

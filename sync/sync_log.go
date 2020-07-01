@@ -132,11 +132,6 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			}
 
 		case 4:
-
-			if len(ss) == 0 {
-
-			}
-
 			extStr := utils.Conf().Section("config").Key("exts").MustString("")
 			exts := strings.Split(extStr, ",")
 

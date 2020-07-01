@@ -101,6 +101,18 @@ func PostServices(path, data string) interface{} {
 	return re.Message
 }
 
+//http://fyxt.t.chindeo.com/platform/report/device  发送设备日志信息
+//http://fyxt.t.chindeo.com/platform/report/service  提交服务监控信息
+func SyncServices(path, data string) interface{} {
+	var re Req
+	result := DoPOST(path, data)
+	err := json.Unmarshal(result, &re)
+	if err != nil {
+		log.Printf("PostServices json.Unmarshal error：%v", err)
+	}
+	return re.Message
+}
+
 func DoGET(url string) []byte {
 	client, req := getClient("GET", url, "")
 
@@ -138,9 +150,10 @@ func GetToken() string {
 	appsecret := Conf().Section("config").Key("appsecret").MustString("")
 
 	result := DoPOST("platform/application/login", fmt.Sprintf("appid=%s&appsecret=%s&apptype=%s", appid, appsecret, "hospital"))
+
 	err := json.Unmarshal(result, &re)
 	if err != nil {
-		log.Printf("GetToken error：%v", err)
+		log.Printf("GetToken error：%v -result:%v", err, result)
 	}
 
 	if re.Code == 200 {
