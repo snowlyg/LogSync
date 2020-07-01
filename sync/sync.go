@@ -45,9 +45,9 @@ func SyncDevice() {
 	}
 }
 
-// 删除七天前的日志记录
+// 删除3天前的日志记录
 func deleteMsg() {
-	lastWeek := time.Now().AddDate(0, 0, -7).Format("2006-01-02 15:04:05")
+	lastWeek := time.Now().AddDate(0, 0, -3).Format("2006-01-02 15:04:05")
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
 
