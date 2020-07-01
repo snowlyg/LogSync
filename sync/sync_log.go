@@ -60,6 +60,13 @@ func (d DirName) String() string {
 
 // 循环扫描日志目录，最多层级为4层
 func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
+	location, err := time.LoadLocation("Local")
+	if err != nil {
+		logger.Println(fmt.Sprintf("时区设置错误 %v", err))
+	}
+	if location == nil {
+		logger.Println(fmt.Sprintf("时区设置后为空"))
+	}
 
 	var faultMsgs []*FaultMsg
 	ss, err := c.List(path)
@@ -138,14 +145,6 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			//logger.Printf("当前路径4：%s ,当前层级：%d,文件后缀：%v", cDir, index, exts)
 
 			if utils.InStrArray(s.Name, exts) {
-				location, err := time.LoadLocation("Local")
-				if err != nil {
-					logger.Println(fmt.Sprintf("时区设置错误 %v", err))
-				}
-				if location == nil {
-					logger.Println(fmt.Sprintf("时区设置后为空"))
-				}
-				s.Time.In(location)
 				logMsg.LogAt = s.Time.In(location).Format("2006-01-02 15:04:05")
 				logMsg.UpdateAt = s.Time.In(location)
 				r, err := c.Retr(s.Name)
@@ -168,6 +167,12 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		}
 	}
 
+	var oldMsg models.LogMsg
+	utils.SQLite.Where("dir_name = ?", logMsg.DirName).
+		Where("device_code = ?", logMsg.DeviceCode).
+		Order("created_at desc").
+		First(&oldMsg)
+
 	if faultMsgs != nil {
 		faultMsgsJson, err := json.Marshal(faultMsgs)
 		if err != nil {
@@ -175,15 +180,6 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		}
 
 		logMsg.FaultMsg = string(faultMsgsJson)
-
-		var oldMsg models.LogMsg
-		utils.SQLite.Where("dir_name = ?", logMsg.DirName).
-			Where("device_code = ?", logMsg.DeviceCode).
-			Order("created_at desc").
-			First(&oldMsg)
-
-		fmt.Println(fmt.Sprintf("dir_name :%s ,device_code :%s oldMsgid :%d", logMsg.DirName, logMsg.DeviceCode, oldMsg.ID))
-
 		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
 			utils.SQLite.Save(&logMsg)
 			sendDevice(logMsg)
@@ -324,13 +320,13 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				}
 			}
 		}
-	} else {
+	} else if len(logMsg.DeviceCode) > 0 && len(oldMsg.Status) > 0 {
 		logMsg.FaultMsg = ""
 		logMsg.Status = ""
+		logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 		utils.SQLite.Save(&logMsg)
 		sendDevice(logMsg)
 		logger.Printf("设备:%s恢复正常", logMsg.DeviceCode)
-		return
 	}
 
 	err = c.ChangeDirToParent()
@@ -350,7 +346,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 // sendDevice 发送请求
 func sendDevice(logMsg models.LogMsg) {
 	data := fmt.Sprintf("dir_name=%s&device_code=%s&fault_msg=%s&create_at=%s&status=%s", logMsg.DirName, logMsg.DeviceCode, logMsg.FaultMsg, logMsg.LogAt, logMsg.Status)
-	res := utils.PostServices("platform/report/device", data)
+	res := utils.SyncServices("platform/report/device", data)
 	logger.Error("PostLogMsg:%s", res)
 }
 
@@ -579,7 +575,7 @@ func CheckDevice() {
 
 	serverMsgJson, _ := json.Marshal(&serverMsgs)
 	data := fmt.Sprintf("fault_data=%s", string(serverMsgJson))
-	res := utils.PostServices("platform/report/service", data)
+	res := utils.SyncServices("platform/report/service", data)
 
 	logger.Printf("推送返回信息: %v", res)
 	logger.Printf("服务监控推送完成")

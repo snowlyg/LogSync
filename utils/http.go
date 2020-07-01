@@ -91,18 +91,6 @@ func GetServices() []*Server {
 
 //http://fyxt.t.chindeo.com/platform/report/device  发送设备日志信息
 //http://fyxt.t.chindeo.com/platform/report/service  提交服务监控信息
-func PostServices(path, data string) interface{} {
-	var re getServer
-	result := DoPOST(path, data)
-	err := json.Unmarshal(result, &re)
-	if err != nil {
-		log.Printf("PostServices json.Unmarshal error：%v", err)
-	}
-	return re.Message
-}
-
-//http://fyxt.t.chindeo.com/platform/report/device  发送设备日志信息
-//http://fyxt.t.chindeo.com/platform/report/service  提交服务监控信息
 func SyncServices(path, data string) interface{} {
 	var re Req
 	result := DoPOST(path, data)
