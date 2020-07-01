@@ -133,6 +133,10 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 		case 4:
 
+			if len(ss) == 0 {
+
+			}
+
 			extStr := utils.Conf().Section("config").Key("exts").MustString("")
 			exts := strings.Split(extStr, ",")
 
@@ -237,6 +241,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 								} else if strings.Count(string(opBytes), "App.exe ") != 4 {
 									logMsg.Status = "程序异常"
 								}
+								logMsg.FaultMsg = string(opBytes)
 								sendDevice(logMsg)
 								logger.Printf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode)
 								return
@@ -324,6 +329,13 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				}
 			}
 		}
+	} else {
+		logMsg.FaultMsg = ""
+		logMsg.Status = ""
+		utils.SQLite.Save(&logMsg)
+		sendDevice(logMsg)
+		logger.Printf("设备:%s恢复正常", logMsg.DeviceCode)
+		return
 	}
 
 	err = c.ChangeDirToParent()
