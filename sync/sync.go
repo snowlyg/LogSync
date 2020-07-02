@@ -16,11 +16,15 @@ func SyncDevice() {
 	// http://fyxt.t.chindeo.com/platform/report/synctelgroup   同步通讯录组 post
 	// http://fyxt.t.chindeo.com/platform/report/synctel  同步通讯录 post
 	serverList := utils.GetServices()
+	account := utils.Conf().Section("mysql").Key("username").MustString("visible")
+	pwd := utils.Conf().Section("mysql").Key("username").MustString("Chindeo")
 	for _, server := range serverList {
 		switch server.ServiceName {
 		case "MySQL":
 			func() {
-				conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", server.Account, server.Pwd, server.Ip, server.Port, "dois")
+				//account := server.Account
+				//pwd := server.Pwd
+				conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", account, pwd, server.Ip, server.Port, "dois")
 				sqlDb, err := gorm.Open("mysql", conn)
 				if err != nil {
 					logger.Printf("mysql conn error: %v ", err)
