@@ -393,6 +393,7 @@ func SyncDeviceLog() {
 	}
 }
 
+// 监控设备，扫描设备日志，并提交到监控系统
 func CheckDevice() {
 	// 监控服务
 	// platform_service_id ，service_type_id，create_at，fault_msg
