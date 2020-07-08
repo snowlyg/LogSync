@@ -86,7 +86,8 @@ func Init() (err error) {
 	Router.Use(Errors())
 	Router.Use(cors.Default())
 
-	_ = Router.GET("/synclog", SyncLog)
+	_ = Router.GET("/sync_device_log", SyncLog)
+	_ = Router.GET("/sync_log", SyncDeviceLog)
 
 	return
 }

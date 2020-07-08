@@ -1,6 +1,9 @@
 [config]
-;exts 后缀
+;exts 文件后缀
 exts=.log,.txt
+
+;img_exts 图片后缀
+img_exts=.png,.jpg,.JPEG,.bmp
 
 ;根目录名称，默认 log
 root=log

@@ -59,7 +59,8 @@ port=8001
 ```
 
 ##### 手动执行
-http://localhost:8001/synclog?sync_log=1
+http://localhost:8001/sync_log?sync_log=1 // 通讯录，设备
+http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 
 #### 问题
 ```text
