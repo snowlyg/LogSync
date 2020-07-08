@@ -224,7 +224,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 // 日志超时未上传
 func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 	if logMsg.DirName == _NIS.String() { // 大屏
-		logger.Error("日志记录超时,开始排查错误")
+		logger.Printf("日志记录超时,开始排查错误")
 		webIp := utils.Conf().Section("web").Key("ip").MustString("")
 		webAccount := utils.Conf().Section("web").Key("account").MustString("administrator")
 		webPassword := utils.Conf().Section("web").Key("password").MustString("chindeo888")
