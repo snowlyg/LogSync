@@ -109,8 +109,8 @@ func syncDeviceLog() {
 	}
 	go func() {
 		for range ticker.C {
-			sync.SyncDeviceLog()
 			sync.CheckDevice()
+			sync.SyncDeviceLog()
 		}
 		ch <- 1
 	}()

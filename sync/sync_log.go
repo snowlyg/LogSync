@@ -392,7 +392,7 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 				logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备连接不上"
 				if len(logMsg.FaultMsg) == 0 {
-					logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+					logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备连接不上"
 				}
 				utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 				sendDevice(logMsg)
@@ -403,16 +403,14 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 			logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 			logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备ip不存在"
 			if len(logMsg.FaultMsg) == 0 {
-				logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+				logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备ip不存在"
 			}
 			utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 			sendDevice(logMsg)
 			logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
 			return
 		}
-
 	}
-
 }
 
 // 获取文件内容
@@ -459,6 +457,7 @@ func SyncDeviceLog() {
 	defer logger.Println("日志监控结束")
 	defer logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", LogCount, DeviceCodes))
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
+
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 
@@ -512,10 +511,11 @@ func CheckDevice() {
 					serverMsg.Status = false
 					serverMsg.FaultMsg = err.Error()
 				} else {
+					defer sqlDb.Close()
 					logger.Println("MYSQL 连接成功")
 					serverMsg.Status = true
 				}
-				defer sqlDb.Close()
+
 			}()
 			setServiceCountAndNames(server)
 		case "EMQX":
@@ -546,14 +546,12 @@ func CheckDevice() {
 							serverMsg.FaultMsg = err.Error()
 							logger.Printf("MQTT 连接出错: %v ", err)
 						} else {
+							defer mqttClient.Disconnect()
 							serverMsg.Status = true
 							logger.Println("MQTT 连接成功")
 						}
 					}
 				}
-
-				//断开连接
-				defer mqttClient.Disconnect()
 
 			}()
 			setServiceCountAndNames(server)
@@ -576,11 +574,12 @@ func CheckDevice() {
 						serverMsg.FaultMsg = "连接失败"
 						logger.Printf("RabbitMq 连接失败: 连接失败 ")
 					} else {
+						defer rabbitmq.Destory()
 						serverMsg.Status = true
 						logger.Println("RabbitMq 连接成功")
 					}
 				}
-				defer rabbitmq.Destory()
+
 			}()
 			setServiceCountAndNames(server)
 		case "FileZilla Server":
@@ -602,12 +601,13 @@ func CheckDevice() {
 							serverMsg.FaultMsg = err.Error()
 							logger.Printf("FTP 连接错误: %v ", err)
 						} else {
+							defer c.Quit()
 							serverMsg.Status = true
 							logger.Println("FTP 连接成功")
 						}
 					}
 				}
-				defer c.Quit()
+
 			}()
 			setServiceCountAndNames(server)
 		default:
@@ -623,13 +623,11 @@ func CheckDevice() {
 						serverMsg.FaultMsg = "连接失败"
 						logger.Printf("%s 连接失败", server.ServiceName)
 					} else {
+						defer conn.Close()
 						serverMsg.Status = true
 						logger.Printf("%s conn success", server.ServiceName)
 					}
-
 				}
-				defer conn.Close()
-
 			}()
 			setServiceCountAndNames(server)
 		}
