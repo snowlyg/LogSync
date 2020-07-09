@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 )
 
 type getToken struct {
@@ -98,7 +100,7 @@ func SyncServices(path, data string) interface{} {
 	if err != nil {
 		log.Printf("PostServices json.Unmarshal error：%v", err)
 	}
-	return re.Message
+	return re
 }
 
 func DoGET(url string) []byte {
@@ -132,22 +134,28 @@ func DoGET(url string) []byte {
 //http://fyxt.t.chindeo.com/platform/application/login
 //http://fyxt.t.chindeo.com/platform/report/device
 func GetToken() string {
-	var re getToken
 
+	c := cache.New(1*time.Hour, 2*time.Hour)
+	foo, found := c.Get("XToken")
+	if found {
+		return foo.(string)
+	}
+
+	var re getToken
 	appid := Conf().Section("config").Key("appid").MustString("")
 	appsecret := Conf().Section("config").Key("appsecret").MustString("")
-
 	result := DoPOST("platform/application/login", fmt.Sprintf("appid=%s&appsecret=%s&apptype=%s", appid, appsecret, "hospital"))
-
 	err := json.Unmarshal(result, &re)
 	if err != nil {
 		log.Printf("GetToken error：%v -result:%v", err, result)
 	}
 
 	if re.Code == 200 {
+		c.Set("XToken", re.Data.XToken, cache.DefaultExpiration)
 		return re.Data.XToken
 	} else {
-		return re.Message
+		log.Println(fmt.Printf("token 为空"))
+		return ""
 	}
 }
 

@@ -91,6 +91,8 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 			extStr := utils.Conf().Section("config").Key("root").MustString("log")
 			if s.Name == extStr {
 				Next(c, s.Name, logMsg, index)
+			} else {
+				continue
 			}
 
 		case 1:
@@ -106,7 +108,6 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 				logMsg.DirName = _WEBAPP.String()
 			default:
 				logger.Println(fmt.Sprintf("错误设备类型：%v", s.Name))
-				continue
 			}
 
 			Next(c, s.Name, logMsg, index)
@@ -119,12 +120,11 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		case 3:
 			if s.Name == time.Now().Format("2006-01-02") {
 				Next(c, s.Name, logMsg, index)
-
 			} else if mun == len(ss)-1 { // 没有当天日志
 				logMsg.FaultMsg = "没有当天日志"
-				go checkLogOverFive(logMsg, location)
+				//checkLogOverFive(logMsg, location)
 			}
-
+			continue
 		case 4:
 			// 文件后缀
 			extStr := utils.Conf().Section("config").Key("exts").MustString("")
@@ -147,6 +147,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 		default:
 			logger.Println(fmt.Sprintf("进入错误层级：%v", s.Name))
+			continue
 		}
 	}
 
@@ -174,7 +175,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 	} else if len(logMsg.DeviceCode) > 0 { //没有日志异常
 		subT := time.Now().Sub(oldMsg.UpdateAt)
 		if subT.Minutes() >= 15 {
-			go checkLogOverFive(logMsg, location) // 日志超时
+			checkLogOverFive(logMsg, location) // 日志超时
 		}
 
 		//logMsg.FaultMsg = "没有当天日志"
@@ -208,14 +209,46 @@ func getCurrentDir(c *ftp.ServerConn) {
 
 // 日志超时未上传
 func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
+	logger.Println(fmt.Sprintf(">>> 日志记录超时,开始排查错误"))
+	defer logger.Println(fmt.Sprintf(" "))
+	defer logger.Println(fmt.Sprintf("日志记录超时,排查错误完成"))
 	if logMsg.DirName == _NIS.String() { // 大屏
-		logger.Println(fmt.Sprintf("日志记录超时,开始排查错误"))
+		logger.Println(fmt.Sprintf(">>> 开始排查大屏"))
+		defer logger.Println(fmt.Sprintf(" "))
+		defer logger.Println(fmt.Sprintf(">>> 大屏排查结束"))
 		webIp := utils.Conf().Section("web").Key("ip").MustString("")
 		webAccount := utils.Conf().Section("web").Key("account").MustString("administrator")
 		webPassword := utils.Conf().Section("web").Key("password").MustString("chindeo888")
 		for _, ip := range strings.Split(webIp, ",") {
 			func(ip string) {
-				if len(ip) > 0 {
+				if len(strings.TrimSpace(ip)) > 0 {
+
+					conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ip, 80))
+					if err != nil {
+						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
+						if len(logMsg.FaultMsg) == 0 {
+							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						}
+						logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
+						sendDevice(logMsg)
+						logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+						return
+					} else {
+						if conn == nil {
+							logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
+							if len(logMsg.FaultMsg) == 0 {
+								logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							}
+							logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
+							sendDevice(logMsg)
+							logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+							return
+						}
+					}
+					defer conn.Close()
+
 					// tasklist /s \\10.0.0.149 /u administrator  /p chindeo888 | findstr "App"
 					args := []string{"/s", fmt.Sprintf("\\\\%s", ip), "/u", webAccount, "/p", webPassword}
 					cmd := exec.Command("tasklist", args...)
@@ -223,6 +256,9 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 					if err != nil {
 						logger.Println(fmt.Sprintf("Command 执行出错 %v", err))
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
+						if len(logMsg.FaultMsg) == 0 {
+							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						}
 						logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
 						utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 						sendDevice(logMsg)
@@ -233,6 +269,9 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 
 					if err := cmd.Start(); err != nil {
 						logger.Println(fmt.Sprintf("tasklist 执行出错 %v", err))
+						if len(logMsg.FaultMsg) == 0 {
+							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						}
 						logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 						utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
@@ -243,6 +282,9 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 
 					if opBytes, err := ioutil.ReadAll(stdout); err != nil {
 						logger.Println(fmt.Sprintf("ReadAll 执行出错 %v", err))
+						if len(logMsg.FaultMsg) == 0 {
+							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						}
 						logMsg.Status = "设备异常"
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 						utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
@@ -258,6 +300,9 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 							logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:程序未启动"
 						}
 						logMsg.FaultMsg = string(opBytes)
+						if len(logMsg.FaultMsg) == 0 {
+							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						}
 						utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 						sendDevice(logMsg)
 						logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
@@ -269,13 +314,15 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 
 		// 安卓设备
 	} else if logMsg.DirName == _BIS.String() {
-
+		logger.Println(fmt.Sprintf(">>> 开始排查安卓设备"))
+		defer logger.Println(fmt.Sprintf(" "))
+		defer logger.Println(fmt.Sprintf(">>> 安卓设备排查结束"))
 		androidAccount := utils.Conf().Section("android").Key("account").MustString("root")
 		androidPassword := utils.Conf().Section("android").Key("password").MustString("Chindeo")
 		var device models.CfDevice
 		utils.SQLite.Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
-		logger.Println(fmt.Sprintf("dev_id : %s /dev_code : %s", device.DevIp, logMsg.DeviceCode))
-		if len(device.DevIp) > 0 {
+		if len(strings.TrimSpace(device.DevIp)) > 0 {
+			logger.Println(fmt.Sprintf("dev_id : %s /dev_code : %s", device.DevIp, logMsg.DeviceCode))
 			var faultMags []*FaultMsg
 			cli := utils.New(device.DevIp, androidAccount, androidPassword, 22)
 			if cli != nil {
@@ -285,9 +332,13 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 					logger.Println(fmt.Sprintf(" cli.Run 错误 %s ", err))
 					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 					logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+					if len(logMsg.FaultMsg) == 0 {
+						logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+					}
 					utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 					sendDevice(logMsg)
 					logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+					return
 				}
 
 				shell = fmt.Sprintf("cd /sdcard/chindeo_app/log/%s && ls", time.Now().Format("2006-01-02"))
@@ -296,9 +347,13 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 					logger.Println(fmt.Sprintf(" cli.Run 错误 %s ", err))
 					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 					logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+					if len(logMsg.FaultMsg) == 0 {
+						logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+					}
 					utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 					sendDevice(logMsg)
 					logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+					return
 				}
 
 				logFiles := strings.Split(output, "\n")
@@ -330,23 +385,34 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 					utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 					sendDevice(logMsg)
 					logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+					return
 				}
 
 			} else {
 				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 				logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备连接不上"
+				if len(logMsg.FaultMsg) == 0 {
+					logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+				}
 				utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 				sendDevice(logMsg)
 				logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+				return
 			}
 		} else {
 			logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 			logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备ip不存在"
+			if len(logMsg.FaultMsg) == 0 {
+				logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+			}
 			utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 			sendDevice(logMsg)
 			logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+			return
 		}
+
 	}
+
 }
 
 // 获取文件内容
@@ -388,7 +454,10 @@ func Next(c *ftp.ServerConn, name string, logMsg models.LogMsg, index int) {
 
 // 扫描设备日志
 func SyncDeviceLog() {
+	logger.Println("<========================>")
 	logger.Println("日志监控开始")
+	defer logger.Println("日志监控结束")
+	defer logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", LogCount, DeviceCodes))
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
@@ -412,8 +481,6 @@ func SyncDeviceLog() {
 		logger.Println(fmt.Sprintf("ftp 退出错误：%v", err))
 	}
 
-	logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", LogCount, DeviceCodes))
-	logger.Println("日志监控结束")
 }
 
 // 监控服务

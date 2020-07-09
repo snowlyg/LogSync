@@ -12,7 +12,6 @@ require (
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/garyburd/redigo v1.6.0 // indirect
 	github.com/gin-contrib/pprof v1.3.0
-	github.com/gin-contrib/static v0.0.0-20191128031702-f81c604d8ac2
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ini/ini v1.57.0
 	github.com/go-sql-driver/mysql v1.4.1
@@ -23,6 +22,7 @@ require (
 	github.com/kavu/go_reuseport v1.5.0 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.3.0+incompatible
 	github.com/onsi/ginkgo v1.12.3 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/penggy/cors v0.0.0-20180918145040-d08bb28f7e48
 	github.com/snowlyg/GoEasyFfmpeg v0.0.0-20200615003025-3990e484eb0a
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
