@@ -84,7 +84,7 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 	getCurrentDir(c)
 
-	for mun, s := range ss {
+	for _, s := range ss {
 		// 设备规则
 		switch index {
 		case 0:
