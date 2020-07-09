@@ -22,8 +22,6 @@ func SyncDevice() {
 		switch server.ServiceName {
 		case "MySQL":
 			func() {
-				//account := server.Account
-				//pwd := server.Pwd
 				conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", account, pwd, server.Ip, server.Port, "dois")
 				sqlDb, err := gorm.Open("mysql", conn)
 				if err != nil {
@@ -55,7 +53,7 @@ func deleteMsg() {
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
 
-	logger.Println("delete logs :%s", lastWeek)
+	logger.Println("删除3天前数据库日志记录 :%s", lastWeek)
 }
 
 // 同步设备
@@ -91,7 +89,7 @@ func createDevices(sqlDb *gorm.DB) {
 			cfDeviceJson, _ := json.Marshal(&cfDevices)
 			data := fmt.Sprintf("data=%s", cfDeviceJson)
 			res := utils.SyncServices("platform/report/syncdevice", data)
-			logger.Println("PostDevice:%s", res)
+			logger.Println("数据提交返回信息:%v", res)
 
 		} else {
 			logger.Error("db.SQLite is null")
@@ -128,7 +126,7 @@ func createTelphones(sqlDb *gorm.DB) {
 			telphoneJson, _ := json.Marshal(&telphones)
 			data := fmt.Sprintf("data=%s", telphoneJson)
 			res := utils.SyncServices("platform/report/synctel", data)
-			logger.Println("PostTel:%s", res)
+			logger.Println("同步通讯录返回数据:%s", res)
 		} else {
 			logger.Error("db.SQLite is null")
 		}
@@ -165,7 +163,7 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 			data := fmt.Sprintf("data=%s", telphoneGroupJson)
 			res := utils.SyncServices("platform/report/synctelgroup", data)
 
-			logger.Println("PostTelGroup:%s", res)
+			logger.Println("同步通讯录组返回数据:%s", res)
 		} else {
 			logger.Error("db.SQLite is null")
 		}
