@@ -120,10 +120,8 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		case 3:
 			if s.Name == time.Now().Format("2006-01-02") {
 				Next(c, s.Name, logMsg, index)
-			} else if mun == len(ss)-1 { // 没有当天日志
-				logMsg.FaultMsg = "没有当天日志"
-				//checkLogOverFive(logMsg, location)
 			}
+
 			continue
 		case 4:
 			// 文件后缀
@@ -164,29 +162,38 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		}
 
 		logMsg.FaultMsg = string(faultMsgsJson)
-		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
-			utils.SQLite.Save(&logMsg)
-			sendDevice(logMsg)
-			logger.Println(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+
+		if len(logMsg.DeviceCode) > 0 { //没有日志异常
+			subT := time.Now().Sub(oldMsg.UpdateAt)
+			if subT.Minutes() >= 15 {
+				checkLogOverFive(logMsg, location) // 日志超时
+			}
 		} else {
-			utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg})
+
+			if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
+				utils.SQLite.Save(&logMsg)
+				sendDevice(logMsg)
+				logger.Println(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+			} else {
+				utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg})
+				sendDevice(logMsg)
+			}
+		}
+
+	} else {
+		if len(logMsg.DeviceCode) > 0 { //没有日志异常
+			subT := time.Now().Sub(oldMsg.UpdateAt)
+			if subT.Minutes() >= 15 {
+				checkLogOverFive(logMsg, location) // 日志超时
+			}
+			logMsg.FaultMsg = "设备今日没有上传日志文件"
+			logMsg.Status = "设备今日没有上传日志文件"
+			logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
+			logMsg.UpdateAt = time.Now().In(location)
+			utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 			sendDevice(logMsg)
+			logger.Printf("设备:%s恢复正常", logMsg.DeviceCode)
 		}
-	} else if len(logMsg.DeviceCode) > 0 { //没有日志异常
-		subT := time.Now().Sub(oldMsg.UpdateAt)
-		if subT.Minutes() >= 15 {
-			checkLogOverFive(logMsg, location) // 日志超时
-		}
-
-		//logMsg.FaultMsg = "没有当天日志"
-		//go checkLogOverFive(logMsg, location) // 日志超时
-
-		//logMsg.FaultMsg = "设备今日没有上传日志文件"
-		//logMsg.Status = "设备今日没有上传日志文件"
-		//logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-		//utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
-		//sendDevice(logMsg)
-		//logger.Printf("设备:%s恢复正常", logMsg.DeviceCode)
 	}
 
 	err = c.ChangeDirToParent()
