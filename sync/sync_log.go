@@ -69,13 +69,17 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			path := fmt.Sprintf("img/%s.png", logMsg.DeviceCode)
 			newPath := fmt.Sprintf("img/%s_%s.png", logMsg.DeviceCode, "new")
 			imgContent := getFileContent(c, s.Name)
-			if len(imgContent) > 0 {
-				utils.Create(path, imgContent)
-				utils.ResizePng(path, newPath)
-
-				if file, err := utils.OpenFile(newPath); err == nil {
-					logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
+			isResizeImg := utils.Conf().Section("config").Key("is_resize_img").MustBool(false)
+			if isResizeImg {
+				if len(imgContent) > 0 {
+					utils.Create(path, imgContent)
+					utils.ResizePng(path, newPath)
+					if file, err := utils.OpenFile(newPath); err == nil {
+						logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
+					}
 				}
+			} else {
+				logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(imgContent)
 			}
 
 			// 删除文件

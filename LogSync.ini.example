@@ -16,6 +16,9 @@ host=test.ims.com:80
 appid=wxcw846rde12w3fb9p
 appsecret=489r67esrqa341vcnb1m16azfm789nbmnhj8
 
+; 压缩截图
+is_resize_img=false
+
 [ftp]
 ;ftp 服务器ip,账号，密码
 ip=10.0.0.23
