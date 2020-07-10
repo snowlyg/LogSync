@@ -1,4 +1,7 @@
 [config]
+;dirs 设备类型
+dirs=bis,nis,nws,webapp
+
 ;exts 文件后缀
 exts=.log,.txt
 
