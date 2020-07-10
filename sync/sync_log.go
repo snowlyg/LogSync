@@ -37,10 +37,10 @@ type FaultMsg struct {
 	Content string
 }
 
-// bis 床头交互系统
-// nis 护理交互系统，大屏
-// nws 护理工作站
-// webapp 前端产品
+// bis 床旁
+// nis 护理白板
+// nws 护士站主机
+// webapp 门旁
 type DirName int
 
 const (
@@ -182,17 +182,12 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 
 	} else {
 		if len(logMsg.DeviceCode) > 0 { //没有日志异常
-			subT := time.Now().Sub(oldMsg.UpdateAt)
-			if subT.Minutes() >= 15 {
-				checkLogOverFive(logMsg, location) // 日志超时
-			}
 			logMsg.FaultMsg = "设备今日没有上传日志文件"
 			logMsg.Status = "设备今日没有上传日志文件"
 			logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 			logMsg.UpdateAt = time.Now().In(location)
 			utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status})
 			sendDevice(logMsg)
-			logger.Printf("设备:%s恢复正常", logMsg.DeviceCode)
 		}
 	}
 
