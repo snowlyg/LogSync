@@ -37,36 +37,8 @@ type FaultMsg struct {
 	Content string
 }
 
-// bis 床旁
-// nis 护理白板
-// nws 护士站主机
-// webapp 门旁
-type DirName int
-
-const (
-	_BIS DirName = iota
-	_NIS
-	_NWS
-	_WEBAPP
-)
-
-func (d DirName) String() string {
-	switch d {
-	case _BIS:
-		return "bis"
-	case _NIS:
-		return "nis"
-	case _NWS:
-		return "nws"
-	case _WEBAPP:
-		return "webapp"
-	}
-
-	return "错误设备类型"
-}
-
 // 循环扫描日志目录，最多层级为4层
-func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
+func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 
 	var faultMsgs []*FaultMsg
 	location, err := time.LoadLocation("Local")
@@ -77,76 +49,31 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		logger.Println(fmt.Sprintf("时区设置为空"))
 	}
 
-	ss, err := c.List(path)
+	ss, err := c.List(getCurrentDir(c))
 	if err != nil {
-		logger.Println(fmt.Sprintf("获取文件/文件夹列表出错：%v", err))
+		logger.Println(fmt.Sprintf("%s 获取文件/文件夹列表出错：%v", getCurrentDir(c), err))
 	}
 
-	getCurrentDir(c)
-
 	for _, s := range ss {
-		// 设备规则
-		switch index {
-		case 0:
-			extStr := utils.Conf().Section("config").Key("root").MustString("log")
-			if s.Name == extStr {
-				Next(c, s.Name, logMsg, index)
-			} else {
-				continue
-			}
+		// 文件后缀
+		extStr := utils.Conf().Section("config").Key("exts").MustString("")
+		exts := strings.Split(extStr, ",")
+		// 图片后缀
+		imgExtStr := utils.Conf().Section("config").Key("img_exts").MustString("")
+		imgExts := strings.Split(imgExtStr, ",")
 
-		case 1:
-			// 设备类型
-			switch s.Name {
-			case _BIS.String():
-				logMsg.DirName = _BIS.String()
-			case _NIS.String():
-				logMsg.DirName = _NIS.String()
-			case _NWS.String():
-				logMsg.DirName = _NWS.String()
-			case _WEBAPP.String():
-				logMsg.DirName = _WEBAPP.String()
-			default:
-				logger.Println(fmt.Sprintf("错误设备类型：%v", s.Name))
-			}
-
-			Next(c, s.Name, logMsg, index)
-		case 2:
-			// 设备编码
-			logMsg.DeviceCode = s.Name
-			Next(c, s.Name, logMsg, index)
-			LogCount++
-			DeviceCodes = append(DeviceCodes, s.Name)
-		case 3:
-			if s.Name == time.Now().Format("2006-01-02") {
-				Next(c, s.Name, logMsg, index)
-			}
-
-			continue
-		case 4:
-			// 文件后缀
-			extStr := utils.Conf().Section("config").Key("exts").MustString("")
-			exts := strings.Split(extStr, ",")
-			// 图片后缀
-			imgExtStr := utils.Conf().Section("config").Key("img_exts").MustString("")
-			imgExts := strings.Split(imgExtStr, ",")
-
-			// 文件修改时间时区调整
-			logMsg.LogAt = s.Time.In(location).Format("2006-01-02 15:04:05")
-			logMsg.UpdateAt = s.Time.In(location)
-			if utils.InStrArray(s.Name, exts) { // 设备日志文件
-				faultMsg := new(FaultMsg)
-				faultMsg.Name = s.Name
-				faultMsg.Content = string(getFileContent(c, s.Name))
-				faultMsgs = append(faultMsgs, faultMsg)
-			} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
-				logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(getFileContent(c, s.Name))
-			}
-
-		default:
-			logger.Println(fmt.Sprintf("进入错误层级：%v", s.Name))
-			continue
+		// 文件修改时间时区调整
+		logMsg.LogAt = s.Time.In(location).Format("2006-01-02 15:04:05")
+		logMsg.UpdateAt = s.Time.In(location)
+		if utils.InStrArray(s.Name, exts) { // 设备日志文件
+			faultMsg := new(FaultMsg)
+			faultMsg.Name = s.Name
+			faultMsg.Content = string(getFileContent(c, s.Name))
+			faultMsgs = append(faultMsgs, faultMsg)
+		} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
+			logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(getFileContent(c, s.Name))
 		}
+
 	}
 
 	var oldMsg models.LogMsg
@@ -162,18 +89,14 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		}
 
 		logMsg.FaultMsg = string(faultMsgsJson)
-
-		if len(logMsg.DeviceCode) > 0 { //没有日志异常
+		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
+			utils.SQLite.Save(&logMsg)
+			sendDevice(logMsg)
+			logger.Println(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+		} else {
 			subT := time.Now().Sub(oldMsg.UpdateAt)
 			if subT.Minutes() >= 15 {
 				checkLogOverFive(logMsg, location) // 日志超时
-			}
-		} else {
-
-			if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
-				utils.SQLite.Save(&logMsg)
-				sendDevice(logMsg)
-				logger.Println(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
 			} else {
 				utils.SQLite.Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg})
 				sendDevice(logMsg)
@@ -191,22 +114,17 @@ func getDirs(c *ftp.ServerConn, path string, logMsg models.LogMsg, index int) {
 		}
 	}
 
-	err = c.ChangeDirToParent()
-	if err != nil && !strings.Contains(err.Error(), "200 CDUP successful") {
-		logger.Println(fmt.Sprintf("返回上级目录出错 ：%v", err))
-	}
-
-	index--
 }
 
 // 当前路径
-func getCurrentDir(c *ftp.ServerConn) {
+func getCurrentDir(c *ftp.ServerConn) string {
 	dir, err := c.CurrentDir()
 	if err != nil {
 		logger.Println(fmt.Sprintf("获取当前文件夹出错：%v", err))
+		return ""
 	}
-
 	logger.Println(fmt.Sprintf("当前路径 >>> %v", dir))
+	return dir
 }
 
 // 日志超时未上传
@@ -214,7 +132,7 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 	logger.Println(fmt.Sprintf(">>> 日志记录超时,开始排查错误"))
 	defer logger.Println(fmt.Sprintf(" "))
 	defer logger.Println(fmt.Sprintf("日志记录超时,排查错误完成"))
-	if logMsg.DirName == _NIS.String() { // 大屏
+	if logMsg.DirName == utils.NIS.String() { // 大屏
 		logger.Println(fmt.Sprintf(">>> 开始排查大屏"))
 		defer logger.Println(fmt.Sprintf(" "))
 		defer logger.Println(fmt.Sprintf(">>> 大屏排查结束"))
@@ -315,7 +233,7 @@ func checkLogOverFive(logMsg models.LogMsg, location *time.Location) {
 		}
 
 		// 安卓设备
-	} else if logMsg.DirName == _BIS.String() {
+	} else if logMsg.DirName == utils.BIS.String() {
 		logger.Println(fmt.Sprintf(">>> 开始排查安卓设备"))
 		defer logger.Println(fmt.Sprintf(" "))
 		defer logger.Println(fmt.Sprintf(">>> 安卓设备排查结束"))
@@ -438,20 +356,6 @@ func sendDevice(logMsg models.LogMsg) {
 	logger.Println(fmt.Sprintf("提交日志信息返回数据 :%v", res))
 }
 
-// 进入下级目录
-func Next(c *ftp.ServerConn, name string, logMsg models.LogMsg, index int) {
-	if !strings.Contains(name, ".") {
-		err := c.ChangeDir(name)
-		if err != nil {
-			logger.Println(fmt.Sprintf("进入下级目录出错：%v", err))
-		}
-
-		index++
-
-		getDirs(c, ".", logMsg, index)
-	}
-}
-
 // 扫描设备日志
 func SyncDeviceLog() {
 	logger.Println("<========================>")
@@ -460,9 +364,11 @@ func SyncDeviceLog() {
 	defer logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", LogCount, DeviceCodes))
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
 
+	LogCount = 0
+	DeviceCodes = nil
+
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
-
 	// 扫描错误日志，设备监控
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(30*time.Second))
 	if err != nil {
@@ -474,14 +380,79 @@ func SyncDeviceLog() {
 		logger.Println(fmt.Sprintf("ftp 登录错误 %v", err))
 	}
 
-	// 扫描日志目录，记录日志信息
-	var logMsg models.LogMsg
-	getDirs(c, "/", logMsg, 0)
+	root := utils.Conf().Section("config").Key("root").MustString("log")
+	err = cmdDir(c, root)
+	if err != nil {
+		return
+	}
+
+	devices := utils.GetDevices()
+	if len(devices) > 0 {
+		for _, device := range devices {
+
+			LogCount++
+			DeviceCodes = append(DeviceCodes, device.DeviceCode)
+
+			logger.Println(fmt.Sprintf("当前设备 >>> %v：%v", device.DeviceTypeId, device.DeviceCode))
+			deviceDir := getDeviceDir(device.DeviceTypeId)
+			if deviceDir == "" {
+				continue
+			}
+			err = cmdDir(c, deviceDir)
+			if err != nil {
+				continue
+			}
+			err = cmdDir(c, device.DeviceCode)
+			if err != nil {
+				cmdDir(c, "../")
+				continue
+			}
+			pName := time.Now().Format("2006-01-02")
+			err = cmdDir(c, pName)
+			if err != nil {
+				cmdDir(c, "../../")
+				continue
+			}
+
+			// 扫描日志目录，记录日志信息
+			var logMsg models.LogMsg
+			logMsg.DeviceCode = device.DeviceCode
+			logMsg.DirName = deviceDir
+			getDirs(c, logMsg)
+
+			cmdDir(c, "../../../")
+		}
+	}
 
 	if err := c.Quit(); err != nil {
 		logger.Println(fmt.Sprintf("ftp 退出错误：%v", err))
 	}
 
+}
+
+// 进入下级目录
+func cmdDir(c *ftp.ServerConn, root string) error {
+	err := c.ChangeDir(root)
+	if err != nil {
+		logger.Println(fmt.Sprintf("进入下级目录出错：%v", err))
+		return err
+	}
+	getCurrentDir(c)
+	return nil
+}
+
+// 获取日志类型目录
+func getDeviceDir(deviceTypeId utils.DirName) string {
+	dirStr := utils.Conf().Section("config").Key("dirs").MustString("bis,nis,nws,webapp")
+	dirs := strings.Split(dirStr, ",")
+	if len(dirs) > 0 {
+		for _, dir := range dirs {
+			if dir == deviceTypeId.String() {
+				return dir
+			}
+		}
+	}
+	return ""
 }
 
 // 监控服务
@@ -491,170 +462,172 @@ func CheckDevice() {
 	// http://fyxt.t.chindeo.com/platform/report/service  服务故障上报url
 
 	logger.Println("服务监控开始")
+	defer logger.Println("服务监控结束")
+	defer logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", ServiceCount, ServiceNames))
+
+	ServiceCount = 0
+	ServiceNames = nil
 
 	serverList := utils.GetServices()
-	var serverMsgs []*models.ServerMsg
-	for _, server := range serverList {
-
-		var serverMsg models.ServerMsg
-		serverMsg.ServiceTypeId = server.ServiceTypeId
-		serverMsg.ServiceName = server.ServiceName
-		serverMsg.ServiceTitle = server.ServiceTitle
-		serverMsg.PlatformServiceId = server.Id
-		serverMsg.CreatedAt = time.Now()
-
-		switch server.ServiceName {
-		case "MySQL":
-			func() {
-				conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", server.Account, server.Pwd, server.Ip, server.Port, "dois")
-				sqlDb, err := gorm.Open("mysql", conn)
-				if err != nil {
-					logger.Printf("MYSQL 连接错误: %v ", err)
-					serverMsg.Status = false
-					serverMsg.FaultMsg = err.Error()
-				} else {
-					defer sqlDb.Close()
-					logger.Println("MYSQL 连接成功")
-					serverMsg.Status = true
-				}
-
-			}()
+	logger.Println(fmt.Sprintf("服务： %v", serverList))
+	if len(serverList) > 0 {
+		var serverMsgs []*models.ServerMsg
+		for _, server := range serverList {
 			setServiceCountAndNames(server)
-		case "EMQX":
-			func() {
-				addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
-				mqttClient, err := client.CreateClient(client.MqttOption{
-					Addr:               addr,
-					ReconnTimeInterval: 1,
-					UserName:           server.Account,
-					Password:           server.Pwd,
-				})
+			logger.Println(fmt.Sprintf("服务名称： %v", server.ServiceName))
+			var serverMsg models.ServerMsg
+			serverMsg.ServiceTypeId = server.ServiceTypeId
+			serverMsg.ServiceName = server.ServiceName
+			serverMsg.ServiceTitle = server.ServiceTitle
+			serverMsg.PlatformServiceId = server.Id
+			serverMsg.CreatedAt = time.Now()
 
-				if err != nil {
-					serverMsg.Status = false
-					serverMsg.FaultMsg = err.Error()
-					logger.Printf("MQTT 客户端创建失败: %v ", err)
-				} else {
-
-					if mqttClient == nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = "连接失败"
-						logger.Printf("MQTT 连接失败")
-					} else {
-						//建立连接
-						err = mqttClient.Connect()
-						if err != nil {
-							serverMsg.Status = false
-							serverMsg.FaultMsg = err.Error()
-							logger.Printf("MQTT 连接出错: %v ", err)
-						} else {
-							defer mqttClient.Disconnect()
-							serverMsg.Status = true
-							logger.Println("MQTT 连接成功")
-						}
-					}
-				}
-
-			}()
-			setServiceCountAndNames(server)
-		case "RabbitMQ":
-			func() {
-				mqurl := fmt.Sprintf("amqp://%s:%s@%s:%d/shop", server.Account, server.Pwd, server.Ip, server.Port)
-				rabbitmq, err := NewRabbitMQSimple("imoocSimple", mqurl)
-				if err != nil {
-					if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
-						serverMsg.Status = true
-						logger.Println("RabbitMq conn success")
-					} else {
+			switch server.ServiceName {
+			case "MySQL":
+				func() {
+					conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", server.Account, server.Pwd, server.Ip, server.Port, "dois")
+					sqlDb, err := gorm.Open("mysql", conn)
+					if err != nil {
+						logger.Printf("MYSQL 连接错误: %v ", err)
 						serverMsg.Status = false
 						serverMsg.FaultMsg = err.Error()
-						logger.Printf("RabbitMq 连接错误: %v ", err)
-					}
-				} else {
-					if rabbitmq == nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = "连接失败"
-						logger.Printf("RabbitMq 连接失败: 连接失败 ")
 					} else {
-						defer rabbitmq.Destory()
+						defer sqlDb.Close()
+						logger.Println("MYSQL 连接成功")
 						serverMsg.Status = true
-						logger.Println("RabbitMq 连接成功")
 					}
-				}
 
-			}()
-			setServiceCountAndNames(server)
-		case "FileZilla Server":
-			func() {
-				c, err := ftp.Dial(fmt.Sprintf("%s:%d", server.Ip, server.Port), ftp.DialWithTimeout(5*time.Second))
-				if err != nil {
-					serverMsg.Status = false
-					serverMsg.FaultMsg = err.Error()
-					logger.Printf("FTP 连接错误: %v ", err)
-				} else {
-					if c == nil {
+				}()
+			case "EMQX":
+				func() {
+					addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
+					mqttClient, err := client.CreateClient(client.MqttOption{
+						Addr:               addr,
+						ReconnTimeInterval: 1,
+						UserName:           server.Account,
+						Password:           server.Pwd,
+					})
+
+					if err != nil {
 						serverMsg.Status = false
-						serverMsg.FaultMsg = "连接失败"
-						logger.Printf("FTP 连接失败")
+						serverMsg.FaultMsg = err.Error()
+						logger.Printf("MQTT 客户端创建失败: %v ", err)
 					} else {
-						err = c.Login(server.Account, server.Pwd)
-						if err != nil {
+
+						if mqttClient == nil {
 							serverMsg.Status = false
-							serverMsg.FaultMsg = err.Error()
-							logger.Printf("FTP 连接错误: %v ", err)
+							serverMsg.FaultMsg = "连接失败"
+							logger.Printf("MQTT 连接失败")
 						} else {
-							defer c.Quit()
-							serverMsg.Status = true
-							logger.Println("FTP 连接成功")
+							//建立连接
+							err = mqttClient.Connect()
+							if err != nil {
+								serverMsg.Status = false
+								serverMsg.FaultMsg = err.Error()
+								logger.Printf("MQTT 连接出错: %v ", err)
+							} else {
+								defer mqttClient.Disconnect()
+								serverMsg.Status = true
+								logger.Println("MQTT 连接成功")
+							}
 						}
 					}
-				}
 
-			}()
-			setServiceCountAndNames(server)
-		default:
-			func() {
-				conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", server.Ip, server.Port))
-				if err != nil {
-					serverMsg.Status = false
-					serverMsg.FaultMsg = err.Error()
-					logger.Printf("%s连接错误: %v ", server.ServiceName, err)
-				} else {
-					if conn == nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = "连接失败"
-						logger.Printf("%s 连接失败", server.ServiceName)
+				}()
+			case "RabbitMQ":
+				func() {
+					mqurl := fmt.Sprintf("amqp://%s:%s@%s:%d/shop", server.Account, server.Pwd, server.Ip, server.Port)
+					rabbitmq, err := NewRabbitMQSimple("imoocSimple", mqurl)
+					if err != nil {
+						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
+							serverMsg.Status = true
+							logger.Println("RabbitMq conn success")
+						} else {
+							serverMsg.Status = false
+							serverMsg.FaultMsg = err.Error()
+							logger.Printf("RabbitMq 连接错误: %v ", err)
+						}
 					} else {
-						defer conn.Close()
-						serverMsg.Status = true
-						logger.Printf("%s conn success", server.ServiceName)
+						if rabbitmq == nil {
+							serverMsg.Status = false
+							serverMsg.FaultMsg = "连接失败"
+							logger.Printf("RabbitMq 连接失败: 连接失败 ")
+						} else {
+							defer rabbitmq.Destory()
+							serverMsg.Status = true
+							logger.Println("RabbitMq 连接成功")
+						}
 					}
-				}
-			}()
-			setServiceCountAndNames(server)
+
+				}()
+			case "FileZilla Server":
+				func() {
+					c, err := ftp.Dial(fmt.Sprintf("%s:%d", server.Ip, server.Port), ftp.DialWithTimeout(5*time.Second))
+					if err != nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = err.Error()
+						logger.Printf("FTP 连接错误: %v ", err)
+					} else {
+						if c == nil {
+							serverMsg.Status = false
+							serverMsg.FaultMsg = "连接失败"
+							logger.Printf("FTP 连接失败")
+						} else {
+							err = c.Login(server.Account, server.Pwd)
+							if err != nil {
+								serverMsg.Status = false
+								serverMsg.FaultMsg = err.Error()
+								logger.Printf("FTP 连接错误: %v ", err)
+							} else {
+								defer c.Quit()
+								serverMsg.Status = true
+								logger.Println("FTP 连接成功")
+							}
+						}
+					}
+
+				}()
+			default:
+				func() {
+					conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", server.Ip, server.Port))
+					if err != nil {
+						serverMsg.Status = false
+						serverMsg.FaultMsg = err.Error()
+						logger.Printf("%s连接错误: %v ", server.ServiceName, err)
+					} else {
+						if conn == nil {
+							serverMsg.Status = false
+							serverMsg.FaultMsg = "连接失败"
+							logger.Printf("%s 连接失败", server.ServiceName)
+						} else {
+							defer conn.Close()
+							serverMsg.Status = true
+							logger.Printf("%s conn success", server.ServiceName)
+						}
+					}
+				}()
+			}
+
+			// 本机存储数据
+			var oldServerMsg models.ServerMsg
+			utils.SQLite.Where("service_type_id = ?", server.Id).First(&oldServerMsg)
+			if oldServerMsg.ID > 0 {
+				oldServerMsg.Status = serverMsg.Status
+				oldServerMsg.FaultMsg = serverMsg.FaultMsg
+				utils.SQLite.Save(&oldServerMsg)
+			} else {
+				utils.SQLite.Save(&serverMsg)
+			}
+
+			serverMsgs = append(serverMsgs, &serverMsg)
 		}
 
-		// 本机存储数据
-		var oldServerMsg models.ServerMsg
-		utils.SQLite.Where("service_type_id = ?", server.Id).First(&oldServerMsg)
-		if oldServerMsg.ID > 0 {
-			oldServerMsg.Status = serverMsg.Status
-			oldServerMsg.FaultMsg = serverMsg.FaultMsg
-			utils.SQLite.Save(&oldServerMsg)
-		} else {
-			utils.SQLite.Save(&serverMsg)
-		}
-
-		serverMsgs = append(serverMsgs, &serverMsg)
+		serverMsgJson, _ := json.Marshal(&serverMsgs)
+		data := fmt.Sprintf("fault_data=%s", string(serverMsgJson))
+		res := utils.SyncServices("platform/report/service", data)
+		logger.Printf("推送返回信息: %v", res)
 	}
 
-	serverMsgJson, _ := json.Marshal(&serverMsgs)
-	data := fmt.Sprintf("fault_data=%s", string(serverMsgJson))
-	res := utils.SyncServices("platform/report/service", data)
-
-	logger.Printf("推送返回信息: %v", res)
-	logger.Printf("%d 个服务监控推送完成 : %v", ServiceCount, ServiceNames)
-	logger.Println("服务监控结束")
 }
 
 func setServiceCountAndNames(server *utils.Server) {
