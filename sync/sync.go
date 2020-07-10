@@ -59,7 +59,7 @@ func deleteMsg() {
 // 同步设备
 func createDevices(sqlDb *gorm.DB) {
 	var cfDevices []*models.CfDevice
-	query := "select ct_loc.loc_desc as loc_desc,pac_room.room_desc as room_desc, pac_bed.bed_code as bed_code, dev_id ,dev_code ,dev_desc ,dev_position ,dev_type,dev_active ,dev_create_time,mm.ipaddr as dev_ip from cf_device"
+	query := "select ct_loc.loc_desc as loc_desc,pac_room.room_desc as room_desc, pac_bed.bed_code as bed_code, dev_id ,dev_code ,dev_desc ,dev_position ,dev_type,dev_active,dev_status,dev_create_time,mm.ipaddr as dev_ip from cf_device"
 	query += " left join mqtt.mqtt_device as mm on mm.username = cf_device.dev_code"
 	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
 	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"

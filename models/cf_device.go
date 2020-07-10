@@ -12,6 +12,7 @@ package models
 type CfDevice struct {
 	DevId         int64  `json:"local_device_id" gorm:"column:dev_id"`                        // 服务id
 	DevType       int64  `json:"device_type_id" gorm:"column:dev_type"`                       // 类型
+	DevStatus     int64  `json:"device_status" gorm:"column:dev_status"`                      // 状态
 	DevActive     int64  `json:"device_active" gorm:"column:dev_active"`                      // 状态
 	DevCode       string `json:"device_code" gorm:"column:dev_code;type:varchar(50)"`         // 设备代码
 	DevDesc       string `json:"device_desc" gorm:"column:dev_desc;type:varchar(50)"`         // 设备描述

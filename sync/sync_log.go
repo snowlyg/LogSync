@@ -98,7 +98,12 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 		}
 
 	} else {
-		sendEmptyMsg(&logMsg, location, "设备今日没有上传日志文件")
+		if oldMsg.ID > 0 { //如果信息有更新就存储，并推送
+			subT := time.Now().Sub(oldMsg.UpdateAt)
+			if subT.Minutes() >= 15 {
+				checkLogOverFive(logMsg, oldMsg, location) // 日志超时
+			}
+		}
 	}
 
 }
@@ -251,7 +256,7 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 		}
 
 		// 安卓设备
-	} else if logMsg.DirName == utils.BIS.String() {
+	} else if utils.InStrArray(logMsg.DirName, []string{utils.BIS.String(), utils.NWS.String(), utils.WEBAPP.String()}) {
 		logger.Println(fmt.Sprintf(">>> 开始排查安卓设备"))
 		defer logger.Println(fmt.Sprintf(" "))
 		defer logger.Println(fmt.Sprintf(">>> 安卓设备排查结束"))
