@@ -21,6 +21,7 @@ require (
 	github.com/kardianos/service v1.0.0
 	github.com/kavu/go_reuseport v1.5.0 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.3.0+incompatible
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/onsi/ginkgo v1.12.3 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/penggy/cors v0.0.0-20180918145040-d08bb28f7e48

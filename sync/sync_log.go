@@ -12,6 +12,7 @@ import (
 	"github.com/snowlyg/LogSync/utils"
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -65,9 +66,22 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			faultMsg.Content = string(getFileContent(c, s.Name))
 			faultMsgs = append(faultMsgs, faultMsg)
 		} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
-			logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(getFileContent(c, s.Name))
-		}
+			path := fmt.Sprintf("img/%s.png", logMsg.DeviceCode)
+			newPath := fmt.Sprintf("img/%s_%s.png", logMsg.DeviceCode, "new")
+			imgContent := getFileContent(c, s.Name)
+			if len(imgContent) > 0 {
+				utils.Create(path, imgContent)
+				utils.ResizePng(path, newPath)
 
+				if file, err := utils.OpenFile(newPath); err == nil {
+					logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
+				}
+			}
+
+			// 删除文件
+			os.Remove(path)
+			os.Remove(newPath)
+		}
 	}
 
 	var oldMsg models.LogMsg
