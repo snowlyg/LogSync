@@ -70,7 +70,10 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			newPath := fmt.Sprintf("img/%s_%s.png", logMsg.DeviceCode, "new")
 			imgContent := getFileContent(c, s.Name)
 			isResizeImg := utils.Conf().Section("config").Key("is_resize_img").MustBool(false)
-			if isResizeImg {
+
+			logger.Println(fmt.Sprintf("图片大小： %d", s.Size))
+
+			if isResizeImg && s.Size/1024 > 500 {
 				if len(imgContent) > 0 {
 					utils.Create(path, imgContent)
 					utils.ResizePng(path, newPath)
@@ -459,14 +462,15 @@ func SyncDeviceLog() {
 			}
 
 			// 进入当天目录,跳过当天凌晨 30 分钟，给设备创建目录的时间
-			if time.Now().Hour() == 0 && time.Now().Minute() < 30 {
-				pName := time.Now().Format("2006-01-02")
-				err = cmdDir(c, pName)
-				if err != nil {
+
+			pName := time.Now().Format("2006-01-02")
+			err = cmdDir(c, pName)
+			if err != nil {
+				if time.Now().Hour() == 0 && time.Now().Minute() < 30 {
 					sendEmptyMsg(&logMsg, getLocation(), "没有创建设备当天日志目录")
-					cmdDir(c, "../../")
-					continue
 				}
+				cmdDir(c, "../../")
+				continue
 			}
 
 			getDirs(c, logMsg)

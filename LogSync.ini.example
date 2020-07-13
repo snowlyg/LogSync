@@ -28,11 +28,11 @@ password=Chindeo
 [time]
 ;h,m,s 对应时分秒
 ;扫描日志
-sync_log_time=4
+sync_log_time=3
 sync_log=m
 ;同步数据到外网
-sync_data_time=1
-sync_data=h
+sync_data_time=3
+sync_data=m
 
 [web]
 ; 大屏ip 多个大屏用 , 分隔
@@ -49,5 +49,5 @@ port=8001
 
 [mysql]
 ;只有访问权限的账号密码
-username=visible
+account=visible
 pwd=Chindeo
