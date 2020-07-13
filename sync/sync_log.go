@@ -443,22 +443,30 @@ func SyncDeviceLog() {
 			if deviceDir == "" {
 				continue
 			}
+
+			// 进入设备类型目录
 			err = cmdDir(c, deviceDir)
 			if err != nil {
 				continue
 			}
+
+			// 进入设备编码目录
 			err = cmdDir(c, device.DeviceCode)
 			if err != nil {
 				cmdDir(c, "../")
 				sendEmptyMsg(&logMsg, getLocation(), "设备志目录不存在")
 				continue
 			}
-			pName := time.Now().Format("2006-01-02")
-			err = cmdDir(c, pName)
-			if err != nil {
-				sendEmptyMsg(&logMsg, getLocation(), "没有创建设备当天日志目录")
-				cmdDir(c, "../../")
-				continue
+
+			// 进入当天目录,跳过当天凌晨 30 分钟，给设备创建目录的时间
+			if time.Now().Hour() == 0 && time.Now().Minute() < 30 {
+				pName := time.Now().Format("2006-01-02")
+				err = cmdDir(c, pName)
+				if err != nil {
+					sendEmptyMsg(&logMsg, getLocation(), "没有创建设备当天日志目录")
+					cmdDir(c, "../../")
+					continue
+				}
 			}
 
 			getDirs(c, logMsg)
@@ -504,6 +512,7 @@ func CheckDevice() {
 	// platform_service_id ，service_type_id，create_at，fault_msg
 	// http://fyxt.t.chindeo.com/platform/report/service  服务故障上报url
 
+	logger.Println("<========================>")
 	logger.Println("服务监控开始")
 	defer logger.Println("服务监控结束")
 	defer logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", ServiceCount, ServiceNames))
