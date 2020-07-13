@@ -71,8 +71,6 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			imgContent := getFileContent(c, s.Name)
 			isResizeImg := utils.Conf().Section("config").Key("is_resize_img").MustBool(false)
 
-			logger.Println(fmt.Sprintf("图片大小： %d", s.Size))
-
 			if isResizeImg && s.Size/1024 > 500 {
 				if len(imgContent) > 0 {
 					utils.Create(path, imgContent)
@@ -87,7 +85,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 
 			// 删除文件
 			os.Remove(path)
-			os.Remove(newPath)
+			//os.Remove(newPath)
 		}
 	}
 
