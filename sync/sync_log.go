@@ -66,15 +66,22 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			faultMsg.Content = string(getFileContent(c, s.Name))
 			faultMsgs = append(faultMsgs, faultMsg)
 		} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
-			path := fmt.Sprintf("img/%s.png", logMsg.DeviceCode)
-			newPath := fmt.Sprintf("img/%s_%s.png", logMsg.DeviceCode, "new")
+			imgDir := utils.Conf().Section("config").Key("img_dir").MustString("D:/Svr/logSync/")
+			path := fmt.Sprintf("%simg/%s.png", imgDir, logMsg.DeviceCode)
+			newPath := fmt.Sprintf("%simg/%s_%s.png", imgDir, logMsg.DeviceCode, "new")
 			imgContent := getFileContent(c, s.Name)
 			isResizeImg := utils.Conf().Section("config").Key("is_resize_img").MustBool(false)
 
 			if isResizeImg && s.Size/1024 > 500 {
 				if len(imgContent) > 0 {
-					utils.Create(path, imgContent)
-					utils.ResizePng(path, newPath)
+					err := utils.Create(path, imgContent)
+					if err != nil {
+						logger.Println(fmt.Sprintf("%s 图片生成失败：%v", s.Name, err))
+					}
+					err = utils.ResizePng(path, newPath)
+					if err != nil {
+						logger.Println(fmt.Sprintf("%s 图片重置失败：%v", s.Name, err))
+					}
 					if file, err := utils.OpenFile(newPath); err == nil {
 						logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
 					}
@@ -85,7 +92,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 
 			// 删除文件
 			os.Remove(path)
-			//os.Remove(newPath)
+			os.Remove(newPath)
 		}
 	}
 
@@ -459,12 +466,11 @@ func SyncDeviceLog() {
 				continue
 			}
 
-			// 进入当天目录,跳过当天凌晨 30 分钟，给设备创建目录的时间
-
 			pName := time.Now().Format("2006-01-02")
 			err = cmdDir(c, pName)
 			if err != nil {
-				if time.Now().Hour() == 0 && time.Now().Minute() < 30 {
+				// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
+				if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
 					sendEmptyMsg(&logMsg, getLocation(), "没有创建设备当天日志目录")
 				}
 				cmdDir(c, "../../")
