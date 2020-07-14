@@ -196,9 +196,9 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 					if err != nil {
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 						if len(logMsg.FaultMsg) == 0 {
-							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						}
-						logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 						sendDevice(&logMsg)
 						logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
@@ -207,9 +207,9 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 						if conn == nil {
 							logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 							if len(logMsg.FaultMsg) == 0 {
-								logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+								logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备连接失败"
 							}
-							logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备连接失败"
 							utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 							sendDevice(&logMsg)
 							logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
@@ -226,9 +226,9 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 						logger.Println(fmt.Sprintf("Command 执行出错 %v", err))
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 						if len(logMsg.FaultMsg) == 0 {
-							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						}
-						logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 						sendDevice(&logMsg)
 						logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
@@ -239,9 +239,9 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 					if err := cmd.Start(); err != nil {
 						logger.Println(fmt.Sprintf("tasklist 执行出错 %v", err))
 						if len(logMsg.FaultMsg) == 0 {
-							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						}
-						logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 						utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 						sendDevice(&logMsg)
@@ -252,9 +252,9 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 					if opBytes, err := ioutil.ReadAll(stdout); err != nil {
 						logger.Println(fmt.Sprintf("ReadAll 执行出错 %v", err))
 						if len(logMsg.FaultMsg) == 0 {
-							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						}
-						logMsg.Status = "设备异常"
+						logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 						utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 						sendDevice(&logMsg)
@@ -263,14 +263,12 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 					} else {
 						logger.Println(fmt.Sprintf("tasklist couts： %v", string(opBytes)))
 						logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-						if strings.Count(string(opBytes), "exe") == 0 {
-							logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:程序未启动"
-						} else if strings.Count(string(opBytes), "App.exe ") != 4 {
+						if strings.Count(string(opBytes), "exe") == 0 || strings.Count(string(opBytes), "App.exe ") != 4 {
 							logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:程序未启动"
 						}
 						logMsg.FaultMsg = string(opBytes)
 						if len(logMsg.FaultMsg) == 0 {
-							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+							logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:程序未启动"
 						}
 						utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 						sendDevice(&logMsg)
@@ -300,9 +298,9 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 				if err != nil {
 					logger.Println(fmt.Sprintf(" cli.Run 错误 %s ", err))
 					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-					logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+					logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 					if len(logMsg.FaultMsg) == 0 {
-						logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 					}
 					utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 					sendDevice(&logMsg)
@@ -315,9 +313,9 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 				if err != nil {
 					logger.Println(fmt.Sprintf(" cli.Run 错误 %s ", err))
 					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-					logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+					logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 					if len(logMsg.FaultMsg) == 0 {
-						logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备无法连接"
+						logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:%s", err)
 					}
 					utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 					sendDevice(&logMsg)

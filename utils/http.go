@@ -126,7 +126,7 @@ func SyncServices(path, data string) interface{} {
 	result := DoPOST(path, data)
 	err := json.Unmarshal(result, &re)
 	if err != nil {
-		log.Printf("PostServices json.Unmarshal error：%v", err)
+		log.Printf("SyncServices json.Unmarshal error：%v：%v", err, string(result))
 	}
 	return re
 }
