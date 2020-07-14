@@ -36,8 +36,7 @@ sync_data_time=3
 sync_data=m
 
 [web]
-; 大屏ip 多个大屏用 , 分隔
-ip=10.0.0.149,
+; 护理白板账号密码
 account=administrator
 password=chindeo888
 
