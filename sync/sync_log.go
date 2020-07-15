@@ -102,37 +102,35 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 		Order("created_at desc").
 		First(&oldMsg)
 
-	checkLogOverFive(logMsg, oldMsg, location) // 日志超时
+	if faultMsgs != nil {
+		faultMsgsJson, err := json.Marshal(faultMsgs)
+		if err != nil {
+			logger.Println(fmt.Sprintf("json 化数据错误 ：%v", err))
+		}
 
-	//if faultMsgs != nil {
-	//	faultMsgsJson, err := json.Marshal(faultMsgs)
-	//	if err != nil {
-	//		logger.Println(fmt.Sprintf("json 化数据错误 ：%v", err))
-	//	}
-	//
-	//	logMsg.FaultMsg = string(faultMsgsJson)
-	//	if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
-	//		utils.SQLite.Save(&logMsg)
-	//		sendDevice(&logMsg)
-	//		logger.Println(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
-	//	} else {
-	//		subT := time.Now().Sub(oldMsg.UpdateAt)
-	//		if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
-	//			checkLogOverFive(logMsg, oldMsg, location) // 日志超时
-	//		} else {
-	//			utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "update_at": logMsg.UpdateAt})
-	//			sendDevice(&logMsg)
-	//		}
-	//	}
-	//
-	//} else {
-	//	if oldMsg.ID > 0 { //如果信息有更新就存储，并推送
-	//		subT := time.Now().Sub(oldMsg.UpdateAt)
-	//		if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
-	//			checkLogOverFive(logMsg, oldMsg, location) // 日志超时
-	//		}
-	//	}
-	//}
+		logMsg.FaultMsg = string(faultMsgsJson)
+		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
+			utils.SQLite.Save(&logMsg)
+			sendDevice(&logMsg)
+			logger.Println(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+		} else {
+			subT := time.Now().Sub(oldMsg.UpdateAt)
+			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
+				checkLogOverFive(logMsg, oldMsg, location) // 日志超时
+			} else {
+				utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "update_at": logMsg.UpdateAt})
+				sendDevice(&logMsg)
+			}
+		}
+
+	} else {
+		if oldMsg.ID > 0 { //如果信息有更新就存储，并推送
+			subT := time.Now().Sub(oldMsg.UpdateAt)
+			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
+				checkLogOverFive(logMsg, oldMsg, location) // 日志超时
+			}
+		}
+	}
 
 }
 
