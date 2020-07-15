@@ -291,6 +291,7 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 	}
 }
 
+// 使用 pscp 获取设备上的日志
 func pscpDevice(logMsg, oldMsg models.LogMsg, location *time.Location, password, account, idir, ip string) {
 	odir := createOutDir(logMsg)
 	args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, idir), odir}
@@ -356,6 +357,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, location *time.Location, password,
 	}
 }
 
+// 创建目录
 func createOutDir(logMsg models.LogMsg) string {
 	outDir := utils.Conf().Section("android").Key("outDir").MustString("D:Svr/logSync")
 	odir := fmt.Sprintf("%s/other_logs/%s/%s", outDir, logMsg.DirName, logMsg.DeviceCode)
