@@ -296,7 +296,7 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 				shell := fmt.Sprintf("ps -ef")
 				output, err := cli.Run(shell)
 				if err != nil {
-					logger.Println(fmt.Sprintf(" un ps -ef 错误 %s ", err))
+					logger.Println(fmt.Sprintf(" run ps -ef 错误 %s ", err))
 					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 					logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;run ps -ef: %s", err)
 					if len(logMsg.FaultMsg) == 0 {
