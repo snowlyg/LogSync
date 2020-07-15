@@ -38,11 +38,15 @@ sync_data=m
 [web]
 ; 护理白板账号密码
 account=administrator
-password=chindeo888
+password=123456
+inDir=D:/App/data/log
+outDir=D:/gopath/go/src/github.com/snowlyg/LogSync
 
 [android]
 account=root
 password=Chindeo
+inDir=/sdcard/chindeo_app/log
+outDir=D:/gopath/go/src/github.com/snowlyg/LogSync
 
 [http]
 port=8001
