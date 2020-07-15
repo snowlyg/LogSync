@@ -10,6 +10,7 @@ LogSync.exe remove
 LogSync.exe start
 LogSync.exe stop
 LogSync.exe restart
+LogSync.exe version
 
 ```
 
@@ -75,4 +76,9 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 2.
 ```text
  日志超时15分钟，主动查询设备信息逻辑耗时较多
+```
+
+#### 编译
+```shell script
+go build -ldflags "-w -s -X main.Version=v1.0
 ```

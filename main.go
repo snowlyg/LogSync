@@ -17,6 +17,8 @@ import (
 	"github.com/snowlyg/LogSync/utils"
 )
 
+var Version string
+
 func init() {
 	rotatingHandler := logger.NewRotatingHandler(utils.LogDir(), "logsync.log", 4, 4*1024*1024)
 	logger.SetHandlers(logger.Console, rotatingHandler)
@@ -208,7 +210,7 @@ func main() {
 		}
 
 		if os.Args[1] == "version" {
-			logger.Println("v1.0")
+			fmt.Println(fmt.Sprintf("版本号：%s", Version))
 			return
 		}
 	}
