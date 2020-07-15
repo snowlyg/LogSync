@@ -102,6 +102,8 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 		Order("created_at desc").
 		First(&oldMsg)
 
+	checkLogOverFive(logMsg, oldMsg, location) // 日志超时
+
 	if faultMsgs != nil {
 		faultMsgsJson, err := json.Marshal(faultMsgs)
 		if err != nil {
@@ -291,50 +293,61 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 		if len(strings.TrimSpace(device.DevIp)) > 0 {
 			logger.Println(fmt.Sprintf("dev_id : %s /dev_code : %s", device.DevIp, logMsg.DeviceCode))
 			var faultMags []*FaultMsg
-			cli := utils.New(device.DevIp, androidAccount, androidPassword, 22)
-			if cli != nil {
-				shell := fmt.Sprintf("ps -ef")
-				output, err := cli.Run(shell)
+
+			// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
+			inDir := utils.Conf().Section("android").Key("dir").MustString("/sdcard/chindeo_app/log")
+			outDir := utils.Conf().Section("android").Key("outDir").MustString("D:Svr/logSync/")
+			idir := fmt.Sprintf("%s/%s/", inDir, time.Now().Format("2006-01-02"))
+			odir := fmt.Sprintf("%sother_logs/%s/", outDir, logMsg.DeviceCode)
+
+			if !utils.Exist(odir) {
+				err := utils.CreateDir(odir)
 				if err != nil {
-					logger.Println(fmt.Sprintf(" run ps -ef 错误 %s ", err))
-					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-					logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;run ps -ef: %s", err)
-					if len(logMsg.FaultMsg) == 0 {
-						logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;run ps -ef: %s", err)
-					}
-					utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
-					sendDevice(&logMsg)
-					logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
-					return
+					logger.Println(fmt.Sprintf("%s 文件夹创建错误： %v", idir, err))
 				}
+			}
 
-				shell = fmt.Sprintf("cd /sdcard/chindeo_app/log/%s && ls", time.Now().Format("2006-01-02"))
-				output, err = cli.Run(shell)
-				if err != nil {
-					logger.Println(fmt.Sprintf(" run %s 错误 %s ", shell, err))
-					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-					logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通; %s: %s", shell, err)
-					if len(logMsg.FaultMsg) == 0 {
-						logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通; %s: %s", shell, err)
-					}
-					utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
-					sendDevice(&logMsg)
-					logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
-					return
+			args := []string{"-scp", "-r", "-pw", androidPassword, "-P", "22", fmt.Sprintf("%s@%s:%s", androidAccount, "10.0.0.202", idir), odir}
+			cmd := exec.Command("pscp", args...)
+			logger.Println(fmt.Sprintf("cmd： %v", cmd))
+			stdout, err := cmd.StdoutPipe()
+			if err != nil {
+				logger.Println(fmt.Sprintf("pscp %v  执行出错 %v", args, err))
+				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
+				if len(logMsg.FaultMsg) == 0 {
+					logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通; pscp:%s", err)
 				}
+				logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通; pscp:%s", err)
+				utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
+				sendDevice(&logMsg)
+				logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
+				return
+			}
+			defer stdout.Close()
 
-				logFiles := strings.Split(output, "\n")
-				for _, name := range logFiles {
-					shell := fmt.Sprintf("cat /sdcard/chindeo_app/log/%s/%s", time.Now().Format("2006-01-02"), name)
-					text, err := cli.Run(shell)
-					if err != nil {
-						logger.Println(fmt.Sprintf("Command %s 执行出错 %v", shell, err))
-						continue
-					}
+			if err := cmd.Start(); err != nil {
+				logger.Println(fmt.Sprintf("%v 执行出错 %v", cmd, err))
+				if len(logMsg.FaultMsg) == 0 {
+					logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;%v :%s", cmd, err)
+				}
+				logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;%v :%s", cmd, err)
+				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
+				utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
+				sendDevice(&logMsg)
+				logger.Println(fmt.Sprintf("%s: 扫描大屏记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+				return
+			}
 
+			logFiles, err := utils.ListDir(fmt.Sprintf("%s/%s/", odir, time.Now().Format("2006-01-02")), "log")
+			if err != nil {
+				logger.Println(fmt.Sprintf("获取日志文件： %v", err))
+			}
+
+			for _, fileName := range logFiles {
+				if file, err := utils.OpenFile(fileName); err == nil {
 					faultMsg := new(FaultMsg)
-					faultMsg.Name = name
-					faultMsg.Content = text
+					faultMsg.Name = fileName
+					faultMsg.Content = string(file)
 					faultMags = append(faultMags, faultMsg)
 					if faultMags != nil {
 						faultMsgsJson, err := json.Marshal(faultMags)
@@ -345,32 +358,22 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg, location *time.Location) {
 						logMsg.FaultMsg = string(faultMsgsJson)
 					}
 				}
+			}
 
-				if logMsg.FaultMsg != "" {
-					logMsg.Status = ""
-					logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-					utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
-					sendDevice(&logMsg)
-					logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
-					return
-				}
-
-			} else {
+			if logMsg.FaultMsg != "" {
+				logMsg.Status = ""
 				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-				logMsg.Status = "设备超过15分钟未上报日志到FTP,并且PING不通:设备连接不上"
-				if len(logMsg.FaultMsg) == 0 {
-					logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且PING不通:设备连接不上"
-				}
 				utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 				sendDevice(&logMsg)
 				logger.Println(fmt.Sprintf("%s: 扫描安卓记录设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
 				return
 			}
+
 		} else {
 			logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-			logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:设备ip：%s 错误", device.DevIp)
+			logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
 			if len(logMsg.FaultMsg) == 0 {
-				logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通:设备ip：%s 错误", device.DevIp)
+				logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
 			}
 			utils.SQLite.Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 			sendDevice(&logMsg)
