@@ -206,6 +206,11 @@ func main() {
 			logger.Println("服务重启成功")
 			return
 		}
+
+		if os.Args[1] == "version" {
+			logger.Println("v1.0")
+			return
+		}
 	}
 
 	err = s.Run()
