@@ -322,6 +322,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 	args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, idir), odir}
 	cmd := exec.Command("pscp", args...)
 	logger.Println(fmt.Sprintf("cmd： %v", cmd))
+	cmd.Stdin = strings.NewReader("y")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.Println(fmt.Sprintf("pscp %v  执行出错 %v", args, err))
