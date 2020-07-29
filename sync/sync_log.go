@@ -27,6 +27,7 @@ import (
 //'fault_msg.require'         => '故障信息不能为空！',  string
 //'create_at.require'         => '创建时间不能为空！' 时间格式
 //'dir_name.require'          => '目录名称' 时间格式
+var IsFirst bool
 
 var LogCount int         // 扫描设备数量
 var DeviceCodes []string // 扫描设备名称
@@ -135,7 +136,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			logger.Println(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
 		} else {
 			subT := time.Now().Sub(oldMsg.UpdateAt)
-			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
+			if subT.Minutes() >= 15 && time.Now().Hour() != 0 && IsFirst {
 				checkLogOverFive(logMsg, oldMsg) // 日志超时
 			} else {
 				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
@@ -148,7 +149,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 	} else {
 		if oldMsg.ID > 0 { //如果信息有更新就存储，并推送
 			subT := time.Now().Sub(oldMsg.UpdateAt)
-			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
+			if subT.Minutes() >= 15 && time.Now().Hour() != 0 && IsFirst {
 				checkLogOverFive(logMsg, oldMsg) // 日志超时
 			}
 		}

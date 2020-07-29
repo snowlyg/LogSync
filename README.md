@@ -84,4 +84,4 @@ go build -ldflags "-w -s -X main.Version=v1.0
 ```
 
 #### 版本更新
-- v1.1 增加 pscp 输入参数 y
+- v1.1 增加 pscp 输入参数 y,重启程序后不检查超时15分钟
