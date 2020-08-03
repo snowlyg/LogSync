@@ -18,6 +18,7 @@
 # vendor/
 .idea/
 logs/*
+other_logs/*
 
 LogSync
 
