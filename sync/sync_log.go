@@ -497,18 +497,18 @@ func SyncDeviceLog() {
 		return
 	}
 
-	devices := utils.GetDevices()
+	devices, err := models.GetCfDevice()
 	if len(devices) > 0 {
 		for _, device := range devices {
 
 			LogCount++
-			DeviceCodes = append(DeviceCodes, device.DeviceCode)
+			DeviceCodes = append(DeviceCodes, device.DevCode)
 
-			logger.Println(fmt.Sprintf("当前设备 >>> %v：%v", device.DeviceTypeId, device.DeviceCode))
-			deviceDir := getDeviceDir(device.DeviceTypeId)
+			logger.Println(fmt.Sprintf("当前设备 >>> %v：%v", device.DevType, device.DevCode))
+			deviceDir := getDeviceDir(device.DevType)
 			// 扫描日志目录，记录日志信息
 			var logMsg models.LogMsg
-			logMsg.DeviceCode = device.DeviceCode
+			logMsg.DeviceCode = device.DevCode
 			logMsg.DirName = deviceDir
 			if deviceDir == "" {
 				continue
@@ -521,7 +521,7 @@ func SyncDeviceLog() {
 			}
 
 			// 进入设备编码目录
-			err = cmdDir(c, device.DeviceCode)
+			err = cmdDir(c, device.DevCode)
 			if err != nil {
 				cmdDir(c, "../")
 				sendEmptyMsg(&logMsg, getLocation(), "设备志目录不存在")

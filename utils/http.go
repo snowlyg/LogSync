@@ -25,12 +25,6 @@ type getServer struct {
 	Data    []*Server `json:"data"`
 }
 
-type getDevice struct {
-	Code    int       `json:"code"`
-	Message string    `json:"message"`
-	Data    []*Device `json:"data"`
-}
-
 type Req struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
@@ -52,11 +46,6 @@ type Server struct {
 	ServiceTitle  string `json:"service_title"`
 }
 
-type Device struct {
-	DeviceCode   string  `json:"device_code"`
-	DeviceTypeId DirName `json:"device_type_id"`
-}
-
 func GetRequestHref(r *http.Request) string {
 	scheme := "http://"
 	if r.TLS != nil {
@@ -76,23 +65,6 @@ func GetRequestHostname(r *http.Request) (hostname string) {
 func GetServices() []*Server {
 	var re getServer
 	result := DoGET("platform/report/getService")
-	err := json.Unmarshal(result, &re)
-	if err != nil {
-		log.Printf("GetServices json.Unmarshal error：%v", err)
-	}
-
-	if re.Code == 200 {
-		return re.Data
-	} else {
-		log.Printf("Get Service error：%v", re.Message)
-		return nil
-	}
-}
-
-//http://fyxt.t.chindeo.com/platform/report/getDevice  获取服务
-func GetDevices() []*Device {
-	var re getDevice
-	result := DoGET("platform/report/getDevice")
 	err := json.Unmarshal(result, &re)
 	if err != nil {
 		log.Printf("GetServices json.Unmarshal error：%v", err)

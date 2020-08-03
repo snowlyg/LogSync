@@ -80,8 +80,9 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 
 #### 编译
 ```shell script
-go build -ldflags "-w -s -X main.Version=v1.0
+go build -ldflags "-w -s -X main.Version=v1.2"
 ```
 
 #### 版本更新
 - v1.1 增加 pscp 输入参数 y,重启程序后不检查超时15分钟
+- v1.2 修改设备数据请求方式未本地方式
