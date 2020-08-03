@@ -10,7 +10,7 @@ LogSync.exe remove
 LogSync.exe start
 LogSync.exe stop
 LogSync.exe restart
-LogSync.exe version
+LogSync.exe version 查看版本号
 
 ```
 
