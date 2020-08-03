@@ -25,6 +25,7 @@ func SyncDeviceLog(c *gin.Context) {
 func SyncLog(c *gin.Context) {
 	syncLog := c.Query("sync_log")
 	if syncLog == "1" {
+		sync.NotFirst = true
 		go func() {
 			// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 15) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {

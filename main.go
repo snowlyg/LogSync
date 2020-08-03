@@ -109,7 +109,7 @@ func syncDeviceLog() {
 	default:
 		ticker = time.NewTicker(time.Minute * time.Duration(t))
 	}
-	sync.IsFirst = false
+	sync.NotFirst = false
 	go func() {
 		for range ticker.C {
 			sync.CheckDevice()
@@ -117,7 +117,7 @@ func syncDeviceLog() {
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 15) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
 				sync.SyncDeviceLog()
 			}
-			sync.IsFirst = true
+			sync.NotFirst = true
 		}
 		ch <- 1
 	}()
