@@ -320,6 +320,12 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 // 使用 pscp 获取设备上的日志
 func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string) {
 	odir := createOutDir(logMsg)
+
+	err := os.RemoveAll(odir)
+	if err != nil {
+		logger.Println(fmt.Sprintf("%s: RemoveAll %s ", odir, err))
+	}
+
 	args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, idir), odir}
 	cmd := exec.Command("pscp", args...)
 	logger.Println(fmt.Sprintf("cmd： %v", cmd))
@@ -350,7 +356,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 		return
 	}
 
-	logFiles, err := utils.ListDir(fmt.Sprintf("%s/%s", odir, time.Now().Format("2006-01-02")), "log")
+	logFiles, err := utils.ListDir(odir, "log")
 	if err != nil {
 		logger.Println(fmt.Sprintf("获取日志文件： %v", err))
 	}
@@ -412,7 +418,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 	}
 
 	if logMsg.FaultMsg != "" {
-		logMsg.Status = "但是设备有正常生成了日志,设备超过15分钟未上报日志到FTP"
+		logMsg.Status = "设备有正常生成了日志,但是设备超过15分钟未上报日志到FTP"
 		saveOrUpdate(&logMsg, oldMsg)
 		sendDevice(&logMsg)
 		logger.Println(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
