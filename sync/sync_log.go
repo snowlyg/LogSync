@@ -433,7 +433,7 @@ func emptyLogRe(logMsg models.LogMsg, oldMsg models.LogMsg) {
 // 创建目录
 func createOutDir(logMsg models.LogMsg) string {
 	outDir := utils.Conf().Section("android").Key("outDir").MustString("D:Svr/logSync")
-	odir := fmt.Sprintf("%s/other_logs/%s/%s", outDir, logMsg.DirName, logMsg.DeviceCode)
+	odir := fmt.Sprintf("%s/other_logs/%s/%s/%s", outDir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format("2006-01-02"))
 
 	if !utils.Exist(odir) {
 		err := utils.CreateDir(odir)
