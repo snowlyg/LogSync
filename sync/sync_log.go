@@ -498,7 +498,7 @@ func SyncDeviceLog() {
 	}
 
 	devices, err := models.GetCfDevice()
-	if len(devices) > 0 {
+	if err == nil && len(devices) > 0 {
 		for _, device := range devices {
 
 			LogCount++
