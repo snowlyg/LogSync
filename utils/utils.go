@@ -265,12 +265,14 @@ func PauseGo(msg ...interface{}) {
 	keyboard.GetSingleKey()
 }
 
-func IsPortInUse(port int) bool {
-	if conn, err := net.DialTimeout("tcp", net.JoinHostPort("", fmt.Sprintf("%d", port)), 3*time.Second); err == nil {
+func IsPortInUse(host string, port int64) error {
+	if conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", port)), 5*time.Second); err == nil {
 		conn.Close()
-		return true
+		return nil
+	} else {
+		return err
 	}
-	return false
+
 }
 
 func init() {

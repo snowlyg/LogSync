@@ -80,10 +80,11 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 
 #### 编译
 ```shell script
-go build -ldflags "-w -s -X main.Version=v1.2"
+go build -ldflags "-w -s -X main.Version=v1.3"
 ```
 
 #### 版本更新
 - v1.1 增加 pscp 输入参数 y,重启程序后不检查超时15分钟
 - v1.2 修改设备数据请求方式未本地方式
 - v1.3 增加初次启动不报故障的判断
+- v1.4 优化服务监控连接，修改为5秒超时

@@ -31,7 +31,7 @@ func SyncLog(c *gin.Context) {
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 15) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
 				sync.SyncDeviceLog()
 			}
-			sync.CheckDevice()
+			sync.CheckService()
 		}()
 
 		c.String(http.StatusOK, "设备日志成功执行同步")
