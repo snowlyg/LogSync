@@ -7,8 +7,6 @@ import (
 
 	"github.com/antlinker/go-mqtt/client"
 	"github.com/jander/golog/logger"
-	"github.com/jinzhu/gorm"
-	"github.com/jlaffaye/ftp"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 )
@@ -44,22 +42,23 @@ func CheckService() {
 			serverMsg.CreatedAt = time.Now()
 
 			switch server.ServiceName {
-			case "MySQL":
-				func() {
-					conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", server.Account, server.Pwd, server.Ip, server.Port, "dois")
-					sqlDb, err := gorm.Open("mysql", conn)
-					if err != nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = err.Error()
-						logger.Printf("MYSQL 连接错误: %v ", err)
-					}
-					if sqlDb == nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = "MYSQL 连接失败"
-					} else {
-						defer sqlDb.Close()
-					}
-				}()
+			// 注释掉 mysql 服务监控，会和日志扫描冲突
+			//case "MySQL":
+			//	func() {
+			//		conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", server.Account, server.Pwd, server.Ip, server.Port, "dois")
+			//		sqlDb, err := gorm.Open("mysql", conn)
+			//		if err != nil {
+			//			serverMsg.Status = false
+			//			serverMsg.FaultMsg = err.Error()
+			//			logger.Printf("MYSQL 连接错误: %v ", err)
+			//		}
+			//		if sqlDb == nil {
+			//			serverMsg.Status = false
+			//			serverMsg.FaultMsg = "MYSQL 连接失败"
+			//		} else {
+			//			defer sqlDb.Close()
+			//		}
+			//	}()
 			case "EMQX":
 				func() {
 					addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
@@ -117,32 +116,33 @@ func CheckService() {
 					}
 
 				}()
-			case "FileZilla Server":
-				func() {
-					c, err := ftp.Dial(fmt.Sprintf("%s:%d", server.Ip, server.Port), ftp.DialWithTimeout(5*time.Second))
-					if err != nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = err.Error()
-						logger.Printf("FTP 连接错误: %v ", err)
-					} else {
-						if c == nil {
-							serverMsg.Status = false
-							serverMsg.FaultMsg = "连接失败"
-							logger.Printf("FTP 连接失败")
-						} else {
-							err = c.Login(server.Account, server.Pwd)
-							if err != nil {
-								serverMsg.Status = false
-								serverMsg.FaultMsg = err.Error()
-								logger.Printf("FTP 连接错误: %v ", err)
-							} else {
-								defer c.Quit()
-								serverMsg.Status = true
-								logger.Println("FTP 连接成功")
-							}
-						}
-					}
-				}()
+				// 注释掉 ftp 服务监控，会和日志扫描冲突
+				/*			case "FileZilla Server":
+							func() {
+								c, err := ftp.Dial(fmt.Sprintf("%s:%d", server.Ip, server.Port), ftp.DialWithTimeout(5*time.Second))
+								if err != nil {
+									serverMsg.Status = false
+									serverMsg.FaultMsg = err.Error()
+									logger.Printf("FTP 连接错误: %v ", err)
+								} else {
+									if c == nil {
+										serverMsg.Status = false
+										serverMsg.FaultMsg = "连接失败"
+										logger.Printf("FTP 连接失败")
+									} else {
+										err = c.Login(server.Account, server.Pwd)
+										if err != nil {
+											serverMsg.Status = false
+											serverMsg.FaultMsg = err.Error()
+											logger.Printf("FTP 连接错误: %v ", err)
+										} else {
+											defer c.Quit()
+											serverMsg.Status = true
+											logger.Println("FTP 连接成功")
+										}
+									}
+								}
+							}()*/
 			default:
 				func() {
 					if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
