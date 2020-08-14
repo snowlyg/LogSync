@@ -28,6 +28,7 @@ import (
 var NotFirst bool
 
 var LogMsgs []*models.LogMsg // 日志
+var LogCodes []string        // 日志
 
 type FaultMsg struct {
 	Name    string
@@ -463,6 +464,32 @@ func getFileContent(c *ftp.ServerConn, name string) []byte {
 // addLogs 添加日志
 func addLogs(logMsg *models.LogMsg) {
 	LogMsgs = append(LogMsgs, logMsg)
+	LogCodes = append(LogCodes, logMsg.DeviceCode)
+}
+
+// 进入下级目录
+func cmdDir(c *ftp.ServerConn, root string) error {
+	err := c.ChangeDir(root)
+	if err != nil {
+		logger.Println(fmt.Sprintf("进入下级目录出错：%v", err))
+		return err
+	}
+	getCurrentDir(c)
+	return nil
+}
+
+// 获取日志类型目录
+func getDeviceDir(deviceTypeId utils.DirName) string {
+	dirStr := utils.Conf().Section("config").Key("dirs").MustString("bis,nis,nws,webapp")
+	dirs := strings.Split(dirStr, ",")
+	if len(dirs) > 0 {
+		for _, dir := range dirs {
+			if dir == deviceTypeId.String() {
+				return dir
+			}
+		}
+	}
+	return ""
 }
 
 // 扫描设备日志
@@ -470,7 +497,7 @@ func SyncDeviceLog() {
 	logger.Println("<========================>")
 	logger.Println("日志监控开始")
 	defer logger.Println("日志监控结束")
-	defer logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", len(LogMsgs), LogMsgs))
+	defer logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", len(LogMsgs), LogCodes))
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
 
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
@@ -537,7 +564,7 @@ func SyncDeviceLog() {
 		}
 	}
 
-	serverMsgJson, _ := json.Marshal(&LogMsgs)
+	serverMsgJson, _ := json.Marshal(LogMsgs)
 	data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
 	res := utils.SyncServices("platform/report/device", data)
 	logger.Println(fmt.Sprintf("提交日志信息返回数据 :%v", res))
@@ -546,29 +573,4 @@ func SyncDeviceLog() {
 		logger.Println(fmt.Sprintf("ftp 退出错误：%v", err))
 	}
 
-}
-
-// 进入下级目录
-func cmdDir(c *ftp.ServerConn, root string) error {
-	err := c.ChangeDir(root)
-	if err != nil {
-		logger.Println(fmt.Sprintf("进入下级目录出错：%v", err))
-		return err
-	}
-	getCurrentDir(c)
-	return nil
-}
-
-// 获取日志类型目录
-func getDeviceDir(deviceTypeId utils.DirName) string {
-	dirStr := utils.Conf().Section("config").Key("dirs").MustString("bis,nis,nws,webapp")
-	dirs := strings.Split(dirStr, ",")
-	if len(dirs) > 0 {
-		for _, dir := range dirs {
-			if dir == deviceTypeId.String() {
-				return dir
-			}
-		}
-	}
-	return ""
 }

@@ -11,8 +11,7 @@ import (
 	"github.com/snowlyg/LogSync/utils"
 )
 
-var ServiceCount int      // 扫描设备数量
-var ServiceNames []string // 扫描设备名称
+var ServerMsgs []*models.ServerMsg // 扫描设备名称
 
 // 监控服务
 func CheckService() {
@@ -23,16 +22,11 @@ func CheckService() {
 	logger.Println("<========================>")
 	logger.Println("服务监控开始")
 	defer logger.Println("服务监控结束")
-	defer logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", ServiceCount, ServiceNames))
-
-	ServiceCount = 0
-	ServiceNames = nil
+	defer logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(ServerMsgs), ServerMsgs))
 
 	serverList := utils.GetServices()
 	if len(serverList) > 0 {
-		var serverMsgs []*models.ServerMsg
 		for _, server := range serverList {
-			setServiceCountAndNames(server)
 			logger.Println(fmt.Sprintf("服务名称： %v", server.ServiceName))
 			var serverMsg models.ServerMsg
 			serverMsg.Status = true
@@ -121,19 +115,14 @@ func CheckService() {
 				utils.SQLite.Save(&serverMsg)
 			}
 
-			serverMsgs = append(serverMsgs, &serverMsg)
+			ServerMsgs = append(ServerMsgs, &serverMsg)
 
 		}
 
-		serverMsgJson, _ := json.Marshal(&serverMsgs)
+		serverMsgJson, _ := json.Marshal(ServerMsgs)
 		data := fmt.Sprintf("fault_data=%s", string(serverMsgJson))
 		res := utils.SyncServices("platform/report/service", data)
 		logger.Printf("推送返回信息: %v", res)
 	}
 
-}
-
-func setServiceCountAndNames(server *utils.Server) {
-	ServiceCount++
-	ServiceNames = append(ServiceNames, server.ServiceName)
 }
