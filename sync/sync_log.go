@@ -27,8 +27,8 @@ import (
 //'dir_name.require'          => '目录名称' 时间格式
 var NotFirst bool
 
-var LogMsgs []*models.LogMsg // 日志
-var LogCodes []string        // 日志
+var logMsgs []*models.LogMsg // 日志
+var logCodes []string        // 日志
 
 type FaultMsg struct {
 	Name    string
@@ -463,8 +463,8 @@ func getFileContent(c *ftp.ServerConn, name string) []byte {
 
 // addLogs 添加日志
 func addLogs(logMsg *models.LogMsg) {
-	LogMsgs = append(LogMsgs, logMsg)
-	LogCodes = append(LogCodes, logMsg.DeviceCode)
+	logMsgs = append(logMsgs, logMsg)
+	logCodes = append(logCodes, logMsg.DeviceCode)
 }
 
 // 进入下级目录
@@ -494,10 +494,11 @@ func getDeviceDir(deviceTypeId utils.DirName) string {
 
 // 扫描设备日志
 func SyncDeviceLog() {
+	logMsgs = nil
+	logCodes = nil
 	logger.Println("<========================>")
 	logger.Println("日志监控开始")
-	defer logger.Println("日志监控结束")
-	defer logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", len(LogMsgs), LogCodes))
+
 	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
 
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
@@ -564,7 +565,7 @@ func SyncDeviceLog() {
 		}
 	}
 
-	serverMsgJson, _ := json.Marshal(LogMsgs)
+	serverMsgJson, _ := json.Marshal(logMsgs)
 	data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
 	res := utils.SyncServices("platform/report/device", data)
 	logger.Println(fmt.Sprintf("提交日志信息返回数据 :%v", res))
@@ -572,5 +573,8 @@ func SyncDeviceLog() {
 	if err := c.Quit(); err != nil {
 		logger.Println(fmt.Sprintf("ftp 退出错误：%v", err))
 	}
+
+	logger.Println(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgs), logCodes))
+	logger.Println("日志监控结束")
 
 }

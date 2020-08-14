@@ -11,19 +11,17 @@ import (
 	"github.com/snowlyg/LogSync/utils"
 )
 
-var ServerMsgs []*models.ServerMsg // 扫描设备名称
-var ServerNames []string           // 扫描设备名称
-
 // 监控服务
 func CheckService() {
 	// 监控服务
 	// platform_service_id ，service_type_id，create_at，fault_msg
 	// http://fyxt.t.chindeo.com/platform/report/service  服务故障上报url
 
+	var serverMsgs []*models.ServerMsg // 扫描设备名称
+	var serverNames []string           // 扫描设备名称
+
 	logger.Println("<========================>")
 	logger.Println("服务监控开始")
-	defer logger.Println("服务监控结束")
-	defer logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(ServerMsgs), ServerNames))
 
 	serverList := utils.GetServices()
 	if len(serverList) > 0 {
@@ -116,15 +114,18 @@ func CheckService() {
 				utils.SQLite.Save(&serverMsg)
 			}
 
-			ServerMsgs = append(ServerMsgs, &serverMsg)
-			ServerNames = append(ServerNames, serverMsg.ServiceName)
+			serverMsgs = append(serverMsgs, &serverMsg)
+			serverNames = append(serverNames, serverMsg.ServiceName)
 
 		}
 
-		serverMsgJson, _ := json.Marshal(ServerMsgs)
+		serverMsgJson, _ := json.Marshal(serverMsgs)
 		data := fmt.Sprintf("fault_data=%s", string(serverMsgJson))
 		res := utils.SyncServices("platform/report/service", data)
 		logger.Printf("推送返回信息: %v", res)
+
 	}
+	logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(serverMsgs), serverNames))
+	logger.Println("服务监控结束")
 
 }
