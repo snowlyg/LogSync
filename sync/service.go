@@ -32,6 +32,7 @@ func CheckService() {
 	if len(serverList) > 0 {
 		var serverMsgs []*models.ServerMsg
 		for _, server := range serverList {
+			setServiceCountAndNames(server)
 			logger.Println(fmt.Sprintf("服务名称： %v", server.ServiceName))
 			var serverMsg models.ServerMsg
 			serverMsg.Status = true
@@ -42,23 +43,6 @@ func CheckService() {
 			serverMsg.CreatedAt = time.Now()
 
 			switch server.ServiceName {
-			// 注释掉 mysql 服务监控，会和日志扫描冲突
-			//case "MySQL":
-			//	func() {
-			//		conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", server.Account, server.Pwd, server.Ip, server.Port, "dois")
-			//		sqlDb, err := gorm.Open("mysql", conn)
-			//		if err != nil {
-			//			serverMsg.Status = false
-			//			serverMsg.FaultMsg = err.Error()
-			//			logger.Printf("MYSQL 连接错误: %v ", err)
-			//		}
-			//		if sqlDb == nil {
-			//			serverMsg.Status = false
-			//			serverMsg.FaultMsg = "MYSQL 连接失败"
-			//		} else {
-			//			defer sqlDb.Close()
-			//		}
-			//	}()
 			case "EMQX":
 				func() {
 					addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
@@ -116,33 +100,6 @@ func CheckService() {
 					}
 
 				}()
-				// 注释掉 ftp 服务监控，会和日志扫描冲突
-				/*			case "FileZilla Server":
-							func() {
-								c, err := ftp.Dial(fmt.Sprintf("%s:%d", server.Ip, server.Port), ftp.DialWithTimeout(5*time.Second))
-								if err != nil {
-									serverMsg.Status = false
-									serverMsg.FaultMsg = err.Error()
-									logger.Printf("FTP 连接错误: %v ", err)
-								} else {
-									if c == nil {
-										serverMsg.Status = false
-										serverMsg.FaultMsg = "连接失败"
-										logger.Printf("FTP 连接失败")
-									} else {
-										err = c.Login(server.Account, server.Pwd)
-										if err != nil {
-											serverMsg.Status = false
-											serverMsg.FaultMsg = err.Error()
-											logger.Printf("FTP 连接错误: %v ", err)
-										} else {
-											defer c.Quit()
-											serverMsg.Status = true
-											logger.Println("FTP 连接成功")
-										}
-									}
-								}
-							}()*/
 			default:
 				func() {
 					if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
@@ -165,7 +122,7 @@ func CheckService() {
 			}
 
 			serverMsgs = append(serverMsgs, &serverMsg)
-			setServiceCountAndNames(server)
+
 		}
 
 		serverMsgJson, _ := json.Marshal(&serverMsgs)
