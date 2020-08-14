@@ -12,6 +12,7 @@ import (
 )
 
 var ServerMsgs []*models.ServerMsg // 扫描设备名称
+var ServerNames []string           // 扫描设备名称
 
 // 监控服务
 func CheckService() {
@@ -22,7 +23,7 @@ func CheckService() {
 	logger.Println("<========================>")
 	logger.Println("服务监控开始")
 	defer logger.Println("服务监控结束")
-	defer logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(ServerMsgs), ServerMsgs))
+	defer logger.Println(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(ServerMsgs), ServerNames))
 
 	serverList := utils.GetServices()
 	if len(serverList) > 0 {
@@ -116,6 +117,7 @@ func CheckService() {
 			}
 
 			ServerMsgs = append(ServerMsgs, &serverMsg)
+			ServerNames = append(ServerNames, serverMsg.ServiceName)
 
 		}
 
