@@ -80,7 +80,7 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 
 #### 编译
 ```shell script
-go build -ldflags "-w -s -X main.Version=v1.5"
+go build -ldflags "-w -s -X main.Version=v1.6"
 ```
 
 #### 版本更新
@@ -89,3 +89,4 @@ go build -ldflags "-w -s -X main.Version=v1.5"
 - v1.3 增加初次启动不报故障的判断
 - v1.4 优化服务监控连接，修改为5秒超时
 - v1.5 尝试调试服务自动退出，目前推测试服务监控和日志扫描同时连接 ftp,mysql 导致，解决方案去除服务监控 ftp,mysql 连接。
+- v1.6 调整日志为一次性提交
