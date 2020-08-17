@@ -566,6 +566,7 @@ func SyncDeviceLog() {
 	}
 
 	serverMsgJson, _ := json.Marshal(logMsgs)
+	logger.Println(fmt.Sprintf("日志文件大小：%d", len(serverMsgJson)/1024/1024))
 	data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
 	res := utils.SyncServices("platform/report/device", data)
 	logger.Println(fmt.Sprintf("提交日志信息返回数据 :%v", res))
