@@ -504,7 +504,7 @@ func SyncDeviceLog() {
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 	// 扫描错误日志，设备监控
-	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(30*time.Second))
+	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(5*time.Second))
 	if err != nil {
 		logger.Println(fmt.Sprintf("ftp 连接错误 %v", err))
 	}
