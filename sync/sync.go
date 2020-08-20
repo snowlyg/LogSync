@@ -92,7 +92,7 @@ func createDevices(sqlDb *gorm.DB) {
 			logger.Println("数据提交返回信息:%v", res)
 
 		} else {
-			logger.Error("db.SQLite is null")
+			logger.Println("db.SQLite is null")
 		}
 	}
 
@@ -128,7 +128,7 @@ func createTelphones(sqlDb *gorm.DB) {
 			res := utils.SyncServices("platform/report/synctel", data)
 			logger.Println("同步通讯录返回数据:%s", res)
 		} else {
-			logger.Error("db.SQLite is null")
+			logger.Println("db.SQLite is null")
 		}
 	}
 }
@@ -165,7 +165,7 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 
 			logger.Println("同步通讯录组返回数据:%s", res)
 		} else {
-			logger.Error("db.SQLite is null")
+			logger.Println("db.SQLite is null")
 		}
 	}
 }

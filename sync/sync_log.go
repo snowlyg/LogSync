@@ -62,7 +62,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 	var faultMsgs []*FaultMsg
 	ss, err := c.List(getCurrentDir(c))
 	if err != nil {
-		logger.Println(fmt.Sprintf("%s 获取文件/文件夹列表出错：%v", getCurrentDir(c), err))
+		logger.Println(fmt.Sprintf("获取文件/文件夹列表出错：%v", err))
 	}
 
 	for _, s := range ss {
@@ -196,7 +196,11 @@ func getCurrentDir(c *ftp.ServerConn) string {
 		logger.Println(fmt.Sprintf("获取当前文件夹出错：%v", err))
 		return ""
 	}
-	logger.Println(fmt.Sprintf("当前路径 >>> %v", dir))
+
+	if utils.Conf().Section("config").Key("loglevel").String() == "debug" {
+		logger.Println(fmt.Sprintf("当前路径 >>> %v", dir))
+	}
+
 	return dir
 }
 
@@ -449,13 +453,13 @@ func createOutDir(logMsg models.LogMsg) string {
 func getFileContent(c *ftp.ServerConn, name string) []byte {
 	r, err := c.Retr(name)
 	if err != nil {
-		logger.Error(err)
+		logger.Println(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
 	}
 	defer r.Close()
 
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
-		logger.Println(fmt.Sprintf("获取文件内容出错 %s  错误信息成功", err))
+		logger.Println(fmt.Sprintf("获取文件内容出错  Error: %s  ", err))
 	}
 
 	return buf

@@ -156,11 +156,11 @@ func main() {
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logger.Error(err)
+		logger.Println(err)
 	}
 
 	if err != nil {
-		logger.Error(err)
+		logger.Println(err)
 	}
 
 	if len(os.Args) == 2 {
@@ -218,6 +218,6 @@ func main() {
 
 	err = s.Run()
 	if err != nil {
-		logger.Error(err)
+		logger.Println(err)
 	}
 }
