@@ -146,15 +146,6 @@ func (p *program) Stop(s service.Service) error {
 }
 
 func main() {
-
-	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
-		logger.Println("++++++++++++++++程序异常退出++++++++++++++++")
-		if err := recover(); err != nil {
-			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
-		}
-		logger.Println("++++++++++++++++程序 recover ++++++++++++++++")
-	}()
-
 	svcConfig := &service.Config{
 		Name:        "LogSync",  //服务显示名称
 		DisplayName: "LogSync",  //服务名称

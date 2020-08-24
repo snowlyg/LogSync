@@ -80,7 +80,7 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 
 #### 编译
 ```shell script
-go build -ldflags "-w -s -X main.Version=v1.6"
+go build -ldflags "-w -s -X main.Version=v1.7"
 ```
 
 #### 版本更新
@@ -90,3 +90,4 @@ go build -ldflags "-w -s -X main.Version=v1.6"
 - v1.4 优化服务监控连接，修改为5秒超时
 - v1.5 尝试调试服务自动退出，目前推测试服务监控和日志扫描同时连接 ftp,mysql 导致，解决方案去除服务监控 ftp,mysql 连接。
 - v1.6 调整日志为一次性提交，修改 FTP 超时时间
+- v1.7 增加文件异常报错后自动恢复程序

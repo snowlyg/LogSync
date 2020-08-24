@@ -451,6 +451,14 @@ func createOutDir(logMsg models.LogMsg) string {
 
 // 获取文件内容
 func getFileContent(c *ftp.ServerConn, name string) []byte {
+	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+		logger.Println("++++++++++++++++程序异常退出++++++++++++++++")
+		if err := recover(); err != nil {
+			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
+		}
+		logger.Println("++++++++++++++++程序 recover ++++++++++++++++")
+	}()
+
 	r, err := c.Retr(name)
 	if err != nil {
 		logger.Panicln(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
