@@ -453,7 +453,7 @@ func createOutDir(logMsg models.LogMsg) string {
 func getFileContent(c *ftp.ServerConn, name string) []byte {
 	r, err := c.Retr(name)
 	if err != nil {
-		logger.Println(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
+		logger.Panicln(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
 	}
 	defer r.Close()
 
