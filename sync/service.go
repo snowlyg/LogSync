@@ -29,7 +29,7 @@ func CheckService() {
 
 			logger.Println(fmt.Sprintf("服务名称： %v", server.ServiceName))
 			var serverMsg models.ServerMsg
-			serverMsg.Status = true
+			serverMsg.Status = false
 			serverMsg.ServiceTypeId = server.ServiceTypeId
 			serverMsg.ServiceName = server.ServiceName
 			serverMsg.ServiceTitle = server.ServiceTitle
@@ -37,7 +37,7 @@ func CheckService() {
 			serverMsg.CreatedAt = time.Now()
 
 			conCount := 0
-			for conCount < 3 && conCount > 0 {
+			for conCount < 3 && !serverMsg.Status {
 				switch server.ServiceName {
 				case "EMQX":
 					func() {
@@ -50,29 +50,29 @@ func CheckService() {
 						})
 
 						if err != nil {
-							serverMsg.Status = false
 							serverMsg.FaultMsg = err.Error()
 							logger.Printf("MQTT 客户端创建失败: %v ", err)
 							conCount++
+							return
 						} else {
 							if mqttClient == nil {
-								serverMsg.Status = false
 								serverMsg.FaultMsg = "连接失败"
 								logger.Printf("MQTT 连接失败")
 								conCount++
+								return
 							} else {
 								defer mqttClient.Disconnect()
 								//建立连接
 								err = mqttClient.Connect()
 								if err != nil {
-									serverMsg.Status = false
 									serverMsg.FaultMsg = err.Error()
 									logger.Printf("MQTT 连接出错: %v ", err)
 									conCount++
+									return
 								}
 							}
 						}
-						conCount = -1
+						serverMsg.Status = true
 					}()
 				case "RabbitMQ":
 					func() {
@@ -83,35 +83,38 @@ func CheckService() {
 								serverMsg.Status = true
 								logger.Println("RabbitMq conn success")
 							} else {
-								serverMsg.Status = false
 								serverMsg.FaultMsg = err.Error()
 								logger.Printf("RabbitMq 连接错误: %v ", err)
 								conCount++
+								return
 							}
 						} else {
 							if rabbitmq == nil {
-								serverMsg.Status = false
 								serverMsg.FaultMsg = "连接失败"
 								logger.Printf("RabbitMq 连接失败: 连接失败 ")
 								conCount++
+								return
 							} else {
 								defer rabbitmq.Destory()
 							}
 						}
-						conCount = -1
-
+						serverMsg.Status = true
 					}()
 				default:
 					func() {
 						if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
-							serverMsg.Status = false
 							serverMsg.FaultMsg = err.Error()
 							logger.Printf("%s连接错误: %v ", server.ServiceName, err)
 							conCount++
+							return
 						}
-						conCount = -1
+						serverMsg.Status = true
 					}()
 				}
+			}
+
+			// 故障显示连接次数
+			if conCount > 0 {
 				logger.Printf("%s 连接次数: %d", server.ServiceName, conCount)
 			}
 
