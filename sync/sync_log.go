@@ -516,9 +516,16 @@ func SyncDeviceLog() {
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 	// 扫描错误日志，设备监控
+	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+		logger.Println("++++++++++++++++程序异常退出++++++++++++++++")
+		if err := recover(); err != nil {
+			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
+		}
+		logger.Println("++++++++++++++++程序 recover ++++++++++++++++")
+	}()
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(5*time.Second))
 	if err != nil {
-		logger.Println(fmt.Sprintf("ftp 连接错误 %v", err))
+		logger.Panicln(fmt.Sprintf("ftp 连接错误 %v", err))
 	}
 	// 登录ftp
 	err = c.Login(username, password)
