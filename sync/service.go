@@ -26,6 +26,7 @@ func CheckService() {
 	serverList := utils.GetServices()
 	if len(serverList) > 0 {
 		for _, server := range serverList {
+
 			logger.Println(fmt.Sprintf("服务名称： %v", server.ServiceName))
 			var serverMsg models.ServerMsg
 			serverMsg.Status = true
@@ -35,72 +36,83 @@ func CheckService() {
 			serverMsg.PlatformServiceId = server.Id
 			serverMsg.CreatedAt = time.Now()
 
-			switch server.ServiceName {
-			case "EMQX":
-				func() {
-					addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
-					mqttClient, err := client.CreateClient(client.MqttOption{
-						Addr:               addr,
-						ReconnTimeInterval: 1,
-						UserName:           server.Account,
-						Password:           server.Pwd,
-					})
+			conCount := 0
+			for conCount < 3 && conCount > 0 {
+				switch server.ServiceName {
+				case "EMQX":
+					func() {
+						addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
+						mqttClient, err := client.CreateClient(client.MqttOption{
+							Addr:               addr,
+							ReconnTimeInterval: 1,
+							UserName:           server.Account,
+							Password:           server.Pwd,
+						})
 
-					if err != nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = err.Error()
-						logger.Printf("MQTT 客户端创建失败: %v ", err)
-					} else {
-						if mqttClient == nil {
-							serverMsg.Status = false
-							serverMsg.FaultMsg = "连接失败"
-							logger.Printf("MQTT 连接失败")
-						} else {
-							defer mqttClient.Disconnect()
-							//建立连接
-							err = mqttClient.Connect()
-							if err != nil {
-								serverMsg.Status = false
-								serverMsg.FaultMsg = err.Error()
-								logger.Printf("MQTT 连接出错: %v ", err)
-							}
-						}
-					}
-
-				}()
-			case "RabbitMQ":
-				func() {
-					mqurl := fmt.Sprintf("amqp://%s:%s@%s:%d/shop", server.Account, server.Pwd, server.Ip, server.Port)
-					rabbitmq, err := NewRabbitMQSimple("imoocSimple", mqurl)
-
-					if err != nil {
-						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
-							serverMsg.Status = true
-							logger.Println("RabbitMq conn success")
-						} else {
+						if err != nil {
 							serverMsg.Status = false
 							serverMsg.FaultMsg = err.Error()
-							logger.Printf("RabbitMq 连接错误: %v ", err)
-						}
-					} else {
-						if rabbitmq == nil {
-							serverMsg.Status = false
-							serverMsg.FaultMsg = "连接失败"
-							logger.Printf("RabbitMq 连接失败: 连接失败 ")
+							logger.Printf("MQTT 客户端创建失败: %v ", err)
+							conCount++
 						} else {
-							defer rabbitmq.Destory()
+							if mqttClient == nil {
+								serverMsg.Status = false
+								serverMsg.FaultMsg = "连接失败"
+								logger.Printf("MQTT 连接失败")
+								conCount++
+							} else {
+								defer mqttClient.Disconnect()
+								//建立连接
+								err = mqttClient.Connect()
+								if err != nil {
+									serverMsg.Status = false
+									serverMsg.FaultMsg = err.Error()
+									logger.Printf("MQTT 连接出错: %v ", err)
+									conCount++
+								}
+							}
 						}
-					}
+						conCount = -1
+					}()
+				case "RabbitMQ":
+					func() {
+						mqurl := fmt.Sprintf("amqp://%s:%s@%s:%d/shop", server.Account, server.Pwd, server.Ip, server.Port)
+						rabbitmq, err := NewRabbitMQSimple("imoocSimple", mqurl)
+						if err != nil {
+							if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
+								serverMsg.Status = true
+								logger.Println("RabbitMq conn success")
+							} else {
+								serverMsg.Status = false
+								serverMsg.FaultMsg = err.Error()
+								logger.Printf("RabbitMq 连接错误: %v ", err)
+								conCount++
+							}
+						} else {
+							if rabbitmq == nil {
+								serverMsg.Status = false
+								serverMsg.FaultMsg = "连接失败"
+								logger.Printf("RabbitMq 连接失败: 连接失败 ")
+								conCount++
+							} else {
+								defer rabbitmq.Destory()
+							}
+						}
+						conCount = -1
 
-				}()
-			default:
-				func() {
-					if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
-						serverMsg.Status = false
-						serverMsg.FaultMsg = err.Error()
-						logger.Printf("%s连接错误: %v ", server.ServiceName, err)
-					}
-				}()
+					}()
+				default:
+					func() {
+						if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
+							serverMsg.Status = false
+							serverMsg.FaultMsg = err.Error()
+							logger.Printf("%s连接错误: %v ", server.ServiceName, err)
+							conCount++
+						}
+						conCount = -1
+					}()
+				}
+				logger.Printf("%s 连接次数: %d", server.ServiceName, conCount)
 			}
 
 			// 本机存储数据
@@ -117,6 +129,7 @@ func CheckService() {
 			serverMsgs = append(serverMsgs, &serverMsg)
 			serverNames = append(serverNames, serverMsg.ServiceName)
 
+			conCount = 0
 		}
 
 		serverMsgJson, _ := json.Marshal(serverMsgs)
