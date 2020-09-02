@@ -353,76 +353,77 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 		addLogs(&logMsg)
 		logger.Println(fmt.Sprintf("%s: 扫描设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
 		return
-	}
+	} else {
+		time.Sleep(2 * time.Second)
+		logFiles, err := utils.ListDir(odir, "log")
+		if err != nil {
+			logger.Println(fmt.Sprintf("%s 获取日志文件 出错： %v ", time.Now().Format("2006-01-02 15:04:05"), err))
+		}
 
-	logFiles, err := utils.ListDir(odir, "log")
-	if err != nil {
-		logger.Println(fmt.Sprintf("获取日志文件： %v", err))
-	}
+		var faultMags []*FaultMsg
+		for _, fileName := range logFiles {
+			if file, err := utils.OpenFile(fileName); err == nil {
+				faultMsg := new(FaultMsg)
+				faultMsg.Name = fileName
+				faultMsg.Content = string(file)
+				faultMags = append(faultMags, faultMsg)
 
-	var faultMags []*FaultMsg
-	for _, fileName := range logFiles {
-		if file, err := utils.OpenFile(fileName); err == nil {
-			faultMsg := new(FaultMsg)
-			faultMsg.Name = fileName
-			faultMsg.Content = string(file)
-			faultMags = append(faultMags, faultMsg)
+				if strings.ContainsAny(fileName, "fault.log") {
+					var faultLog FaultLog
+					err := json.Unmarshal(file, &faultLog)
+					if err != nil {
+						log.Printf("FaultLog json.Unmarshal error：%v", err)
+					}
 
-			if strings.ContainsAny(fileName, "fault.log") {
-				var faultLog FaultLog
-				err := json.Unmarshal(file, &faultLog)
-				if err != nil {
-					log.Printf("FaultLog json.Unmarshal error：%v", err)
-				}
+					timestamp, err := time.Parse("2006-01-02 15:04:05", faultLog.Timestamp)
+					if err != nil {
+						log.Printf(" time.Parse error：%v", err)
+					}
 
-				timestamp, err := time.Parse("2006-01-02 15:04:05", faultLog.Timestamp)
-				if err != nil {
-					log.Printf(" time.Parse error：%v", err)
-				}
+					subT := time.Now().Sub(timestamp)
+					if subT.Minutes() >= 10 {
+						emptyLogRe(logMsg, oldMsg)
+						return
+					}
 
-				subT := time.Now().Sub(timestamp)
-				if subT.Minutes() >= 10 {
-					emptyLogRe(logMsg, oldMsg)
-					return
-				}
+				} else if strings.ContainsAny(fileName, "fault.txt") {
+					var faultTxt FaultTxt
+					err := json.Unmarshal(file, &faultTxt)
+					if err != nil {
+						log.Printf("FaultLog json.Unmarshal error：%v", err)
+					}
 
-			} else if strings.ContainsAny(fileName, "fault.txt") {
-				var faultTxt FaultTxt
-				err := json.Unmarshal(file, &faultTxt)
-				if err != nil {
-					log.Printf("FaultLog json.Unmarshal error：%v", err)
-				}
+					timestamp, err := time.Parse("2006-01-02 15:04:05", faultTxt.Timestamp)
+					if err != nil {
+						log.Printf(" time.Parse error：%v", err)
+					}
 
-				timestamp, err := time.Parse("2006-01-02 15:04:05", faultTxt.Timestamp)
-				if err != nil {
-					log.Printf(" time.Parse error：%v", err)
-				}
-
-				subT := time.Now().Sub(timestamp)
-				if subT.Minutes() >= 10 {
-					emptyLogRe(logMsg, oldMsg)
-					return
+					subT := time.Now().Sub(timestamp)
+					if subT.Minutes() >= 10 {
+						emptyLogRe(logMsg, oldMsg)
+						return
+					}
 				}
 			}
 		}
-	}
 
-	if faultMags != nil {
-		faultMsgsJson, err := json.Marshal(faultMags)
-		if err != nil {
-			logger.Println(fmt.Sprintf("JSON 化数据出错 %v", err))
+		if faultMags != nil {
+			faultMsgsJson, err := json.Marshal(faultMags)
+			if err != nil {
+				logger.Println(fmt.Sprintf("JSON 化数据出错 %v", err))
+			}
+
+			logMsg.FaultMsg = string(faultMsgsJson)
 		}
 
-		logMsg.FaultMsg = string(faultMsgsJson)
-	}
-
-	if logMsg.FaultMsg != "" {
-		logMsg.Status = "设备有正常生成了日志,但是设备超过15分钟未上报日志到FTP"
-		saveOrUpdate(&logMsg, oldMsg)
-		addLogs(&logMsg)
-		logger.Println(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
-	} else {
-		emptyLogRe(logMsg, oldMsg)
+		if logMsg.FaultMsg != "" {
+			logMsg.Status = "设备有正常生成了日志,但是设备超过15分钟未上报日志到FTP"
+			saveOrUpdate(&logMsg, oldMsg)
+			addLogs(&logMsg)
+			logger.Println(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
+		} else {
+			emptyLogRe(logMsg, oldMsg)
+		}
 	}
 }
 
