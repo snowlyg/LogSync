@@ -452,13 +452,12 @@ func createOutDir(logMsg models.LogMsg) string {
 // 获取文件内容
 func getFileContent(c *ftp.ServerConn, name string) []byte {
 	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
-		logger.Println("++++++++++++++++程序异常退出++++++++++++++++")
+		logger.Println("++++++++++++++++Retr 程序异常退出++++++++++++++++")
 		if err := recover(); err != nil {
 			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
 		}
-		logger.Println("++++++++++++++++程序 recover ++++++++++++++++")
+		logger.Println("++++++++++++++++Retr 程序 recover ++++++++++++++++")
 	}()
-
 	r, err := c.Retr(name)
 	if err != nil {
 		logger.Panicln(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
@@ -517,13 +516,13 @@ func SyncDeviceLog() {
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 	// 扫描错误日志，设备监控
 	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
-		logger.Println("++++++++++++++++程序异常退出++++++++++++++++")
+		logger.Println("++++++++++++++++ftp 程序异常退出++++++++++++++++")
 		if err := recover(); err != nil {
 			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
 		}
-		logger.Println("++++++++++++++++程序 recover ++++++++++++++++")
+		logger.Println("++++++++++++++++ftp 程序 recover ++++++++++++++++")
 	}()
-	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(5*time.Second))
+	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		logger.Panicln(fmt.Sprintf("ftp 连接错误 %v", err))
 	}
