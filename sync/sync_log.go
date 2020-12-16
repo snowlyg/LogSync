@@ -25,7 +25,7 @@ import (
 //'fault_msg.require'         => '故障信息不能为空！',  string
 //'create_at.require'         => '创建时间不能为空！' 时间格式
 //'dir_name.require'          => '目录名称' 时间格式
-var NotFirst bool
+var NotFirst bool // 为 true 提交错误日志数据
 
 var logMsgs []*models.LogMsg // 日志
 var logCodes []string        // 日志
@@ -587,7 +587,11 @@ func SyncDeviceLog() {
 	serverMsgJson, _ := json.Marshal(logMsgs)
 	logger.Println(fmt.Sprintf("日志文件大小：%d", len(serverMsgJson)/1024/1024))
 	data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
-	res := utils.SyncServices("platform/report/device", data)
+	var res interface{}
+	res, err = utils.SyncServices("platform/report/device", data)
+	if err != nil {
+		logger.Println(err)
+	}
 	logger.Println(fmt.Sprintf("提交日志信息返回数据 :%v", res))
 
 	if err := c.Quit(); err != nil {

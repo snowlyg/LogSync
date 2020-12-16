@@ -15,7 +15,11 @@ func SyncDevice() {
 	// http://fyxt.t.chindeo.com/platform/report/syncdevice 同步设备 post
 	// http://fyxt.t.chindeo.com/platform/report/synctelgroup   同步通讯录组 post
 	// http://fyxt.t.chindeo.com/platform/report/synctel  同步通讯录 post
-	serverList := utils.GetServices()
+	serverList, err := utils.GetServices()
+	if err != nil {
+		logger.Println(err)
+		return
+	}
 	account := utils.Conf().Section("mysql").Key("account").MustString("visible")
 	pwd := utils.Conf().Section("mysql").Key("pwd").MustString("Chindeo")
 	for _, server := range serverList {
@@ -88,7 +92,11 @@ func createDevices(sqlDb *gorm.DB) {
 
 			cfDeviceJson, _ := json.Marshal(&cfDevices)
 			data := fmt.Sprintf("data=%s", cfDeviceJson)
-			res := utils.SyncServices("platform/report/syncdevice", data)
+			var res interface{}
+			res, err = utils.SyncServices("platform/report/syncdevice", data)
+			if err != nil {
+				logger.Println(err)
+			}
 			logger.Println("数据提交返回信息:%v", res)
 
 		} else {
@@ -125,7 +133,11 @@ func createTelphones(sqlDb *gorm.DB) {
 
 			telphoneJson, _ := json.Marshal(&telphones)
 			data := fmt.Sprintf("data=%s", telphoneJson)
-			res := utils.SyncServices("platform/report/synctel", data)
+			var res interface{}
+			res, err = utils.SyncServices("platform/report/synctel", data)
+			if err != nil {
+				logger.Println(err)
+			}
 			logger.Println("同步通讯录返回数据:%s", res)
 		} else {
 			logger.Println("db.SQLite is null")
@@ -161,8 +173,11 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 
 			telphoneGroupJson, _ := json.Marshal(&telphoneGroups)
 			data := fmt.Sprintf("data=%s", telphoneGroupJson)
-			res := utils.SyncServices("platform/report/synctelgroup", data)
-
+			var res interface{}
+			res, err = utils.SyncServices("platform/report/synctelgroup", data)
+			if err != nil {
+				logger.Println(err)
+			}
 			logger.Println("同步通讯录组返回数据:%s", res)
 		} else {
 			logger.Println("db.SQLite is null")

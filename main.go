@@ -57,10 +57,11 @@ func (p *program) run() {
 	}
 	err = routers.Init()
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	p.StartHTTP()
+
 	go syncDeviceLog()
 	go syncDevice()
 
@@ -83,9 +84,9 @@ func syncDevice() {
 	}
 	go func() {
 		for range tickerSync.C {
+			utils.GetToken()
 			sync.SyncDevice()
 		}
-
 		chSy <- 1
 	}()
 	<-chSy
@@ -112,6 +113,8 @@ func syncDeviceLog() {
 	sync.NotFirst = false
 	go func() {
 		for range ticker.C {
+			utils.GetToken()
+			sync.CheckRestful()
 			sync.CheckService()
 			// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 15) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {

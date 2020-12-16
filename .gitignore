@@ -22,3 +22,6 @@ other_logs/*
 
 LogSync
 
+air.log
+.air.conf
+
