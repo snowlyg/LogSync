@@ -1,2 +1,2 @@
-LogSync.exe install
-LogSync.exe start
+LogSync.exe --action=install
+LogSync.exe --action=start

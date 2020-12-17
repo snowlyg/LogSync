@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/snowlyg/LogSync/utils/logging"
 	"log"
@@ -149,7 +150,21 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
+var Action = flag.String("action", "", "程序操作指令")
+
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: %s [options] [command]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Commands:\n")
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "  -action <install remove start stop restart version>\n")
+		fmt.Fprintf(os.Stderr, "    程序操作指令\n")
+		fmt.Fprintf(os.Stderr, "\n")
+	}
+
+	flag.Parse()
+
+	// 初始化日志目录
 	svcConfig := &service.Config{
 		Name:        "LogSync",  //服务显示名称
 		DisplayName: "LogSync",  //服务名称
@@ -166,57 +181,55 @@ func main() {
 		logging.Err.Error(err)
 	}
 
-	if len(os.Args) == 2 {
-		if os.Args[1] == "install" {
-			err := s.Install()
-			if err != nil {
-				panic(err)
-			}
-			logging.Dbug.Info("服务安装成功")
-			return
+	if *Action == "install" {
+		err := s.Install()
+		if err != nil {
+			panic(err)
+		}
+		logging.Dbug.Info("服务安装成功")
+		return
+	}
+
+	if *Action == "remove" {
+		err := s.Uninstall()
+		if err != nil {
+			panic(err)
+		}
+		logging.Dbug.Info("服务卸载成功")
+		return
+	}
+
+	if *Action == "start" {
+		err := s.Start()
+		if err != nil {
+			panic(err)
+		}
+		logging.Dbug.Info("服务启动成功")
+		return
+	}
+
+	if *Action == "stop" {
+		err := s.Stop()
+		if err != nil {
+			panic(err)
+		}
+		logging.Dbug.Info("服务停止成功")
+		return
+	}
+
+	if *Action == "restart" {
+		err := s.Restart()
+		if err != nil {
+			panic(err)
 		}
 
-		if os.Args[1] == "remove" {
-			err := s.Uninstall()
-			if err != nil {
-				panic(err)
-			}
-			logging.Dbug.Info("服务卸载成功")
-			return
-		}
+		logging.Dbug.Info("服务重启成功")
+		return
+	}
 
-		if os.Args[1] == "start" {
-			err := s.Start()
-			if err != nil {
-				panic(err)
-			}
-			logging.Dbug.Info("服务启动成功")
-			return
-		}
-
-		if os.Args[1] == "stop" {
-			err := s.Stop()
-			if err != nil {
-				panic(err)
-			}
-			logging.Dbug.Info("服务停止成功")
-			return
-		}
-
-		if os.Args[1] == "restart" {
-			err := s.Restart()
-			if err != nil {
-				panic(err)
-			}
-
-			logging.Dbug.Info("服务重启成功")
-			return
-		}
-
-		if os.Args[1] == "version" {
-			logging.Dbug.Info(fmt.Sprintf("版本号：%s", Version))
-			return
-		}
+	if *Action == "version" {
+		logging.Dbug.Info(fmt.Sprintf("版本号：%s", Version))
+		return
 	}
 
 	s.Run()

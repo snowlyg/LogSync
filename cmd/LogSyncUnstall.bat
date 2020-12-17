@@ -1,2 +1,2 @@
-LogSync.exe stop
-LogSync.exe remove
+LogSync.exe --action=stop
+LogSync.exe --action=remove
