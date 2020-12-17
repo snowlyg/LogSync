@@ -73,8 +73,9 @@ func CheckRestful() {
 
 // RestfulResponse
 type RestfulResponse struct {
-	Status int64  `json:"status"`
-	Msg    string `json:"msg"`
+	Status int64       `json:"code"`
+	Msg    string      `json:"message"`
+	Data   interface{} `json:"data"`
 }
 
 // getRestful 请求接口
@@ -90,25 +91,27 @@ func getRestful(restfulMsg *models.RestfulMsg) {
 			conCount++
 			continue
 		}
+		logging.Dbug.Info(string(result))
 		err := json.Unmarshal(result, &re)
 		if err != nil {
-			str := fmt.Sprintf("接口可以访问，但返回数据无法解析，报错如下：%v", err)
+			str := fmt.Sprintf("接口可以访问，但返回数据 %s 无法解析，报错如下：%v", string(result), err)
 			restfulMsg.Status = false
 			restfulMsg.ErrMsg = str
 			conCount++
 			continue
 		}
 
-		if re.Status == 0 {
-			restfulMsg.Status = false
-			restfulMsg.ErrMsg = re.Msg
-			conCount++
-			continue
-		} else {
+		// 200代表成功，其他均是异常
+		if re.Status == 200 {
 			restfulMsg.Status = true
 			restfulMsg.ErrMsg = re.Msg
 			conCount = 0
 			return
+		} else {
+			restfulMsg.Status = false
+			restfulMsg.ErrMsg = re.Msg
+			conCount++
+			continue
 		}
 	}
 

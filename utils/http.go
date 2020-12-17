@@ -149,7 +149,11 @@ func Request(method, url, data string, auth bool) []byte {
 	t := time.Duration(timeout) * time.Second
 	Client := http.Client{Timeout: t}
 	go func() {
-		req, _ := http.NewRequest(method, fmt.Sprintf("http://%s/%s", host, url), strings.NewReader(data))
+		fullUrl := fmt.Sprintf("http://%s/%s", host, url)
+		if strings.Contains(url, "http") {
+			fullUrl = url
+		}
+		req, _ := http.NewRequest(method, fullUrl, strings.NewReader(data))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 		if auth {
 			req.Header.Set("X-Token", GetCacheToken())
@@ -160,13 +164,8 @@ func Request(method, url, data string, auth bool) []byte {
 			return
 		}
 		defer resp.Body.Close()
-		//if resp.StatusCode == 200 || resp.StatusCode == 500 || resp.StatusCode == 502 {
 		b, _ := ioutil.ReadAll(resp.Body)
 		result <- b
-		//} else {
-		//	b, _ := ioutil.ReadAll(resp.Body)
-		//	logging.Norm.Info(string(b))
-		//}
 	}()
 
 	for {

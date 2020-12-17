@@ -85,17 +85,18 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 
 3.接口监控返回数据格式
 
-```json
+
+```json5
  {
-  "status": 0,
-  "msg": "接口无法访问"
+  "code": 0, // 200代表成功，其他均是异常
+  "message": "接口无法访问"
 }
 ```
 
 #### 编译
 
 ```shell script
-go build -ldflags "-w -s -X main.Version=v1.9"
+go build -ldflags "-w -s -X main.Version=v1.9 -o ./cmd/LogSync.exe"
 ```
 
 #### 版本更新
