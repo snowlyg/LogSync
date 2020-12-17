@@ -24,7 +24,6 @@ func SyncDeviceLog(c *gin.Context) {
 }
 
 func SyncLog(c *gin.Context) {
-
 	syncLog := c.Query("sync_log")
 	if syncLog == "1" {
 		err := utils.GetToken()
