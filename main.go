@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/snowlyg/LogSync/utils/logging"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jander/golog/logger"
 	"github.com/kardianos/service"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/routers"
@@ -18,11 +18,6 @@ import (
 )
 
 var Version string
-
-func init() {
-	rotatingHandler := logger.NewRotatingHandler(utils.LogDir(), "logsync.log", 4, 4*1024*1024)
-	logger.SetHandlers(logger.Console, rotatingHandler)
-}
 
 type program struct {
 	httpServer *http.Server
@@ -158,11 +153,11 @@ func main() {
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logger.Println(err)
+		logging.Err.Error(err)
 	}
 
 	if err != nil {
-		logger.Println(err)
+		logging.Err.Error(err)
 	}
 
 	if len(os.Args) == 2 {
@@ -171,7 +166,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			logger.Println("服务安装成功")
+			logging.Dbug.Info("服务安装成功")
 			return
 		}
 
@@ -180,7 +175,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			logger.Println("服务卸载成功")
+			logging.Dbug.Info("服务卸载成功")
 			return
 		}
 
@@ -189,7 +184,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			logger.Println("服务启动成功")
+			logging.Dbug.Info("服务启动成功")
 			return
 		}
 
@@ -198,7 +193,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			logger.Println("服务停止成功")
+			logging.Dbug.Info("服务停止成功")
 			return
 		}
 
@@ -208,18 +203,16 @@ func main() {
 				panic(err)
 			}
 
-			logger.Println("服务重启成功")
+			logging.Dbug.Info("服务重启成功")
 			return
 		}
 
 		if os.Args[1] == "version" {
-			fmt.Println(fmt.Sprintf("版本号：%s", Version))
+			logging.Dbug.Info(fmt.Sprintf("版本号：%s", Version))
 			return
 		}
 	}
 
-	err = s.Run()
-	if err != nil {
-		logger.Println(err)
-	}
+	s.Run()
+
 }

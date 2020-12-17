@@ -3,10 +3,10 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jander/golog/logger"
 	"github.com/jinzhu/gorm"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
+	"github.com/snowlyg/LogSync/utils/logging"
 	"time"
 )
 
@@ -17,7 +17,7 @@ func SyncDevice() {
 	// http://fyxt.t.chindeo.com/platform/report/synctel  同步通讯录 post
 	serverList, err := utils.GetServices()
 	if err != nil {
-		logger.Println(err)
+		logging.Err.Error(err)
 		return
 	}
 	account := utils.Conf().Section("mysql").Key("account").MustString("visible")
@@ -29,10 +29,10 @@ func SyncDevice() {
 				conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", account, pwd, server.Ip, server.Port, "dois")
 				sqlDb, err := gorm.Open("mysql", conn)
 				if err != nil {
-					logger.Printf("mysql conn error: %v ,id:%s", err, server.Ip)
+					logging.Norm.Infof("mysql conn error: %v ,id:%s", err, server.Ip)
 					return
 				} else {
-					logger.Println("mysql conn success")
+					logging.Norm.Info("mysql conn success")
 				}
 				defer sqlDb.Close()
 
@@ -57,7 +57,7 @@ func deleteMsg() {
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
 
-	logger.Println("删除3天前数据库日志记录 :%s", lastWeek)
+	logging.Norm.Infof("删除3天前数据库日志记录 :%s", lastWeek)
 }
 
 // 同步设备
@@ -71,7 +71,7 @@ func createDevices(sqlDb *gorm.DB) {
 
 	rows, err := sqlDb.Raw(query).Rows()
 	if err != nil {
-		logger.Println(err)
+		logging.Err.Error(err)
 	}
 	defer rows.Close()
 
@@ -95,12 +95,12 @@ func createDevices(sqlDb *gorm.DB) {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/syncdevice", data)
 			if err != nil {
-				logger.Println(err)
+				logging.Err.Error(err)
 			}
-			logger.Println("数据提交返回信息:%v", res)
+			logging.Norm.Infof("数据提交返回信息:%v", res)
 
 		} else {
-			logger.Println("db.SQLite is null")
+			logging.Norm.Infof("db.SQLite is null")
 		}
 	}
 
@@ -112,7 +112,7 @@ func createTelphones(sqlDb *gorm.DB) {
 
 	rows, err := sqlDb.Raw("select *  from ss_telephone").Rows()
 	if err != nil {
-		logger.Println(err)
+		logging.Err.Error(err)
 	}
 	defer rows.Close()
 
@@ -136,11 +136,11 @@ func createTelphones(sqlDb *gorm.DB) {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/synctel", data)
 			if err != nil {
-				logger.Println(err)
+				logging.Err.Error(err)
 			}
-			logger.Println("同步通讯录返回数据:%s", res)
+			logging.Norm.Infof("同步通讯录返回数据:%s", res)
 		} else {
-			logger.Println("db.SQLite is null")
+			logging.Norm.Infof("db.SQLite is null")
 		}
 	}
 }
@@ -148,11 +148,9 @@ func createTelphones(sqlDb *gorm.DB) {
 // 同步电话组
 func createTelphoneGroups(sqlDb *gorm.DB) {
 	var telphoneGroups []*models.TelphoneGroup
-	//var telphoneGroups []*models.TelphoneGroup
-
 	rows, err := sqlDb.Raw("select *  from ss_telephone_group").Rows()
 	if err != nil {
-		logger.Println(err)
+		logging.Err.Error(err)
 	}
 	defer rows.Close()
 
@@ -176,11 +174,11 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/synctelgroup", data)
 			if err != nil {
-				logger.Println(err)
+				logging.Err.Error(err)
 			}
-			logger.Println("同步通讯录组返回数据:%s", res)
+			logging.Norm.Infof("同步通讯录组返回数据:%s", res)
 		} else {
-			logger.Println("db.SQLite is null")
+			logging.Norm.Infof("db.SQLite is null")
 		}
 	}
 }

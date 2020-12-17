@@ -3,7 +3,6 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jander/golog/logger"
 	"github.com/jinzhu/gorm"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
@@ -20,20 +19,19 @@ type RestfulMsg struct {
 func CheckRestful() {
 	var restfulMsgs []*RestfulMsg
 	var restfulUrl []string
-	logging.Errorf("read article err : %+v\n", err)
-	logging.Err.
-	logging.Norm.("<========================>")
-	logger.Println("接口监控开始")
+
+	logging.Norm.Info("<========================>")
+	logging.Norm.Info("接口监控开始")
 
 	restfuls, err := utils.GetRestfuls()
 	if err != nil {
-		logger.Println(err)
+		logging.Err.Error(err)
 		return
 	}
 
 	if len(restfuls) == 0 {
-		logger.Println("未获取到接口数据")
-		logger.Println("接口监控结束")
+		logging.Norm.Info("未获取到接口数据")
+		logging.Norm.Info("接口监控结束")
 		return
 	}
 
@@ -59,18 +57,18 @@ func CheckRestful() {
 	var restfulMsgJson []byte
 	restfulMsgJson, err = json.Marshal(restfulMsgs)
 	if err != nil {
-		logger.Printf("restfulMsgs: %+v\n  json化错误: %+v\n", restfulMsgs, err)
+		logging.Err.Errorf("restfulMsgs: %+v\n  json化错误: %+v\n", restfulMsgs, err)
 	}
 	data := fmt.Sprintf("restful_data=%s", string(restfulMsgJson))
 	var res interface{}
-	res,err = utils.SyncServices("platform/report/restful", data)
-	if err != nil{
-		logger.Println(err)
+	res, err = utils.SyncServices("platform/report/restful", data)
+	if err != nil {
+		logging.Err.Error(err)
 	}
-	logger.Printf("推送返回信息: %v\n", res)
 
-	logger.Println(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulUrl))
-	logger.Println("接口监控结束")
+	logging.Norm.Infof("推送返回信息: %v\n", res)
+	logging.Norm.Info(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulUrl))
+	logging.Norm.Info("接口监控结束")
 }
 
 // RestfulResponse
@@ -84,15 +82,14 @@ func getRestful(restfulMsg *models.RestfulMsg) {
 	var re RestfulResponse
 	conCount := 0
 	for conCount < 3 && !restfulMsg.Status {
-		result := utils.Request("GET",restfulMsg.Url,"",true)
-		//if err != nil {
-		//	str := fmt.Sprintf("接口无法访问，报错如下：%v", err)
-		//	restfulMsg.Status = false
-		//	restfulMsg.ErrMsg = str
-		//	conCount++
-		//	continue
-		//}
-
+		result := utils.Request("GET", restfulMsg.Url, "", true)
+		if len(result) == 0 {
+			str := fmt.Sprintf("接口无法访问")
+			restfulMsg.Status = false
+			restfulMsg.ErrMsg = str
+			conCount++
+			continue
+		}
 		err := json.Unmarshal(result, &re)
 		if err != nil {
 			str := fmt.Sprintf("接口可以访问，但返回数据无法解析，报错如下：%v", err)
@@ -117,7 +114,7 @@ func getRestful(restfulMsg *models.RestfulMsg) {
 
 	// 故障显示连接次数
 	if conCount > 0 {
-		logger.Printf("%s 连接次数: %d", restfulMsg.Url, conCount)
+		logging.Norm.Infof("%s 连接次数: %d", restfulMsg.Url, conCount)
 	}
 
 	conCount = 0
