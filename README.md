@@ -115,3 +115,4 @@ go build -ldflags "-w -s -X main.Version=v1.9 -w -s -X github.com/snowlyg/LogSyn
 - v1.7 增加文件异常报错后自动恢复程序
 - v1.8 增加服务报错3次才上报，增加 ftp 连接超时宕机恢复
 - v1.9 增加接口监控，修改请求为并发请求
+- v2.0 跳过检测时间增加为凌晨1点
