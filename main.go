@@ -82,7 +82,11 @@ func syncDevice() {
 	}
 	go func() {
 		for range tickerSync.C {
-			utils.GetToken()
+			err := utils.GetToken()
+			if err != nil {
+				logging.CommonLogger.Infof("get token err %v", err)
+				return
+			}
 			sync.SyncDevice()
 		}
 		chSy <- 1
@@ -113,7 +117,11 @@ func syncDeviceLog() {
 	mu.Unlock()
 	go func() {
 		for range ticker.C {
-			utils.GetToken()
+			err := utils.GetToken()
+			if err != nil {
+				logging.CommonLogger.Infof("get token err %v", err)
+				return
+			}
 			go func() {
 				sync.CheckRestful()
 			}()
@@ -180,11 +188,11 @@ func main() {
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logging.Err.Error(err)
+		logging.CommonLogger.Error(err)
 	}
 
 	if err != nil {
-		logging.Err.Error(err)
+		logging.CommonLogger.Error(err)
 	}
 
 	if *Action == "install" {
@@ -192,7 +200,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.Dbug.Info("服务安装成功")
+		logging.CommonLogger.Info("服务安装成功")
 		return
 	}
 
@@ -201,7 +209,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.Dbug.Info("服务卸载成功")
+		logging.CommonLogger.Info("服务卸载成功")
 		return
 	}
 
@@ -210,7 +218,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.Dbug.Info("服务启动成功")
+		logging.CommonLogger.Info("服务启动成功")
 		return
 	}
 
@@ -219,7 +227,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.Dbug.Info("服务停止成功")
+		logging.CommonLogger.Info("服务停止成功")
 		return
 	}
 
@@ -229,12 +237,12 @@ func main() {
 			panic(err)
 		}
 
-		logging.Dbug.Info("服务重启成功")
+		logging.CommonLogger.Info("服务重启成功")
 		return
 	}
 
 	if *Action == "version" {
-		logging.Dbug.Info(fmt.Sprintf("版本号：%s", Version))
+		logging.CommonLogger.Info(fmt.Sprintf("版本号：%s", Version))
 		return
 	}
 

@@ -20,22 +20,22 @@ func CheckService() {
 	var serverMsgs []*models.ServerMsg
 	var serverNames []string
 
-	logging.Norm.Info("<========================>")
-	logging.Norm.Info("服务监控开始")
+	logging.ServiceLogger.Info("<========================>")
+	logging.ServiceLogger.Info("服务监控开始")
 
 	serverList, err := utils.GetServices()
 	if err != nil {
-		logging.Err.Error(err)
+		logging.ServiceLogger.Error(err)
 		return
 	}
 	if len(serverList) == 0 {
-		logging.Norm.Info("未获取到服务数据")
-		logging.Norm.Info("服务监控结束")
+		logging.ServiceLogger.Info("未获取到服务数据")
+		logging.ServiceLogger.Info("服务监控结束")
 		return
 	}
 
 	for _, server := range serverList {
-		logging.Norm.Infof(fmt.Sprintf("服务名称： %v", server.ServiceName))
+		logging.ServiceLogger.Infof(fmt.Sprintf("服务名称： %v", server.ServiceName))
 		var serverMsg models.ServerMsg
 		serverMsg.Status = false
 		serverMsg.ServiceTypeId = server.ServiceTypeId
@@ -59,13 +59,13 @@ func CheckService() {
 
 					if err != nil {
 						serverMsg.FaultMsg = err.Error()
-						logging.Norm.Infof("MQTT 客户端创建失败: %v ", err)
+						logging.ServiceLogger.Infof("MQTT 客户端创建失败: %v ", err)
 						conCount++
 						return
 					} else {
 						if mqttClient == nil {
 							serverMsg.FaultMsg = "连接失败"
-							logging.Norm.Infof("MQTT 连接失败")
+							logging.ServiceLogger.Infof("MQTT 连接失败")
 							conCount++
 							return
 						} else {
@@ -74,7 +74,7 @@ func CheckService() {
 							err = mqttClient.Connect()
 							if err != nil {
 								serverMsg.FaultMsg = err.Error()
-								logging.Norm.Infof("MQTT 连接出错: %v ", err)
+								logging.ServiceLogger.Infof("MQTT 连接出错: %v ", err)
 								conCount++
 								return
 							}
@@ -89,17 +89,17 @@ func CheckService() {
 					if err != nil {
 						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
 							serverMsg.Status = true
-							logging.Norm.Info("RabbitMq conn success")
+							logging.ServiceLogger.Info("RabbitMq conn success")
 						} else {
 							serverMsg.FaultMsg = err.Error()
-							logging.Norm.Infof("RabbitMq 连接错误: %v ", err)
+							logging.ServiceLogger.Infof("RabbitMq 连接错误: %v ", err)
 							conCount++
 							return
 						}
 					} else {
 						if rabbitmq == nil {
 							serverMsg.FaultMsg = "连接失败"
-							logging.Norm.Infof("RabbitMq 连接失败: 连接失败 ")
+							logging.ServiceLogger.Infof("RabbitMq 连接失败: 连接失败 ")
 							conCount++
 							return
 						} else {
@@ -112,7 +112,7 @@ func CheckService() {
 				func() {
 					if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
 						serverMsg.FaultMsg = err.Error()
-						logging.Norm.Infof("%s连接错误: %v ", server.ServiceName, err)
+						logging.ServiceLogger.Infof("%s连接错误: %v ", server.ServiceName, err)
 						conCount++
 						return
 					}
@@ -123,7 +123,7 @@ func CheckService() {
 
 		// 故障显示连接次数
 		if conCount > 0 {
-			logging.Norm.Infof("%s 连接次数: %d", server.ServiceName, conCount)
+			logging.ServiceLogger.Infof("%s 连接次数: %d", server.ServiceName, conCount)
 		}
 
 		// 本机存储数据
@@ -148,10 +148,10 @@ func CheckService() {
 	var res interface{}
 	res, err = utils.SyncServices("platform/report/service", data)
 	if err != nil {
-		logging.Err.Error(err)
+		logging.ServiceLogger.Error(err)
 	}
 
-	logging.Norm.Infof("推送返回信息: %v", res)
-	logging.Norm.Info(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(serverMsgs), serverNames))
-	logging.Norm.Info("服务监控结束")
+	logging.ServiceLogger.Infof("推送返回信息: %v", res)
+	logging.ServiceLogger.Info(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(serverMsgs), serverNames))
+	logging.ServiceLogger.Info("服务监控结束")
 }

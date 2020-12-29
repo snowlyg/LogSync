@@ -17,7 +17,7 @@ func SyncDevice() {
 	// http://fyxt.t.chindeo.com/platform/report/synctel  同步通讯录 post
 	serverList, err := utils.GetServices()
 	if err != nil {
-		logging.Err.Error(err)
+		logging.SyncLogger.Error(err)
 		return
 	}
 	account := utils.Conf().Section("mysql").Key("account").MustString("visible")
@@ -29,10 +29,10 @@ func SyncDevice() {
 				conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", account, pwd, server.Ip, server.Port, "dois")
 				sqlDb, err := gorm.Open("mysql", conn)
 				if err != nil {
-					logging.Norm.Infof("mysql conn error: %v ,id:%s", err, server.Ip)
+					logging.SyncLogger.Infof("mysql conn error: %v ,id:%s", err, server.Ip)
 					return
 				} else {
-					logging.Norm.Info("mysql conn success")
+					logging.SyncLogger.Info("mysql conn success")
 				}
 				defer sqlDb.Close()
 
@@ -57,7 +57,7 @@ func deleteMsg() {
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
 	utils.SQLite.Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
 
-	logging.Norm.Infof("删除3天前数据库日志记录 :%s", lastWeek)
+	logging.SyncLogger.Infof("删除3天前数据库日志记录 :%s", lastWeek)
 }
 
 // 同步设备
@@ -71,7 +71,7 @@ func createDevices(sqlDb *gorm.DB) {
 
 	rows, err := sqlDb.Raw(query).Rows()
 	if err != nil {
-		logging.Err.Error(err)
+		logging.SyncLogger.Error(err)
 	}
 	defer rows.Close()
 
@@ -95,12 +95,12 @@ func createDevices(sqlDb *gorm.DB) {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/syncdevice", data)
 			if err != nil {
-				logging.Err.Error(err)
+				logging.SyncLogger.Error(err)
 			}
-			logging.Norm.Infof("数据提交返回信息:%v", res)
+			logging.SyncLogger.Infof("数据提交返回信息:%v", res)
 
 		} else {
-			logging.Norm.Infof("db.SQLite is null")
+			logging.SyncLogger.Infof("db.SQLite is null")
 		}
 	}
 
@@ -112,7 +112,7 @@ func createTelphones(sqlDb *gorm.DB) {
 
 	rows, err := sqlDb.Raw("select *  from ss_telephone").Rows()
 	if err != nil {
-		logging.Err.Error(err)
+		logging.SyncLogger.Error(err)
 	}
 	defer rows.Close()
 
@@ -136,11 +136,11 @@ func createTelphones(sqlDb *gorm.DB) {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/synctel", data)
 			if err != nil {
-				logging.Err.Error(err)
+				logging.SyncLogger.Error(err)
 			}
-			logging.Norm.Infof("同步通讯录返回数据:%s", res)
+			logging.SyncLogger.Infof("同步通讯录返回数据:%s", res)
 		} else {
-			logging.Norm.Infof("db.SQLite is null")
+			logging.SyncLogger.Infof("db.SQLite is null")
 		}
 	}
 }
@@ -150,7 +150,7 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 	var telphoneGroups []*models.TelphoneGroup
 	rows, err := sqlDb.Raw("select *  from ss_telephone_group").Rows()
 	if err != nil {
-		logging.Err.Error(err)
+		logging.SyncLogger.Error(err)
 	}
 	defer rows.Close()
 
@@ -174,11 +174,11 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/synctelgroup", data)
 			if err != nil {
-				logging.Err.Error(err)
+				logging.SyncLogger.Error(err)
 			}
-			logging.Norm.Infof("同步通讯录组返回数据:%s", res)
+			logging.SyncLogger.Infof("同步通讯录组返回数据:%s", res)
 		} else {
-			logging.Norm.Infof("db.SQLite is null")
+			logging.SyncLogger.Infof("db.SQLite is null")
 		}
 	}
 }

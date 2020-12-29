@@ -20,18 +20,18 @@ func CheckRestful() {
 	var restfulMsgs []*RestfulMsg
 	var restfulUrl []string
 
-	logging.Norm.Info("<========================>")
-	logging.Norm.Info("接口监控开始")
+	logging.RestfulLogger.Info("<========================>")
+	logging.RestfulLogger.Info("接口监控开始")
 
 	restfuls, err := utils.GetRestfuls()
 	if err != nil {
-		logging.Err.Error(err)
+		logging.RestfulLogger.Error(err)
 		return
 	}
 
 	if len(restfuls) == 0 {
-		logging.Norm.Info("未获取到接口数据")
-		logging.Norm.Info("接口监控结束")
+		logging.RestfulLogger.Info("未获取到接口数据")
+		logging.RestfulLogger.Info("接口监控结束")
 		return
 	}
 
@@ -57,18 +57,18 @@ func CheckRestful() {
 	var restfulMsgJson []byte
 	restfulMsgJson, err = json.Marshal(restfulMsgs)
 	if err != nil {
-		logging.Err.Errorf("restfulMsgs: %+v\n  json化错误: %+v\n", restfulMsgs, err)
+		logging.RestfulLogger.Errorf("restfulMsgs: %+v\n  json化错误: %+v\n", restfulMsgs, err)
 	}
 	data := fmt.Sprintf("restful_data=%s", string(restfulMsgJson))
 	var res interface{}
 	res, err = utils.SyncServices("platform/report/restful", data)
 	if err != nil {
-		logging.Err.Error(err)
+		logging.RestfulLogger.Error(err)
 	}
 
-	logging.Norm.Infof("推送返回信息: %v\n", res)
-	logging.Norm.Info(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulUrl))
-	logging.Norm.Info("接口监控结束")
+	logging.RestfulLogger.Infof("推送返回信息: %v\n", res)
+	logging.RestfulLogger.Info(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulUrl))
+	logging.RestfulLogger.Info("接口监控结束")
 }
 
 // RestfulResponse
@@ -91,7 +91,7 @@ func getRestful(restfulMsg *models.RestfulMsg) {
 			conCount++
 			continue
 		}
-		logging.Dbug.Info(string(result))
+		logging.RestfulLogger.Info(string(result))
 		err := json.Unmarshal(result, &re)
 		if err != nil {
 			str := fmt.Sprintf("接口可以访问，但返回数据 %s 无法解析，报错如下：%v", string(result), err)
@@ -117,7 +117,7 @@ func getRestful(restfulMsg *models.RestfulMsg) {
 
 	// 故障显示连接次数
 	if conCount > 0 {
-		logging.Norm.Infof("%s 连接次数: %d", restfulMsg.Url, conCount)
+		logging.RestfulLogger.Infof("%s 连接次数: %d", restfulMsg.Url, conCount)
 	}
 
 	conCount = 0

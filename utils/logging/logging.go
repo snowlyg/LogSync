@@ -4,27 +4,41 @@ import (
 	"path/filepath"
 )
 
-var Dbug *Logger
-var Err *Logger
-var Norm *Logger
+var RestfulLogger *Logger
+var ServiceLogger *Logger
+var DeviceLogger *Logger
+var CommonLogger *Logger
+var SyncLogger *Logger
 var WorkDir string
 
 func init() {
-	Dbug = NewLogger(&Options{
+	RestfulLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
-	}, filepath.Join(WorkDir, "./logs/debug.log"))
-	Dbug.SetLogPrefix("log_prefix")
+	}, filepath.Join(WorkDir, "./logs/rest.log"))
+	RestfulLogger.SetLogPrefix("log_prefix")
 
-	Err = NewLogger(&Options{
+	ServiceLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
-	}, filepath.Join(WorkDir, "./logs/error.log"))
-	Err.SetLogPrefix("log_prefix")
+	}, filepath.Join(WorkDir, "./logs/service.log"))
+	ServiceLogger.SetLogPrefix("log_prefix")
 
-	Norm = NewLogger(&Options{
+	DeviceLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
-	}, filepath.Join(WorkDir, "./logs/info.log"))
-	Norm.SetLogPrefix("log_prefix")
+	}, filepath.Join(WorkDir, "./logs/device.log"))
+	DeviceLogger.SetLogPrefix("log_prefix")
+
+	CommonLogger = NewLogger(&Options{
+		Rolling:     DAILY,
+		TimesFormat: TIMESECOND,
+	}, filepath.Join(WorkDir, "./logs/common.log"))
+	CommonLogger.SetLogPrefix("log_prefix")
+
+	SyncLogger = NewLogger(&Options{
+		Rolling:     DAILY,
+		TimesFormat: TIMESECOND,
+	}, filepath.Join(WorkDir, "./logs/sync.log"))
+	SyncLogger.SetLogPrefix("log_prefix")
 }
