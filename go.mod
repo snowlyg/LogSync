@@ -15,7 +15,6 @@ require (
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ini/ini v1.57.0
 	github.com/go-sql-driver/mysql v1.4.1
-	github.com/jander/golog v0.0.0-20150917071935-954a5be801fc
 	github.com/jinzhu/gorm v1.9.12
 	github.com/jlaffaye/ftp v0.0.0-20200602180915-5563613968bf
 	github.com/kardianos/service v1.0.0

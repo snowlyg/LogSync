@@ -58,6 +58,11 @@ password = Chindeo
 [http]
 port = 8001
 
+
+[mysql]
+;只有访问权限的账号密码
+account=visible
+pwd=Chindeo
 ```
 
 ##### 手动执行
