@@ -451,16 +451,16 @@ func createOutDir(logMsg models.LogMsg) string {
 
 // 获取文件内容
 func getFileContent(c *ftp.ServerConn, name string) []byte {
-	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
-		logging.DeviceLogger.Infof("++++++++++++++++Retr 程序异常退出++++++++++++++++")
-		if err := recover(); err != nil {
-			logging.DeviceLogger.Error(err) // 这里的err其实就是panic传入的内容，55
-		}
-		logging.DeviceLogger.Infof("++++++++++++++++Retr 程序 recover ++++++++++++++++")
-	}()
+	//defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+	//	logging.DeviceLogger.Infof("++++++++++++++++Retr 程序异常退出++++++++++++++++")
+	//	if err := recover(); err != nil {
+	//		logging.DeviceLogger.Error(fmt.Sprintf("recover : %s  ", err)) // 这里的err其实就是panic传入的内容，55
+	//	}
+	//	logging.DeviceLogger.Infof("++++++++++++++++Retr 程序 recover ++++++++++++++++")
+	//}()
 	r, err := c.Retr(name)
 	if err != nil {
-		logging.DeviceLogger.Panicf(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
+		logging.DeviceLogger.Errorf(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
 	}
 	defer r.Close()
 
@@ -516,16 +516,16 @@ func SyncDeviceLog() {
 	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
 	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
 	// 扫描错误日志，设备监控
-	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
-		logging.DeviceLogger.Infof("++++++++++++++++ftp 程序异常退出++++++++++++++++")
-		if err := recover(); err != nil {
-			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
-		}
-		logging.DeviceLogger.Infof("++++++++++++++++ftp 程序 recover ++++++++++++++++")
-	}()
+	//defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+	//	logging.DeviceLogger.Infof("++++++++++++++++ftp 程序异常退出++++++++++++++++")
+	//	if err := recover(); err != nil {
+	//		fmt.Println(err) // 这里的err其实就是panic传入的内容，55
+	//	}
+	//	logging.DeviceLogger.Infof("++++++++++++++++ftp 程序 recover ++++++++++++++++")
+	//}()
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
-		logging.DeviceLogger.Panicf(fmt.Sprintf("ftp 连接错误 %v", err))
+		logging.DeviceLogger.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
 	}
 	// 登录ftp
 	err = c.Login(username, password)
