@@ -101,7 +101,7 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 #### 编译
 
 ```shell script
-go build -ldflags "-w -s -X main.Version=v1.9 -w -s -X github.com/snowlyg/LogSync/utils/logging.WorkDir=D:\Svr\logSync -o ./cmd/LogSync.exe"
+go build -ldflags "-w -s -X main.Version=v1.9 -w -s -X github.com/snowlyg/LogSync/utils/logging.WorkDir=D:\Svr\logSync" -o ./cmd/LogSync.exe
 ```
 
 #### 版本更新

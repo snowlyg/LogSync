@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	sm "sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -19,6 +20,7 @@ import (
 )
 
 var Version string
+var mu sm.Mutex
 
 type program struct {
 	httpServer *http.Server
@@ -106,7 +108,9 @@ func syncDeviceLog() {
 	default:
 		ticker = time.NewTicker(time.Minute * time.Duration(t))
 	}
+	mu.Lock()
 	sync.NotFirst = false
+	mu.Unlock()
 	go func() {
 		for range ticker.C {
 			utils.GetToken()
@@ -122,7 +126,9 @@ func syncDeviceLog() {
 					sync.SyncDeviceLog()
 				}()
 			}
+			mu.Lock()
 			sync.NotFirst = true
+			mu.Unlock()
 		}
 		ch <- 1
 	}()
