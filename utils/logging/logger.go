@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/opentracing/opentracing-go"
 	"go.uber.org/zap"
@@ -63,13 +64,20 @@ const (
 	BalanceLoggerName = "_balance"
 )
 
+var scene sync.Map
+
 func init() {
 	_defaultLogger = New()
-	logs[DefaultLoggerName] = _defaultLogger
-	logs[SlowLoggerName] = slowlog
-	logs[GenLoggerName] = genlog
-	logs[CrashLoggerName] = crashlog
-	logs[BalanceLoggerName] = balancelog
+	scene.Store(DefaultLoggerName, _defaultLogger)
+	scene.Store(SlowLoggerName, slowlog)
+	scene.Store(GenLoggerName, genlog)
+	scene.Store(CrashLoggerName, crashlog)
+	scene.Store(BalanceLoggerName, balancelog)
+	//logs[DefaultLoggerName] = _defaultLogger
+	//logs[SlowLoggerName] = slowlog
+	//logs[GenLoggerName] = genlog
+	//logs[CrashLoggerName] = crashlog
+	//logs[BalanceLoggerName] = balancelog
 }
 
 var logs = map[string]*Logger{}
@@ -155,7 +163,8 @@ func NewLogger(opt *Options, paths ...string) *Logger {
 			res = logger
 		}
 		s := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-		logs[s] = logger
+		scene.Store(s, logger)
+		//logs[s] = logger
 	}
 	return res
 }
