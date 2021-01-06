@@ -65,7 +65,7 @@ account=visible
 pwd=Chindeo
 ```
 
-##### 手动执行
+##### 手动执行（已去除）
 
 http://localhost:8001/sync_log?sync_log=1 // 通讯录，设备
 http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
@@ -118,4 +118,4 @@ CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc
 - v1.8 增加服务报错3次才上报，增加 ftp 连接超时宕机恢复
 - v1.9 增加接口监控，修改请求为并发请求
 - v2.0 跳过检测时间增加为凌晨1点
-- v2.1 修复日志打印数据竞争
+- v2.1 修复日志打印数据竞争,去除手动同步接口

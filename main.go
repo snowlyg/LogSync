@@ -11,7 +11,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kardianos/service"
 	"github.com/snowlyg/LogSync/models"
-	"github.com/snowlyg/LogSync/routers"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
@@ -23,22 +22,22 @@ type program struct {
 	httpServer *http.Server
 }
 
-func (p *program) StartHTTP() {
-	port := utils.Conf().Section("http").Key("port").MustInt64(8001)
-	p.httpServer = &http.Server{
-		Addr:              fmt.Sprintf(":%d", port),
-		Handler:           routers.Router,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-	link := fmt.Sprintf("http://%s:%d", utils.LocalIP(), port)
-	log.Println("http server start -->", link)
-	go func() {
-		if err := p.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Println("start http server error", err)
-		}
-		log.Println("http server start")
-	}()
-}
+//func (p *program) StartHTTP() {
+//	port := utils.Conf().Section("http").Key("port").MustInt64(8001)
+//	p.httpServer = &http.Server{
+//		Addr:              fmt.Sprintf(":%d", port),
+//		Handler:           routers.Router,
+//		ReadHeaderTimeout: 5 * time.Second,
+//	}
+//	link := fmt.Sprintf("http://%s:%d", utils.LocalIP(), port)
+//	log.Println("http server start -->", link)
+//	go func() {
+//		if err := p.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+//			log.Println("start http server error", err)
+//		}
+//		log.Println("http server start")
+//	}()
+//}
 
 func (p *program) Start(s service.Service) error {
 	go p.run()
@@ -46,16 +45,17 @@ func (p *program) Start(s service.Service) error {
 }
 
 func (p *program) run() {
+	defer println("********** START **********")
 	err := models.Init()
 	if err != nil {
 		panic(err)
 	}
-	err = routers.Init()
-	if err != nil {
-		panic(err)
-	}
-
-	p.StartHTTP()
+	//err = routers.Init()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//p.StartHTTP()
 
 	go func() {
 		syncDeviceLog()
@@ -173,7 +173,7 @@ func syncRestful() {
 
 func (p *program) Stop(s service.Service) error {
 	defer log.Println("********** STOP **********")
-	defer utils.CloseLogWriter()
+	//defer utils.CloseLogWriter()
 	//_ = p.StopHTTP()
 	models.Close()
 	return nil

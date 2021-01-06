@@ -131,17 +131,18 @@ func DBFileDev() string {
 }
 
 var conf *ini.File
+var single sync.Once
 
 func Conf() *ini.File {
-	if conf != nil {
-		return conf
-	}
-	if _conf, err := ini.InsensitiveLoad(ConfFile()); err != nil {
-		_conf, _ = ini.LoadSources(ini.LoadOptions{Insensitive: true}, []byte(""))
-		conf = _conf
-	} else {
-		conf = _conf
-	}
+	single.Do(func() {
+		if _conf, err := ini.InsensitiveLoad(ConfFile()); err != nil {
+			_conf, _ = ini.LoadSources(ini.LoadOptions{Insensitive: true}, []byte(""))
+			conf = _conf
+		} else {
+			conf = _conf
+		}
+	})
+
 	return conf
 }
 
