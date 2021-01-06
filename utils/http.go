@@ -141,8 +141,8 @@ func GetToken() error {
 }
 
 func Request(method, url, data string, auth bool) []byte {
-	timeout := 3
-	timeover := 3
+	timeout := Conf().Section("config").Key("timeout").MustInt(5)
+	timeover := Conf().Section("config").Key("timeover").MustInt(10)
 	host := Conf().Section("config").Key("host").MustString("")
 	T := time.Tick(time.Duration(timeover) * time.Second)
 	var result = make(chan []byte, 10)
