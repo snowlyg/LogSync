@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"log"
+	"sync"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -15,29 +15,23 @@ type Model struct {
 	// DeletedAt *time.Time `sql:"index" structs:"-"`
 }
 
-var SQLite *gorm.DB
+var sqlite *gorm.DB
 
-func Init() (err error) {
-	gorm.DefaultTableNameHandler = func(db *gorm.DB, defaultTablename string) string {
-		return "t_" + defaultTablename
-	}
-	dbFile := DBFile()
-	log.Println("db file -->", DBFile())
-	SQLite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))
-	if err != nil {
-		return
-	}
-	// Sqlite cannot handle concurrent writes, so we limit sqlite to one connection.
-	// see https://github.com/mattn/go-sqlite3/issues/274
-	SQLite.DB().SetMaxOpenConns(1)
-	SQLite.SetLogger(DefaultGormLogger)
-	SQLite.LogMode(false)
-	return
-}
+func GetSQLite() *gorm.DB {
+	var single sync.Once
+	single.Do(func() {
+		var err error
+		dbFile := DBFile()
+		sqlite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))
+		if err != nil {
+			panic(fmt.Sprintf("sqlite init err %+v", err))
+		}
+		// Sqlite cannot handle concurrent writes, so we limit sqlite to one connection.
+		// see https://github.com/mattn/go-sqlite3/issues/274
+		sqlite.DB().SetMaxOpenConns(1)
+		sqlite.SetLogger(DefaultGormLogger)
+		sqlite.LogMode(false)
+	})
 
-func Close() {
-	if SQLite != nil {
-		SQLite.Close()
-		SQLite = nil
-	}
+	return sqlite
 }

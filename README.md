@@ -102,6 +102,8 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 
 ```shell script
 go build -ldflags "-w -s -X main.Version=v1.9 -w -s -X github.com/snowlyg/LogSync/utils/logging.WorkDir=D:\Svr\logSync" -o ./cmd/LogSync.exe
+
+CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc CXX=/usr/local/bin/x86_64-w64-mingw32-g+ go build -ldflags "-w -s -X main.Version=v2.1" -race  -o ./cmd/LogSync.exe
 ```
 
 #### 版本更新
@@ -116,3 +118,4 @@ go build -ldflags "-w -s -X main.Version=v1.9 -w -s -X github.com/snowlyg/LogSyn
 - v1.8 增加服务报错3次才上报，增加 ftp 连接超时宕机恢复
 - v1.9 增加接口监控，修改请求为并发请求
 - v2.0 跳过检测时间增加为凌晨1点
+- v2.1 修复日志打印数据竞争

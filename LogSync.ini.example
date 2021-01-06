@@ -17,6 +17,8 @@ host=test.ims.com:80
 appid=wxcw846rde12w3fb9p
 appsecret=489r67esrqa341vcnb1m16azfm789nbmnhj8
 
+outDir=D:/gopath/go/src/github.com/snowlyg/LogSync
+
 ; 压缩截图
 is_resize_img=false
 
@@ -40,13 +42,11 @@ sync_data=m
 account=administrator
 password=123456
 inDir=D:/App/data/log
-outDir=D:/gopath/go/src/github.com/snowlyg/LogSync
 
 [android]
 account=root
 password=Chindeo
 inDir=/sdcard/chindeo_app/log
-outDir=D:/gopath/go/src/github.com/snowlyg/LogSync
 
 [http]
 port=8001

@@ -1,14 +1,11 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"github.com/snowlyg/LogSync/utils/logging"
 	"log"
 	"net/http"
 	"os"
-	sm "sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -17,10 +14,10 @@ import (
 	"github.com/snowlyg/LogSync/routers"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
+	"github.com/snowlyg/LogSync/utils/logging"
 )
 
 var Version string
-var mu sm.Mutex
 
 type program struct {
 	httpServer *http.Server
@@ -60,38 +57,41 @@ func (p *program) run() {
 
 	p.StartHTTP()
 
-	go syncDeviceLog()
-	go syncDevice()
+	go func() {
+		syncDeviceLog()
+	}()
+
+	go func() {
+		syncRestful()
+	}()
+
+	go func() {
+		syncService()
+	}()
+
+	go func() {
+		syncDevice()
+	}()
 
 }
 
 func syncDevice() {
 	t := utils.Conf().Section("time").Key("sync_data_time").MustInt64(1)
 	v := utils.Conf().Section("time").Key("sync_data").MustString("h")
-	var chSy chan int
-	var tickerSync *time.Ticker
-	switch v {
-	case "h":
-		tickerSync = time.NewTicker(time.Hour * time.Duration(t))
-	case "m":
-		tickerSync = time.NewTicker(time.Minute * time.Duration(t))
-	case "s":
-		tickerSync = time.NewTicker(time.Second * time.Duration(t))
-	default:
-		tickerSync = time.NewTicker(time.Hour * time.Duration(t))
-	}
+	var ch chan int
+	tickerSync := getTicker(t, v)
 	go func() {
 		for range tickerSync.C {
 			err := utils.GetToken()
 			if err != nil {
-				logging.CommonLogger.Infof("get token err %v", err)
+				logging.GetCommonLogger().Infof("get token err %v", err)
 				return
 			}
 			sync.SyncDevice()
 		}
-		chSy <- 1
+		ch <- 1
 	}()
-	<-chSy
+	<-ch
 }
 
 func syncDeviceLog() {
@@ -99,9 +99,88 @@ func syncDeviceLog() {
 	var t int64
 	t = utils.Conf().Section("time").Key("sync_log_time").MustInt64(4)
 	v := utils.Conf().Section("time").Key("sync_log").MustString("m")
-	var ticker *time.Ticker
+	ticker := getTicker(t, v)
+	go func() {
+		for range ticker.C {
+			err := utils.GetToken()
+			if err != nil {
+				logging.GetCommonLogger().Infof("get token err %v", err)
+				return
+			}
 
-	ticker = time.NewTicker(time.Hour * time.Duration(t))
+			// 进入当天目录,跳过 23点45 当天凌晨 0点59 分钟，给设备创建目录的时间
+			if !((time.Now().Hour() == 0 && time.Now().Minute() < 59) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
+				sync.SyncDeviceLog()
+			}
+		}
+		ch <- 1
+	}()
+	<-ch
+}
+
+func syncService() {
+	var ch chan int
+	var t int64
+	t = utils.Conf().Section("time").Key("sync_log_time").MustInt64(4)
+	v := utils.Conf().Section("time").Key("sync_log").MustString("m")
+	ticker := getTicker(t, v)
+	go func() {
+		for range ticker.C {
+			err := utils.GetToken()
+			if err != nil {
+				logging.GetCommonLogger().Infof("get token err %v", err)
+				return
+			}
+			sync.CheckService()
+		}
+		ch <- 1
+	}()
+	<-ch
+}
+
+func syncRestful() {
+	var ch chan int
+	var t int64
+	t = utils.Conf().Section("time").Key("sync_log_time").MustInt64(4)
+	v := utils.Conf().Section("time").Key("sync_log").MustString("m")
+	ticker := getTicker(t, v)
+	go func() {
+		for range ticker.C {
+			err := utils.GetToken()
+			if err != nil {
+				logging.GetCommonLogger().Infof("get token err %v", err)
+				return
+			}
+			sync.CheckRestful()
+		}
+		ch <- 1
+	}()
+	<-ch
+}
+
+//func (p *program) StopHTTP() (err error) {
+//	if p.httpServer == nil {
+//		err = fmt.Errorf("HTTP Server Not Found")
+//		return
+//	}
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//	if err = p.httpServer.Shutdown(ctx); err != nil {
+//		return
+//	}
+//	return
+//}
+
+func (p *program) Stop(s service.Service) error {
+	defer log.Println("********** STOP **********")
+	defer utils.CloseLogWriter()
+	//_ = p.StopHTTP()
+	models.Close()
+	return nil
+}
+
+func getTicker(t int64, v string) *time.Ticker {
+	var ticker *time.Ticker
 	switch v {
 	case "h":
 		ticker = time.NewTicker(time.Hour * time.Duration(t))
@@ -112,56 +191,7 @@ func syncDeviceLog() {
 	default:
 		ticker = time.NewTicker(time.Minute * time.Duration(t))
 	}
-	mu.Lock()
-	sync.NotFirst = false
-	mu.Unlock()
-	go func() {
-		for range ticker.C {
-			err := utils.GetToken()
-			if err != nil {
-				logging.CommonLogger.Infof("get token err %v", err)
-				return
-			}
-			go func() {
-				sync.CheckRestful()
-			}()
-			go func() {
-				sync.CheckService()
-			}()
-			// 进入当天目录,跳过 23点45 当天凌晨 0点59 分钟，给设备创建目录的时间
-			if !((time.Now().Hour() == 0 && time.Now().Minute() < 59) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
-				go func() {
-					sync.SyncDeviceLog()
-				}()
-			}
-			mu.Lock()
-			sync.NotFirst = true
-			mu.Unlock()
-		}
-		ch <- 1
-	}()
-	<-ch
-}
-
-func (p *program) StopHTTP() (err error) {
-	if p.httpServer == nil {
-		err = fmt.Errorf("HTTP Server Not Found")
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err = p.httpServer.Shutdown(ctx); err != nil {
-		return
-	}
-	return
-}
-
-func (p *program) Stop(s service.Service) error {
-	defer log.Println("********** STOP **********")
-	defer utils.CloseLogWriter()
-	_ = p.StopHTTP()
-	models.Close()
-	return nil
+	return ticker
 }
 
 var Action = flag.String("action", "", "程序操作指令")
@@ -188,11 +218,11 @@ func main() {
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logging.CommonLogger.Error(err)
+		logging.GetCommonLogger().Error(err)
 	}
 
 	if err != nil {
-		logging.CommonLogger.Error(err)
+		logging.GetCommonLogger().Error(err)
 	}
 
 	if *Action == "install" {
@@ -200,7 +230,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.CommonLogger.Info("服务安装成功")
+		logging.GetCommonLogger().Info("服务安装成功")
 		return
 	}
 
@@ -209,7 +239,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.CommonLogger.Info("服务卸载成功")
+		logging.GetCommonLogger().Info("服务卸载成功")
 		return
 	}
 
@@ -218,7 +248,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.CommonLogger.Info("服务启动成功")
+		logging.GetCommonLogger().Info("服务启动成功")
 		return
 	}
 
@@ -227,7 +257,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.CommonLogger.Info("服务停止成功")
+		logging.GetCommonLogger().Info("服务停止成功")
 		return
 	}
 
@@ -237,12 +267,12 @@ func main() {
 			panic(err)
 		}
 
-		logging.CommonLogger.Info("服务重启成功")
+		logging.GetCommonLogger().Info("服务重启成功")
 		return
 	}
 
 	if *Action == "version" {
-		logging.CommonLogger.Info(fmt.Sprintf("版本号：%s", Version))
+		logging.GetCommonLogger().Info(fmt.Sprintf("版本号：%s", Version))
 		return
 	}
 
