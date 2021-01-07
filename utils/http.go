@@ -54,6 +54,8 @@ type Restful struct {
 	Url string `json:"url"`
 }
 
+var token string
+
 //http://fyxt.t.chindeo.com/platform/report/getService  获取服务
 func GetServices() ([]*Server, error) {
 	re := &getServer{}
@@ -114,7 +116,7 @@ func SyncServices(path, data string) (interface{}, error) {
 //http://fyxt.t.chindeo.com/platform/application/login
 //http://fyxt.t.chindeo.com/platform/report/device
 func GetToken() error {
-	token := GetCacheToken()
+	token = GetCacheToken()
 	if token != "" {
 		return nil
 	}
