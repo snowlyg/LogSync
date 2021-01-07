@@ -46,28 +46,12 @@ func (p *program) Start(s service.Service) error {
 
 func (p *program) run() {
 	defer println("********** START **********")
-	//err = routers.Init()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//p.StartHTTP()
-
 	go func() {
 		syncDeviceLog()
 	}()
-
-	go func() {
-		syncRestful()
-	}()
-
-	go func() {
-		syncService()
-	}()
-
-	go func() {
-		syncDevice()
-	}()
+	//go func() {
+	//	syncDevice()
+	//}()
 
 }
 
@@ -92,17 +76,21 @@ func syncDevice() {
 }
 
 func syncDeviceLog() {
+	var chRestful chan int
+	var chService chan int
+	var chDevice chan int
 	var ch chan int
-	t := utils.Config.Device.Timeduration
-	v := utils.Config.Device.Timetype
-	ticker := getTicker(t, v)
 	go func() {
+		err := utils.GetToken()
+		if err != nil {
+			logging.GetCommonLogger().Infof("get token err %v", err)
+			return
+		}
+
+		t := utils.Config.Device.Timeduration
+		v := utils.Config.Device.Timetype
+		ticker := getTicker(t, v)
 		for range ticker.C {
-			err := utils.GetToken()
-			if err != nil {
-				logging.GetCommonLogger().Infof("get token err %v", err)
-				return
-			}
 
 			// 进入当天目录,跳过 23点45 当天凌晨 0点59 分钟，给设备创建目录的时间
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 59) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
@@ -111,8 +99,38 @@ func syncDeviceLog() {
 			logging.GetCommonLogger().Infof("设备日志监控同步", time.Now())
 		}
 		ch <- 1
+
+		tRestful := utils.Config.Restful.Timeduration
+		vRestful := utils.Config.Restful.Timetype
+		tickerRestful := getTicker(tRestful, vRestful)
+		for range tickerRestful.C {
+			sync.CheckRestful()
+			logging.GetCommonLogger().Infof("接口监控同步", time.Now())
+		}
+		chRestful <- 1
+
+		tService := utils.Config.Device.Timeduration
+		vService := utils.Config.Device.Timetype
+		tickerService := getTicker(tService, vService)
+		for range tickerService.C {
+			sync.CheckService()
+			logging.GetCommonLogger().Infof("服务数据同步", time.Now())
+		}
+		chService <- 1
+
+		tDevice := utils.Config.Data.Timeduration
+		vDevice := utils.Config.Data.Timetype
+		tickerDevice := getTicker(tDevice, vDevice)
+		for range tickerDevice.C {
+			sync.SyncDevice()
+			logging.GetCommonLogger().Infof("设备数据同步", time.Now())
+		}
+		chDevice <- 1
 	}()
 	<-ch
+	<-chRestful
+	<-chService
+	<-chDevice
 }
 
 func syncService() {
@@ -155,24 +173,8 @@ func syncRestful() {
 	<-ch
 }
 
-//func (p *program) StopHTTP() (err error) {
-//	if p.httpServer == nil {
-//		err = fmt.Errorf("HTTP Server Not Found")
-//		return
-//	}
-//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-//	defer cancel()
-//	if err = p.httpServer.Shutdown(ctx); err != nil {
-//		return
-//	}
-//	return
-//}
-
 func (p *program) Stop(s service.Service) error {
 	defer log.Println("********** STOP **********")
-	//defer utils.CloseLogWriter()
-	//_ = p.StopHTTP()
-	utils.GetSQLite().Close()
 	return nil
 }
 

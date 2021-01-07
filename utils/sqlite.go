@@ -18,20 +18,22 @@ type Model struct {
 var sqlite *gorm.DB
 
 func GetSQLite() *gorm.DB {
-	var single sync.Once
 	dbFile := DBFile()
-	single.Do(func() {
-		var err error
-		sqlite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))
-		if err != nil {
-			panic(fmt.Sprintf("sqlite init err %+v", err))
-		}
-		// Sqlite cannot handle concurrent writes, so we limit sqlite to one connection.
-		// see https://github.com/mattn/go-sqlite3/issues/274
-		sqlite.DB().SetMaxOpenConns(100)
-		sqlite.SetLogger(DefaultGormLogger)
-		sqlite.LogMode(false)
-	})
+	var single sync.Mutex
+	if sqlite != nil {
+		return sqlite
+	}
+	single.Lock()
+	var err error
+	sqlite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))
+	if err != nil {
+		panic(fmt.Sprintf("sqlite init err %+v", err))
+	}
+	sqlite.DB().SetMaxIdleConns(100)
+	sqlite.DB().SetMaxOpenConns(100)
+	sqlite.SetLogger(DefaultGormLogger)
+	sqlite.LogMode(false)
+	single.Unlock()
 
 	return sqlite
 }
