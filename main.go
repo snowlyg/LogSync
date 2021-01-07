@@ -46,10 +46,6 @@ func (p *program) Start(s service.Service) error {
 
 func (p *program) run() {
 	defer println("********** START **********")
-	err := models.Init()
-	if err != nil {
-		panic(err)
-	}
 	//err = routers.Init()
 	//if err != nil {
 	//	panic(err)
@@ -88,6 +84,7 @@ func syncDevice() {
 				return
 			}
 			sync.SyncDevice()
+			logging.GetCommonLogger().Infof("设备数据同步", time.Now())
 		}
 		ch <- 1
 	}()
@@ -112,6 +109,7 @@ func syncDeviceLog() {
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 59) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
 				sync.SyncDeviceLog()
 			}
+			logging.GetCommonLogger().Infof("设备日志监控同步", time.Now())
 		}
 		ch <- 1
 	}()
@@ -132,6 +130,7 @@ func syncService() {
 				return
 			}
 			sync.CheckService()
+			logging.GetCommonLogger().Infof("服务数据同步", time.Now())
 		}
 		ch <- 1
 	}()
@@ -152,6 +151,7 @@ func syncRestful() {
 				return
 			}
 			sync.CheckRestful()
+			logging.GetCommonLogger().Infof("接口监控同步", time.Now())
 		}
 		ch <- 1
 	}()
@@ -225,8 +225,13 @@ func main() {
 		logging.GetCommonLogger().Error(err)
 	}
 
+	err = models.Init()
+	if err != nil {
+		panic(err)
+	}
+
 	if *Action == "install" {
-		err := s.Install()
+		err = s.Install()
 		if err != nil {
 			panic(err)
 		}
@@ -244,7 +249,7 @@ func main() {
 	}
 
 	if *Action == "start" {
-		err := s.Start()
+		err = s.Start()
 		if err != nil {
 			panic(err)
 		}
@@ -253,7 +258,7 @@ func main() {
 	}
 
 	if *Action == "stop" {
-		err := s.Stop()
+		err = s.Stop()
 		if err != nil {
 			panic(err)
 		}
@@ -261,8 +266,47 @@ func main() {
 		return
 	}
 
+	if *Action == "sync_device" {
+		err = utils.GetToken()
+		if err != nil {
+			logging.GetCommonLogger().Infof("get token err %v", err)
+			return
+		}
+		sync.SyncDevice()
+		return
+	}
+
+	if *Action == "check_service" {
+		err := utils.GetToken()
+		if err != nil {
+			logging.GetCommonLogger().Infof("get token err %v", err)
+			return
+		}
+		sync.CheckService()
+		return
+	}
+
+	if *Action == "check_device" {
+		err := utils.GetToken()
+		if err != nil {
+			logging.GetCommonLogger().Infof("get token err %v", err)
+			return
+		}
+		sync.SyncDeviceLog()
+		return
+	}
+	if *Action == "check_restful" {
+		err := utils.GetToken()
+		if err != nil {
+			logging.GetCommonLogger().Infof("get token err %v", err)
+			return
+		}
+		sync.CheckRestful()
+		return
+	}
+
 	if *Action == "restart" {
-		err := s.Restart()
+		err = s.Restart()
 		if err != nil {
 			panic(err)
 		}

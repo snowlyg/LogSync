@@ -19,9 +19,9 @@ var sqlite *gorm.DB
 
 func GetSQLite() *gorm.DB {
 	var single sync.Once
+	dbFile := DBFile()
 	single.Do(func() {
 		var err error
-		dbFile := DBFile()
 		sqlite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))
 		if err != nil {
 			panic(fmt.Sprintf("sqlite init err %+v", err))

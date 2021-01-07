@@ -128,7 +128,7 @@ func CheckService() {
 
 		// 本机存储数据
 		var oldServerMsg models.ServerMsg
-		utils.GetSQLite().Where("service_type_id = ?", server.Id).First(&oldServerMsg)
+		utils.GetSQLite().Where("service_type_id = ?", server.ServiceTypeId).First(&oldServerMsg)
 		if oldServerMsg.ID > 0 {
 			oldServerMsg.Status = serverMsg.Status
 			oldServerMsg.FaultMsg = serverMsg.FaultMsg
@@ -141,6 +141,7 @@ func CheckService() {
 		serverNames = append(serverNames, serverMsg.ServiceName)
 
 		conCount = 0
+
 	}
 
 	serverMsgJson, _ := json.Marshal(serverMsgs)

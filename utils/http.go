@@ -161,11 +161,13 @@ func Request(method, url, data string, auth bool) []byte {
 		resp, err := Client.Do(req)
 		if err != nil {
 			fmt.Println(fmt.Sprintf("%s: %+v", url, err))
-			return
+			result <- nil
+		} else {
+			defer resp.Body.Close()
+			b, _ := ioutil.ReadAll(resp.Body)
+			result <- b
 		}
-		defer resp.Body.Close()
-		b, _ := ioutil.ReadAll(resp.Body)
-		result <- b
+
 	}()
 
 	for {

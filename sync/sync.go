@@ -85,7 +85,7 @@ func createDevices(sqlDb *gorm.DB) {
 
 	if len(cfDevices) > 0 {
 		if utils.GetSQLite() != nil {
-			utils.GetSQLite().Exec("DELETE FROM t_cf_devices;")
+			utils.GetSQLite().Exec("DELETE FROM cf_devices;")
 			for _, cfD := range cfDevices {
 				utils.GetSQLite().Create(&cfD)
 			}
@@ -126,7 +126,7 @@ func createTelphones(sqlDb *gorm.DB) {
 
 	if len(telphones) > 0 {
 		if utils.GetSQLite() != nil {
-			utils.GetSQLite().Exec("DELETE FROM t_telphones;")
+			utils.GetSQLite().Exec("DELETE FROM telphones;")
 			for _, cfD := range telphones {
 				utils.GetSQLite().Create(&cfD)
 			}
@@ -164,7 +164,7 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 
 	if len(telphoneGroups) > 0 {
 		if utils.GetSQLite() != nil {
-			utils.GetSQLite().Exec("DELETE FROM t_telphone_groups;")
+			utils.GetSQLite().Exec("DELETE FROM telphone_groups;")
 			for _, cfD := range telphoneGroups {
 				utils.GetSQLite().Create(&cfD)
 			}
