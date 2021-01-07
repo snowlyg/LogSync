@@ -542,7 +542,8 @@ func SyncDeviceLog() {
 		return
 	}
 
-	devices, err := models.GetCfDevice()
+	var devices []*models.CfDevice
+	devices, err = models.GetCfDevice()
 	if err == nil && len(devices) > 0 {
 		for _, device := range devices {
 

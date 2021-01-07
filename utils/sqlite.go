@@ -20,9 +20,6 @@ var sqlite *gorm.DB
 func GetSQLite() *gorm.DB {
 	dbFile := DBFile()
 	var single sync.Mutex
-	if sqlite != nil {
-		return sqlite
-	}
 	single.Lock()
 	var err error
 	sqlite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))
