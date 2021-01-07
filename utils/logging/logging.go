@@ -3,7 +3,6 @@ package logging
 import (
 	"github.com/snowlyg/LogSync/utils"
 	"path/filepath"
-	"sync"
 )
 
 var restfulLogger *Logger
@@ -15,71 +14,71 @@ var syncLogger *Logger
 //var WorkDir string
 
 func GetRestfulLogger() *Logger {
-	var single sync.Mutex
-	single.Lock()
+	if restfulLogger != nil {
+		return restfulLogger
+	}
 	workDir := getWorkDir()
 	restfulLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
 	}, filepath.Join(workDir, "./logs/rest.log"))
 	restfulLogger.SetLogPrefix("log_prefix")
-	single.Unlock()
 
 	return restfulLogger
 }
 
 func GetServiceLogger() *Logger {
-	var single sync.Mutex
-	single.Lock()
+	if serviceLogger != nil {
+		return serviceLogger
+	}
 	workDir := getWorkDir()
 	serviceLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
 	}, filepath.Join(workDir, "./logs/service.log"))
 	serviceLogger.SetLogPrefix("log_prefix")
-	single.Unlock()
 
 	return serviceLogger
 }
 
 func GetDeviceLogger() *Logger {
-	var single sync.Mutex
-	single.Lock()
+	if deviceLogger != nil {
+		return deviceLogger
+	}
 	workDir := getWorkDir()
 	deviceLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
 	}, filepath.Join(workDir, "./logs/device.log"))
 	deviceLogger.SetLogPrefix("log_prefix")
-	single.Unlock()
 
 	return deviceLogger
 }
 
 func GetCommonLogger() *Logger {
-	var single sync.Mutex
-	single.Lock()
+	if commonLogger != nil {
+		return commonLogger
+	}
 	workDir := getWorkDir()
 	commonLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
 	}, filepath.Join(workDir, "./logs/common.log"))
 	commonLogger.SetLogPrefix("log_prefix")
-	single.Unlock()
 
 	return commonLogger
 }
 
 func GetSyncLogger() *Logger {
-	var single sync.Mutex
-	single.Lock()
+	if syncLogger != nil {
+		return syncLogger
+	}
 	workDir := getWorkDir()
 	syncLogger = NewLogger(&Options{
 		Rolling:     DAILY,
 		TimesFormat: TIMESECOND,
 	}, filepath.Join(workDir, "./logs/sync.log"))
 	syncLogger.SetLogPrefix("log_prefix")
-	single.Unlock()
 
 	return syncLogger
 }

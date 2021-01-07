@@ -85,7 +85,8 @@ func IsPortInUse(host string, port int64) error {
 
 }
 
-func ListDir(dirPth string, suffix string) (files []string, err error) {
+func ListDir(dirPth string, suffix string) ([]string, error) {
+	var files []string
 	files = make([]string, 0, 10)
 	dir, err := ioutil.ReadDir(dirPth)
 	if err != nil {

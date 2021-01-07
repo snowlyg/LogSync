@@ -2,8 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"sync"
-
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
@@ -18,9 +16,10 @@ type Model struct {
 var sqlite *gorm.DB
 
 func GetSQLite() *gorm.DB {
+	//if sqlite != nil {
+	//	return sqlite
+	//}
 	dbFile := DBFile()
-	var single sync.Mutex
-	single.Lock()
 	var err error
 	sqlite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))
 	if err != nil {
@@ -30,7 +29,6 @@ func GetSQLite() *gorm.DB {
 	sqlite.DB().SetMaxOpenConns(100)
 	sqlite.SetLogger(DefaultGormLogger)
 	sqlite.LogMode(false)
-	single.Unlock()
 
 	return sqlite
 }
