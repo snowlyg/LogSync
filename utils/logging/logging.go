@@ -90,5 +90,5 @@ func GetSyncLogger() *Logger {
 }
 
 func getWorkDir() string {
-	return utils.Conf().Section("config").Key("outDir").MustString("D:Svr/logSync")
+	return utils.Config.Outdir
 }

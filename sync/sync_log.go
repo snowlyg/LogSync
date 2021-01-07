@@ -65,10 +65,10 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 
 	for _, s := range ss {
 		// 文件后缀
-		extStr := utils.Conf().Section("config").Key("exts").MustString("")
+		extStr := utils.Config.Exts
 		exts := strings.Split(extStr, ",")
 		// 图片后缀
-		imgExtStr := utils.Conf().Section("config").Key("img_exts").MustString("")
+		imgExtStr := utils.Config.Imgexts
 		imgExts := strings.Split(imgExtStr, ",")
 
 		if utils.InStrArray(s.Name, exts) { // 设备日志文件
@@ -77,11 +77,11 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			faultMsg.Content = string(getFileContent(c, s.Name))
 			faultMsgs = append(faultMsgs, faultMsg)
 		} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
-			imgDir := utils.Conf().Section("config").Key("img_dir").MustString("D:/Svr/logSync/")
+			imgDir := utils.Config.Outdir
 			path := fmt.Sprintf("%simg/%s.png", imgDir, logMsg.DeviceCode)
 			newPath := fmt.Sprintf("%simg/%s_%s.png", imgDir, logMsg.DeviceCode, "new")
 			imgContent := getFileContent(c, s.Name)
-			isResizeImg := utils.Conf().Section("config").Key("is_resize_img").MustBool(false)
+			isResizeImg := utils.Config.Isresizeimg
 
 			if isResizeImg && s.Size/1024 > 500 {
 				if len(imgContent) > 0 {
@@ -112,6 +112,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 		Where("device_code = ?", logMsg.DeviceCode).
 		Order("created_at desc").
 		First(&oldMsg)
+	utils.GetSQLite().Close()
 
 	if faultMsgs != nil {
 		faultMsgsJson, err := json.Marshal(faultMsgs)
@@ -125,6 +126,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 			logMsg.UpdateAt = time.Now().In(location)
 			utils.GetSQLite().Save(&logMsg)
+			utils.GetSQLite().Close()
 			addLogs(&logMsg)
 			logging.GetDeviceLogger().Infof(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
 		} else {
@@ -135,6 +137,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
 				logMsg.UpdateAt = time.Now().In(location)
 				utils.GetSQLite().Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "update_at": logMsg.UpdateAt})
+				utils.GetSQLite().Close()
 				addLogs(&logMsg)
 			}
 		}
@@ -168,6 +171,7 @@ func sendEmptyMsg(logMsg *models.LogMsg, location *time.Location, msg string) {
 		Where("device_code = ?", logMsg.DeviceCode).
 		Order("created_at desc").
 		First(&oldMsg)
+	utils.GetSQLite().Close()
 
 	logMsg.FaultMsg = msg
 	logMsg.Status = msg
@@ -185,6 +189,7 @@ func saveOrUpdate(logMsg *models.LogMsg, oldMsg models.LogMsg) {
 	} else {
 		utils.GetSQLite().Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "status": logMsg.Status, "update_at": logMsg.UpdateAt})
 	}
+	utils.GetSQLite().Close()
 }
 
 // 当前路径
@@ -195,9 +200,7 @@ func getCurrentDir(c *ftp.ServerConn) string {
 		return ""
 	}
 
-	if utils.Conf().Section("config").Key("loglevel").String() == "debug" {
-		logging.GetDeviceLogger().Infof(fmt.Sprintf("当前路径 >>> %v", dir))
-	}
+	logging.GetDeviceLogger().Infof(fmt.Sprintf("当前路径 >>> %v", dir))
 
 	return dir
 }
@@ -213,12 +216,13 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 		defer logging.GetDeviceLogger().Infof(fmt.Sprintf(">>> 大屏排查结束"))
 		var device models.CfDevice
 		utils.GetSQLite().Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
-		webAccount := utils.Conf().Section("web").Key("account").MustString("administrator")
-		webPassword := utils.Conf().Section("web").Key("password").MustString("chindeo888")
+		utils.GetSQLite().Close()
+		webAccount := utils.Config.Web.Account
+		webPassword := utils.Config.Web.Password
 		func(ip string) {
 			if len(strings.TrimSpace(ip)) > 0 {
 				// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
-				inDir := utils.Conf().Section("web").Key("inDir").MustString("D:/App/data/log")
+				inDir := utils.Config.Web.Indir
 				idir := fmt.Sprintf("%s/%s/%s/%s/", inDir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format("2006-01-02"))
 				pscpDevice(logMsg, oldMsg, webPassword, webAccount, idir, ip)
 
@@ -288,15 +292,16 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 		logging.GetDeviceLogger().Infof(fmt.Sprintf(">>> 开始排查安卓设备"))
 		defer logging.GetDeviceLogger().Infof(fmt.Sprintf(" "))
 		defer logging.GetDeviceLogger().Infof(fmt.Sprintf(">>> 安卓设备排查结束"))
-		androidAccount := utils.Conf().Section("android").Key("account").MustString("root")
-		androidPassword := utils.Conf().Section("android").Key("password").MustString("Chindeo")
+		androidAccount := utils.Config.Android.Account
+		androidPassword := utils.Config.Android.Password
 		var device models.CfDevice
 		utils.GetSQLite().Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
+		utils.GetSQLite().Close()
 		if len(strings.TrimSpace(device.DevIp)) > 0 {
 			logging.GetDeviceLogger().Infof(fmt.Sprintf("dev_id : %s /dev_code : %s", device.DevIp, logMsg.DeviceCode))
 
 			// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
-			inDir := utils.Conf().Section("android").Key("inDir").MustString("/sdcard/chindeo_app/log")
+			inDir := utils.Config.Android.Indir
 			idir := fmt.Sprintf("%s/%s/", inDir, time.Now().Format("2006-01-02"))
 
 			pscpDevice(logMsg, oldMsg, androidPassword, androidAccount, idir, device.DevIp)
@@ -436,7 +441,7 @@ func emptyLogRe(logMsg models.LogMsg, oldMsg models.LogMsg) {
 
 // 创建目录
 func createOutDir(logMsg models.LogMsg) string {
-	outDir := utils.Conf().Section("config").Key("outDir").MustString("D:Svr/logSync")
+	outDir := utils.Config.Outdir
 	odir := fmt.Sprintf("%s/other_logs/%s/%s/%s", outDir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format("2006-01-02"))
 
 	if !utils.Exist(odir) {
@@ -491,7 +496,7 @@ func cmdDir(c *ftp.ServerConn, root string) error {
 
 // 获取日志类型目录
 func getDeviceDir(deviceTypeId utils.DirName) string {
-	dirStr := utils.Conf().Section("config").Key("dirs").MustString("bis,nis,nws,webapp")
+	dirStr := utils.Config.Dirs
 	dirs := strings.Split(dirStr, ",")
 	if len(dirs) > 0 {
 		for _, dir := range dirs {
@@ -510,10 +515,9 @@ func SyncDeviceLog() {
 	logging.GetDeviceLogger().Infof("<========================>")
 	logging.GetDeviceLogger().Infof("日志监控开始")
 
-	ip := utils.Conf().Section("ftp").Key("ip").MustString("10.0.0.23")
-
-	username := utils.Conf().Section("ftp").Key("username").MustString("admin")
-	password := utils.Conf().Section("ftp").Key("password").MustString("Chindeo")
+	ip := utils.Config.Ftp.Ip
+	username := utils.Config.Ftp.Username
+	password := utils.Config.Ftp.Password
 	// 扫描错误日志，设备监控
 	//defer func() { // 必须要先声明defer，否则不能捕获到panic异常
 	//	logging.GetDeviceLogger().Infof("++++++++++++++++ftp 程序异常退出++++++++++++++++")
@@ -532,7 +536,7 @@ func SyncDeviceLog() {
 		logging.GetDeviceLogger().Infof(fmt.Sprintf("ftp 登录错误 %v", err))
 	}
 
-	root := utils.Conf().Section("config").Key("root").MustString("log")
+	root := utils.Config.Root
 	err = cmdDir(c, root)
 	if err != nil {
 		return

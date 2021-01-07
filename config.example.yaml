@@ -1,0 +1,36 @@
+host: test.op.com # 地址
+appid: wxcw846rde12w3fb9p # 接口id
+appsecret: 489r67esrqa341vcnb1m16azfm789nbmnhj8 #接口密钥
+db: visible:Chindeo@tcp(127.0.0.1:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local # mysql
+timeout: 5
+timeover: 10
+dirs: bis,nis,nws,webapp
+exts: .log,.txt
+imgexts: .png,.jpg,.JPEG,.bmp
+root: log
+outdir: /Users/snowlyg/go/src/github.com/snowlyg/LogSync
+isresizeimg: false
+
+ftp:
+  ip: 10.0.0.23
+  username: admin
+  password: Chindeo
+restful:
+  timetype: m # h,m,s 同步频率类型
+  timeduration: 1 #同步频率
+device:
+  timetype: m # h,m,s 同步频率类型
+  timeduration: 1 #同步频率
+data:
+  timetype: h # h,m,s 同步频率类型
+  timeduration: 1 #同步频率
+web:
+  #护理白板账号密码
+  account: administrator
+  password: 123456
+  inDir: D:/App/data/log
+
+android:
+  account: root
+  password: Chindeo
+  inDir: /sdcard/chindeo_app/log

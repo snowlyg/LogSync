@@ -72,8 +72,8 @@ func (p *program) run() {
 }
 
 func syncDevice() {
-	t := utils.Conf().Section("time").Key("sync_data_time").MustInt64(1)
-	v := utils.Conf().Section("time").Key("sync_data").MustString("h")
+	t := utils.Config.Data.Timeduration
+	v := utils.Config.Data.Timetype
 	var ch chan int
 	tickerSync := getTicker(t, v)
 	go func() {
@@ -93,9 +93,8 @@ func syncDevice() {
 
 func syncDeviceLog() {
 	var ch chan int
-	var t int64
-	t = utils.Conf().Section("time").Key("sync_log_time").MustInt64(4)
-	v := utils.Conf().Section("time").Key("sync_log").MustString("m")
+	t := utils.Config.Device.Timeduration
+	v := utils.Config.Device.Timetype
 	ticker := getTicker(t, v)
 	go func() {
 		for range ticker.C {
@@ -118,9 +117,8 @@ func syncDeviceLog() {
 
 func syncService() {
 	var ch chan int
-	var t int64
-	t = utils.Conf().Section("time").Key("sync_log_time").MustInt64(4)
-	v := utils.Conf().Section("time").Key("sync_log").MustString("m")
+	t := utils.Config.Device.Timeduration
+	v := utils.Config.Device.Timetype
 	ticker := getTicker(t, v)
 	go func() {
 		for range ticker.C {
@@ -139,9 +137,8 @@ func syncService() {
 
 func syncRestful() {
 	var ch chan int
-	var t int64
-	t = utils.Conf().Section("time").Key("sync_log_time").MustInt64(4)
-	v := utils.Conf().Section("time").Key("sync_log").MustString("m")
+	t := utils.Config.Restful.Timeduration
+	v := utils.Config.Restful.Timetype
 	ticker := getTicker(t, v)
 	go func() {
 		for range ticker.C {
@@ -175,7 +172,7 @@ func (p *program) Stop(s service.Service) error {
 	defer log.Println("********** STOP **********")
 	//defer utils.CloseLogWriter()
 	//_ = p.StopHTTP()
-	models.Close()
+	utils.GetSQLite().Close()
 	return nil
 }
 

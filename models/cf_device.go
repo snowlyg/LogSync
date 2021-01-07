@@ -29,6 +29,7 @@ type CfDevice struct {
 func GetCfDevice() ([]*CfDevice, error) {
 	var cfDevices []*CfDevice
 	err := utils.GetSQLite().Where("dev_status = ?", 1).Where("dev_active = ?", 1).Find(&cfDevices).Error
+	defer utils.GetSQLite().Close()
 	if err != nil {
 		return nil, err
 	}

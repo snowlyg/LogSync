@@ -28,7 +28,7 @@ func GetSQLite() *gorm.DB {
 		}
 		// Sqlite cannot handle concurrent writes, so we limit sqlite to one connection.
 		// see https://github.com/mattn/go-sqlite3/issues/274
-		sqlite.DB().SetMaxOpenConns(1)
+		sqlite.DB().SetMaxOpenConns(100)
 		sqlite.SetLogger(DefaultGormLogger)
 		sqlite.LogMode(false)
 	})

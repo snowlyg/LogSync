@@ -20,14 +20,12 @@ func SyncDevice() {
 		logging.GetSyncLogger().Error(err)
 		return
 	}
-	account := utils.Conf().Section("mysql").Key("account").MustString("visible")
-	pwd := utils.Conf().Section("mysql").Key("pwd").MustString("Chindeo")
+
 	for _, server := range serverList {
 		switch server.ServiceName {
 		case "MySQL":
 			func() {
-				conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", account, pwd, server.Ip, server.Port, "dois")
-				sqlDb, err := gorm.Open("mysql", conn)
+				sqlDb, err := gorm.Open("mysql", utils.Config.DB)
 				if err != nil {
 					logging.GetSyncLogger().Infof("mysql conn error: %v ,id:%s", err, server.Ip)
 					return
@@ -56,6 +54,7 @@ func deleteMsg() {
 	lastWeek := time.Now().AddDate(0, 0, -3).Format("2006-01-02 15:04:05")
 	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
 	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
+	utils.GetSQLite().Close()
 
 	logging.GetSyncLogger().Infof("删除3天前数据库日志记录 :%s", lastWeek)
 }
@@ -86,10 +85,11 @@ func createDevices(sqlDb *gorm.DB) {
 	if len(cfDevices) > 0 {
 		if utils.GetSQLite() != nil {
 			utils.GetSQLite().Exec("DELETE FROM cf_devices;")
+			utils.GetSQLite().Close()
 			for _, cfD := range cfDevices {
 				utils.GetSQLite().Create(&cfD)
+				utils.GetSQLite().Close()
 			}
-
 			cfDeviceJson, _ := json.Marshal(&cfDevices)
 			data := fmt.Sprintf("data=%s", cfDeviceJson)
 			var res interface{}
@@ -127,8 +127,10 @@ func createTelphones(sqlDb *gorm.DB) {
 	if len(telphones) > 0 {
 		if utils.GetSQLite() != nil {
 			utils.GetSQLite().Exec("DELETE FROM telphones;")
+			utils.GetSQLite().Close()
 			for _, cfD := range telphones {
 				utils.GetSQLite().Create(&cfD)
+				utils.GetSQLite().Close()
 			}
 
 			telphoneJson, _ := json.Marshal(&telphones)
@@ -165,8 +167,10 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 	if len(telphoneGroups) > 0 {
 		if utils.GetSQLite() != nil {
 			utils.GetSQLite().Exec("DELETE FROM telphone_groups;")
+			utils.GetSQLite().Close()
 			for _, cfD := range telphoneGroups {
 				utils.GetSQLite().Create(&cfD)
+				utils.GetSQLite().Close()
 			}
 
 			telphoneGroupJson, _ := json.Marshal(&telphoneGroups)

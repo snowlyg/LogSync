@@ -36,22 +36,28 @@ func CheckRestful() {
 	}
 
 	for _, restful := range restfuls {
-		restfulMsg := &models.RestfulMsg{Url: restful.Url, Model: gorm.Model{CreatedAt: time.Now()}}
-		getRestful(restfulMsg)
-		// 本机存储数据
-		var oldRestfulMsg models.RestfulMsg
-		utils.GetSQLite().Where("url = ?", restful.Url).First(&oldRestfulMsg)
-		if oldRestfulMsg.ID > 0 {
-			oldRestfulMsg.Status = restfulMsg.Status
-			oldRestfulMsg.ErrMsg = restfulMsg.ErrMsg
-			utils.GetSQLite().Save(&oldRestfulMsg)
-		} else {
-			utils.GetSQLite().Save(&restfulMsg)
-		}
+		func() {
+			restfulMsg := &models.RestfulMsg{Url: restful.Url, Model: gorm.Model{CreatedAt: time.Now()}}
+			getRestful(restfulMsg)
+			// 本机存储数据
+			var oldRestfulMsg models.RestfulMsg
+			utils.GetSQLite().Where("url = ?", restful.Url).First(&oldRestfulMsg)
+			utils.GetSQLite().Close()
+			if oldRestfulMsg.ID > 0 {
+				oldRestfulMsg.Status = restfulMsg.Status
+				oldRestfulMsg.ErrMsg = restfulMsg.ErrMsg
+				utils.GetSQLite().Save(&oldRestfulMsg)
+				utils.GetSQLite().Close()
+			} else {
+				utils.GetSQLite().Save(&restfulMsg)
+				utils.GetSQLite().Close()
+			}
 
-		restfulMsgResponse := &RestfulMsg{restful.Url, restfulMsg.Status, restfulMsg.ErrMsg}
-		restfulMsgs = append(restfulMsgs, restfulMsgResponse)
-		restfulUrl = append(restfulUrl, restful.Url)
+			restfulMsgResponse := &RestfulMsg{restful.Url, restfulMsg.Status, restfulMsg.ErrMsg}
+			restfulMsgs = append(restfulMsgs, restfulMsgResponse)
+			restfulUrl = append(restfulUrl, restful.Url)
+		}()
+
 	}
 
 	var restfulMsgJson []byte

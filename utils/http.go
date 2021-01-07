@@ -120,8 +120,8 @@ func GetToken() error {
 	}
 
 	var re getToken
-	appid := Conf().Section("config").Key("appid").MustString("")
-	appsecret := Conf().Section("config").Key("appsecret").MustString("")
+	appid := Config.Appid
+	appsecret := Config.Appsecret
 	result := Request("POST", "platform/application/login", fmt.Sprintf("appid=%s&appsecret=%s&apptype=%s", appid, appsecret, "hospital"), false)
 	if len(result) == 0 {
 		return errors.New("请求没有返回数据")
@@ -141,9 +141,9 @@ func GetToken() error {
 }
 
 func Request(method, url, data string, auth bool) []byte {
-	timeout := Conf().Section("config").Key("timeout").MustInt(5)
-	timeover := Conf().Section("config").Key("timeover").MustInt(10)
-	host := Conf().Section("config").Key("host").MustString("")
+	timeout := Config.Timeout
+	timeover := Config.Timeover
+	host := Config.Host
 	T := time.Tick(time.Duration(timeover) * time.Second)
 	var result = make(chan []byte, 10)
 	t := time.Duration(timeout) * time.Second
@@ -153,20 +153,26 @@ func Request(method, url, data string, auth bool) []byte {
 		if strings.Contains(url, "http") {
 			fullUrl = url
 		}
-		req, _ := http.NewRequest(method, fullUrl, strings.NewReader(data))
+		req, err := http.NewRequest(method, fullUrl, strings.NewReader(data))
+		if err != nil {
+			fmt.Println(fmt.Sprintf("%s: %+v", url, err))
+			result <- nil
+			return
+		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 		if auth {
 			req.Header.Set("X-Token", GetCacheToken())
 		}
-		resp, err := Client.Do(req)
+		var resp *http.Response
+		resp, err = Client.Do(req)
 		if err != nil {
 			fmt.Println(fmt.Sprintf("%s: %+v", url, err))
 			result <- nil
-		} else {
-			defer resp.Body.Close()
-			b, _ := ioutil.ReadAll(resp.Body)
-			result <- b
+			return
 		}
+		defer resp.Body.Close()
+		b, _ := ioutil.ReadAll(resp.Body)
+		result <- b
 
 	}()
 
