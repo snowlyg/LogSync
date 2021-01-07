@@ -127,18 +127,18 @@ func CheckService() {
 		}
 
 		// 本机存储数据
-		var oldServerMsg models.ServerMsg
-		utils.GetSQLite().Where("service_type_id = ?", server.ServiceTypeId).First(&oldServerMsg)
-		utils.GetSQLite().Close()
-		if oldServerMsg.ID > 0 {
-			oldServerMsg.Status = serverMsg.Status
-			oldServerMsg.FaultMsg = serverMsg.FaultMsg
-			utils.GetSQLite().Save(&oldServerMsg)
-			utils.GetSQLite().Close()
-		} else {
-			utils.GetSQLite().Save(&serverMsg)
-			utils.GetSQLite().Close()
-		}
+		//var oldServerMsg models.ServerMsg
+		//utils.GetSQLite().Where("service_type_id = ?", server.ServiceTypeId).First(&oldServerMsg)
+		//utils.GetSQLite().Close()
+		//if oldServerMsg.ID > 0 {
+		//	oldServerMsg.Status = serverMsg.Status
+		//	oldServerMsg.FaultMsg = serverMsg.FaultMsg
+		//	utils.GetSQLite().Save(&oldServerMsg)
+		//	utils.GetSQLite().Close()
+		//} else {
+		//	utils.GetSQLite().Save(&serverMsg)
+		//	utils.GetSQLite().Close()
+		//}
 
 		serverMsgs = append(serverMsgs, &serverMsg)
 		serverNames = append(serverNames, serverMsg.ServiceName)

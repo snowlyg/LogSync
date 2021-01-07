@@ -5,18 +5,22 @@ import (
 	"time"
 )
 
-var Ca *cache.Cache
+var ca *cache.Cache
 
-func init() {
-	Ca = cache.New(1*time.Hour, 2*time.Hour)
+func GetCache() *cache.Cache {
+	if ca != nil {
+		return ca
+	}
+	ca = cache.New(1*time.Hour, 2*time.Hour)
+	return ca
 }
 
 func SetCacheToken(token string) {
-	Ca.Set("XToken", token, cache.DefaultExpiration)
+	GetCache().Set("XToken", token, cache.DefaultExpiration)
 }
 
 func GetCacheToken() string {
-	foo, found := Ca.Get("XToken")
+	foo, found := GetCache().Get("XToken")
 	if found {
 		return foo.(string)
 	}

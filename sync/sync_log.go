@@ -85,7 +85,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 
 			if isResizeImg && s.Size/1024 > 500 {
 				if len(imgContent) > 0 {
-					err := utils.Create(path, imgContent)
+					err = utils.Create(path, imgContent)
 					if err != nil {
 						logging.GetDeviceLogger().Infof(fmt.Sprintf("%s 图片生成失败：%v", s.Name, err))
 					}

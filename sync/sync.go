@@ -15,38 +15,24 @@ func SyncDevice() {
 	// http://fyxt.t.chindeo.com/platform/report/syncdevice 同步设备 post
 	// http://fyxt.t.chindeo.com/platform/report/synctelgroup   同步通讯录组 post
 	// http://fyxt.t.chindeo.com/platform/report/synctel  同步通讯录 post
-	serverList, err := utils.GetServices()
+	sqlDb, err := gorm.Open("mysql", utils.Config.DB)
 	if err != nil {
-		logging.GetSyncLogger().Error(err)
+		logging.GetSyncLogger().Infof("mysql conn error: ", err)
 		return
+	} else {
+		logging.GetSyncLogger().Info("mysql conn success")
 	}
+	defer sqlDb.Close()
 
-	for _, server := range serverList {
-		switch server.ServiceName {
-		case "MySQL":
-			func() {
-				sqlDb, err := gorm.Open("mysql", utils.Config.DB)
-				if err != nil {
-					logging.GetSyncLogger().Infof("mysql conn error: %v ,id:%s", err, server.Ip)
-					return
-				} else {
-					logging.GetSyncLogger().Info("mysql conn success")
-				}
-				defer sqlDb.Close()
+	sqlDb.DB().SetMaxOpenConns(1)
+	sqlDb.SetLogger(utils.DefaultGormLogger)
+	sqlDb.LogMode(false)
 
-				sqlDb.DB().SetMaxOpenConns(1)
-				sqlDb.SetLogger(utils.DefaultGormLogger)
-				sqlDb.LogMode(false)
+	createDevices(sqlDb)
+	createTelphones(sqlDb)
+	createTelphoneGroups(sqlDb)
+	deleteMsg()
 
-				createDevices(sqlDb)
-				createTelphones(sqlDb)
-				createTelphoneGroups(sqlDb)
-				deleteMsg()
-			}()
-		default:
-			continue
-		}
-	}
 }
 
 // 删除3天前的日志记录
@@ -83,25 +69,15 @@ func createDevices(sqlDb *gorm.DB) {
 	}
 
 	if len(cfDevices) > 0 {
-		if utils.GetSQLite() != nil {
-			utils.GetSQLite().Exec("DELETE FROM cf_devices;")
-			utils.GetSQLite().Close()
-			for _, cfD := range cfDevices {
-				utils.GetSQLite().Create(&cfD)
-				utils.GetSQLite().Close()
-			}
-			cfDeviceJson, _ := json.Marshal(&cfDevices)
-			data := fmt.Sprintf("data=%s", cfDeviceJson)
-			var res interface{}
-			res, err = utils.SyncServices("platform/report/syncdevice", data)
-			if err != nil {
-				logging.GetSyncLogger().Error(err)
-			}
-			logging.GetSyncLogger().Infof("数据提交返回信息:%v", res)
-
-		} else {
-			logging.GetSyncLogger().Infof("db.SQLite is null")
+		cfDeviceJson, _ := json.Marshal(&cfDevices)
+		data := fmt.Sprintf("data=%s", cfDeviceJson)
+		var res interface{}
+		res, err = utils.SyncServices("platform/report/syncdevice", data)
+		if err != nil {
+			logging.GetSyncLogger().Error(err)
 		}
+		logging.GetSyncLogger().Infof("数据提交返回信息:%v", res)
+
 	}
 
 }
@@ -109,7 +85,6 @@ func createDevices(sqlDb *gorm.DB) {
 // 同步通讯录
 func createTelphones(sqlDb *gorm.DB) {
 	var telphones []*models.Telphone
-
 	rows, err := sqlDb.Raw("select *  from ss_telephone").Rows()
 	if err != nil {
 		logging.GetSyncLogger().Error(err)
@@ -125,25 +100,15 @@ func createTelphones(sqlDb *gorm.DB) {
 	}
 
 	if len(telphones) > 0 {
-		if utils.GetSQLite() != nil {
-			utils.GetSQLite().Exec("DELETE FROM telphones;")
-			utils.GetSQLite().Close()
-			for _, cfD := range telphones {
-				utils.GetSQLite().Create(&cfD)
-				utils.GetSQLite().Close()
-			}
 
-			telphoneJson, _ := json.Marshal(&telphones)
-			data := fmt.Sprintf("data=%s", telphoneJson)
-			var res interface{}
-			res, err = utils.SyncServices("platform/report/synctel", data)
-			if err != nil {
-				logging.GetSyncLogger().Error(err)
-			}
-			logging.GetSyncLogger().Infof("同步通讯录返回数据:%s", res)
-		} else {
-			logging.GetSyncLogger().Infof("db.SQLite is null")
+		telphoneJson, _ := json.Marshal(&telphones)
+		data := fmt.Sprintf("data=%s", telphoneJson)
+		var res interface{}
+		res, err = utils.SyncServices("platform/report/synctel", data)
+		if err != nil {
+			logging.GetSyncLogger().Error(err)
 		}
+		logging.GetSyncLogger().Infof("同步通讯录返回数据:%s", res)
 	}
 }
 
@@ -165,24 +130,14 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 	}
 
 	if len(telphoneGroups) > 0 {
-		if utils.GetSQLite() != nil {
-			utils.GetSQLite().Exec("DELETE FROM telphone_groups;")
-			utils.GetSQLite().Close()
-			for _, cfD := range telphoneGroups {
-				utils.GetSQLite().Create(&cfD)
-				utils.GetSQLite().Close()
-			}
 
-			telphoneGroupJson, _ := json.Marshal(&telphoneGroups)
-			data := fmt.Sprintf("data=%s", telphoneGroupJson)
-			var res interface{}
-			res, err = utils.SyncServices("platform/report/synctelgroup", data)
-			if err != nil {
-				logging.GetSyncLogger().Error(err)
-			}
-			logging.GetSyncLogger().Infof("同步通讯录组返回数据:%s", res)
-		} else {
-			logging.GetSyncLogger().Infof("db.SQLite is null")
+		telphoneGroupJson, _ := json.Marshal(&telphoneGroups)
+		data := fmt.Sprintf("data=%s", telphoneGroupJson)
+		var res interface{}
+		res, err = utils.SyncServices("platform/report/synctelgroup", data)
+		if err != nil {
+			logging.GetSyncLogger().Error(err)
 		}
+		logging.GetSyncLogger().Infof("同步通讯录组返回数据:%s", res)
 	}
 }

@@ -1,6 +1,11 @@
 package models
 
-import "github.com/snowlyg/LogSync/utils"
+import (
+	"database/sql"
+	"github.com/jinzhu/gorm"
+	"github.com/snowlyg/LogSync/utils"
+	"github.com/snowlyg/LogSync/utils/logging"
+)
 
 //dev_id as local_device_id,
 //dev_code as device_code,
@@ -27,12 +32,36 @@ type CfDevice struct {
 }
 
 func GetCfDevice() ([]*CfDevice, error) {
-	var cfDevices []*CfDevice
-	err := utils.GetSQLite().Where("dev_status = ?", 1).Where("dev_active = ?", 1).Find(&cfDevices).Error
-	defer utils.GetSQLite().Close()
+	sqlDb, err := gorm.Open("mysql", utils.Config.DB)
 	if err != nil {
 		return nil, err
 	}
+	defer sqlDb.Close()
 
+	sqlDb.DB().SetMaxOpenConns(1)
+	sqlDb.SetLogger(utils.DefaultGormLogger)
+	sqlDb.LogMode(false)
+
+	var cfDevices []*CfDevice
+	query := "select ct_loc.loc_desc as loc_desc,pac_room.room_desc as room_desc, pac_bed.bed_code as bed_code, dev_id ,dev_code ,dev_desc ,dev_position ,dev_type,dev_active,dev_status,dev_create_time,mm.ipaddr as dev_ip from cf_device"
+	query += " left join mqtt.mqtt_device as mm on mm.username = cf_device.dev_code"
+	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
+	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
+	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
+
+	var rows *sql.Rows
+	rows, err = sqlDb.Raw(query).Rows()
+	if err != nil {
+		logging.GetSyncLogger().Error(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cfDevice CfDevice
+		// ScanRows 扫描一行记录到 user
+		sqlDb.ScanRows(rows, &cfDevice)
+
+		cfDevices = append(cfDevices, &cfDevice)
+	}
 	return cfDevices, nil
 }
