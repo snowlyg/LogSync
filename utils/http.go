@@ -54,8 +54,6 @@ type Restful struct {
 	Url string `json:"url"`
 }
 
-var token string
-
 //http://fyxt.t.chindeo.com/platform/report/getService  获取服务
 func GetServices() ([]*Server, error) {
 	re := &getServer{}
@@ -71,6 +69,7 @@ func GetServices() ([]*Server, error) {
 	if re.Code == 200 {
 		return re.Data, nil
 	} else if re.Code == 401 {
+		SetCacheToken("")
 		return nil, errors.New("token 验证失败")
 	} else {
 		return nil, errors.New(fmt.Sprintf("GetServices 获取服务返回错误信息 :%v", re.Message))
@@ -92,6 +91,7 @@ func GetRestfuls() ([]*Restful, error) {
 	if re.Code == 200 {
 		return re.Data, nil
 	} else if re.Code == 401 {
+		SetCacheToken("")
 		return nil, errors.New("token 验证失败")
 	} else {
 		return nil, errors.New(fmt.Sprintf("GetRestfuls 获取接口返回错误信息 :%v", re.Message))
@@ -110,17 +110,20 @@ func SyncServices(path, data string) (interface{}, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("SyncServices dopost: %s json.Unmarshal error：%v ,with result: %v", path, err, string(result)))
 	}
-	return re, nil
+
+	if re.Code == 200 {
+		return re.Data, nil
+	} else if re.Code == 401 {
+		SetCacheToken("")
+		return nil, errors.New("token 验证失败")
+	} else {
+		return nil, errors.New(fmt.Sprintf("SyncServices 获取接口返回错误信息 :%v", re.Message))
+	}
 }
 
 //http://fyxt.t.chindeo.com/platform/application/login
 //http://fyxt.t.chindeo.com/platform/report/device
 func GetToken() error {
-	token = GetCacheToken()
-	if token != "" {
-		return nil
-	}
-
 	var re getToken
 	appid := Config.Appid
 	appsecret := Config.Appsecret
@@ -164,6 +167,10 @@ func Request(method, url, data string, auth bool) []byte {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 		if auth {
 			req.Header.Set("X-Token", GetCacheToken())
+			phpSessionId := GetSessionId()
+			if phpSessionId != nil {
+				req.AddCookie(phpSessionId)
+			}
 		}
 		var resp *http.Response
 		resp, err = Client.Do(req)
@@ -173,6 +180,11 @@ func Request(method, url, data string, auth bool) []byte {
 			return
 		}
 		defer resp.Body.Close()
+
+		if !auth {
+			SetSessionId(resp.Cookies())
+		}
+
 		b, _ := ioutil.ReadAll(resp.Body)
 		result <- b
 
