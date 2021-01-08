@@ -29,10 +29,18 @@ func (p *program) Start(s service.Service) error {
 
 func (p *program) run() {
 	defer println("********** START **********")
-	syncDeviceLog()
-	syncRestful()
-	syncService()
-	syncDevice()
+	go func() {
+		syncDeviceLog()
+	}()
+	go func() {
+		syncRestful()
+	}()
+	go func() {
+		syncService()
+	}()
+	go func() {
+		syncDevice()
+	}()
 }
 
 func syncDevice() {
@@ -86,7 +94,7 @@ func syncService() {
 	t := utils.Config.Device.Timeduration
 	v := utils.Config.Device.Timetype
 	ticker := getTicker(t, v)
-	ticker.Stop()
+	defer ticker.Stop()
 	go func() {
 		for range ticker.C {
 			err := utils.GetToken()
@@ -107,7 +115,7 @@ func syncRestful() {
 	t := utils.Config.Restful.Timeduration
 	v := utils.Config.Restful.Timetype
 	ticker := getTicker(t, v)
-	ticker.Stop()
+	defer ticker.Stop()
 	go func() {
 		for range ticker.C {
 			err := utils.GetToken()

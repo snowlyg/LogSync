@@ -456,6 +456,7 @@ func getFileContent(c *ftp.ServerConn, name string) []byte {
 	//	}
 	//	loggerD.Infof("++++++++++++++++Retr 程序 recover ++++++++++++++++")
 	//}()
+
 	r, err := c.Retr(name)
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
@@ -598,27 +599,31 @@ func SyncDeviceLog() {
 	}
 
 	var loop = 0
-	for loop < len(logMsgs)/utils.Config.Devicesize {
+	devicesize := utils.Config.Devicesize
+	for loop < len(logMsgs)/devicesize+1 {
 		var logMsgNoImags []*models.LogMsg
 		var index = 0
-		for index < utils.Config.Devicesize {
-			logMsgNoImags = append(logMsgNoImags, logMsgs[index+loop*utils.Config.Devicesize])
+		for index < devicesize && index+loop*devicesize < len(logMsgs) {
+			logMsgNoImags = append(logMsgNoImags, logMsgs[index+loop*devicesize])
 			index++
 		}
 
-		serverMsgJson, _ := json.Marshal(logMsgNoImags)
-		loggerD.Infof(fmt.Sprintf("日志文件大小：%d", len(serverMsgJson)/1024/1024))
-		data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
-		var res interface{}
-		res, err = utils.SyncServices("platform/report/device", data)
-		if err != nil {
-			loggerD.Error(err)
+		if len(logMsgNoImags) > 0 {
+			serverMsgJson, _ := json.Marshal(logMsgNoImags)
+			loggerD.Infof(fmt.Sprintf("日志文件大小：%d", len(serverMsgJson)/1024/1024))
+			data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
+			var res interface{}
+			res, err = utils.SyncServices("platform/report/device", data)
+			if err != nil {
+				loggerD.Error(err)
+			}
+			loggerD.Infof(fmt.Sprintf("提交日志信息返回数据 :%v", res))
+			loggerD.Infof(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgNoImags), logCodes))
 		}
-		loggerD.Infof(fmt.Sprintf("提交日志信息返回数据 :%v", res))
+
 		loop++
 	}
 
-	loggerD.Infof(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgs), logCodes))
 	loggerD.Infof("日志监控结束")
 
 }
