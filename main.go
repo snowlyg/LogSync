@@ -13,7 +13,7 @@ import (
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
-	_ "net/http/pprof"
+	//_ "net/http/pprof"
 )
 
 var Version string
@@ -142,9 +142,9 @@ func getTicker(t int64, v string) *time.Ticker {
 var Action = flag.String("action", "", "程序操作指令")
 
 func main() {
-	go func() {
-		http.ListenAndServe("localhost:6061", nil)
-	}()
+	//go func() {
+	//	http.ListenAndServe("localhost:6061", nil)
+	//}()
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [command]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Commands:\n")
@@ -188,7 +188,7 @@ func main() {
 	}
 
 	if *Action == "remove" {
-		err := s.Uninstall()
+		err = s.Uninstall()
 		if err != nil {
 			panic(err)
 		}
@@ -225,7 +225,7 @@ func main() {
 	}
 
 	if *Action == "check_service" {
-		err := utils.GetToken()
+		err = utils.GetToken()
 		if err != nil {
 			fmt.Println(fmt.Sprintf("get token err %v", err))
 			return

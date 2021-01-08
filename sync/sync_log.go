@@ -525,11 +525,13 @@ func SyncDeviceLog() {
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
+		return
 	}
 	// 登录ftp
 	err = c.Login(username, password)
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("ftp 登录错误 %v", err))
+		return
 	}
 
 	root := utils.Config.Root
