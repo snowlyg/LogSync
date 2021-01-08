@@ -29,6 +29,10 @@ func (p *program) Start(s service.Service) error {
 
 func (p *program) run() {
 	defer println("********** START **********")
+	err := utils.GetToken()
+	if err != nil {
+		fmt.Println(fmt.Sprintf("get token err %v", err))
+	}
 	go func() {
 		syncDeviceLog()
 	}()
@@ -72,12 +76,6 @@ func syncDeviceLog() {
 		ticker := getTicker(t, v)
 		defer ticker.Stop()
 		for range ticker.C {
-			err := utils.GetToken()
-			if err != nil {
-				fmt.Println(fmt.Sprintf("get token err %v", err))
-				ch <- 1
-			}
-
 			// 进入当天目录,跳过 23点45 当天凌晨 0点59 分钟，给设备创建目录的时间
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 59) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
 				sync.SyncDeviceLog()
@@ -97,11 +95,6 @@ func syncService() {
 	defer ticker.Stop()
 	go func() {
 		for range ticker.C {
-			err := utils.GetToken()
-			if err != nil {
-				fmt.Println(fmt.Sprintf("get token err %v", err))
-				ch <- 1
-			}
 			sync.CheckService()
 			fmt.Println(fmt.Sprintf("服务数据同步 %v", time.Now()))
 		}
@@ -118,11 +111,6 @@ func syncRestful() {
 	defer ticker.Stop()
 	go func() {
 		for range ticker.C {
-			err := utils.GetToken()
-			if err != nil {
-				fmt.Println(fmt.Sprintf("get token err %v", err))
-				ch <- 1
-			}
 			sync.CheckRestful()
 			fmt.Println(fmt.Sprintf("接口监控同步 %v", time.Now()))
 		}
