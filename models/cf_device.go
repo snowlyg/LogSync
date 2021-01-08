@@ -1,10 +1,9 @@
 package models
 
 import (
-	"database/sql"
+	"errors"
 	"github.com/jinzhu/gorm"
 	"github.com/snowlyg/LogSync/utils"
-	"github.com/snowlyg/LogSync/utils/logging"
 )
 
 //dev_id as local_device_id,
@@ -38,7 +37,8 @@ func GetCfDevice() ([]*CfDevice, error) {
 	}
 	defer sqlDb.Close()
 
-	sqlDb.DB().SetMaxOpenConns(1)
+	sqlDb.DB().SetMaxOpenConns(100)
+	sqlDb.DB().SetMaxIdleConns(100)
 	sqlDb.SetLogger(utils.DefaultGormLogger)
 	sqlDb.LogMode(false)
 
@@ -48,19 +48,16 @@ func GetCfDevice() ([]*CfDevice, error) {
 	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
 	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
 	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
+	query += " where dev_active = 1 and dev_status =1"
 
-	var rows *sql.Rows
-	rows, err = sqlDb.Raw(query).Rows()
-	if err != nil {
-		logging.GetSyncLogger().Error(err)
-	}
+	rows, _ := sqlDb.Raw(query).Rows()
 	defer rows.Close()
-
+	if rows == nil {
+		return nil, errors.New("get 0 data")
+	}
 	for rows.Next() {
 		var cfDevice CfDevice
-		// ScanRows 扫描一行记录到 user
 		sqlDb.ScanRows(rows, &cfDevice)
-
 		cfDevices = append(cfDevices, &cfDevice)
 	}
 	return cfDevices, nil

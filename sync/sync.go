@@ -11,16 +11,17 @@ import (
 )
 
 func SyncDevice() {
+	logger := logging.GetMyLogger("sync")
 	// 同步设备和通讯录
 	// http://fyxt.t.chindeo.com/platform/report/syncdevice 同步设备 post
 	// http://fyxt.t.chindeo.com/platform/report/synctelgroup   同步通讯录组 post
 	// http://fyxt.t.chindeo.com/platform/report/synctel  同步通讯录 post
 	sqlDb, err := gorm.Open("mysql", utils.Config.DB)
 	if err != nil {
-		logging.GetSyncLogger().Infof("mysql conn error: ", err)
+		logger.Infof("mysql conn error: ", err)
 		return
 	} else {
-		logging.GetSyncLogger().Info("mysql conn success")
+		logger.Info("mysql conn success")
 	}
 	defer sqlDb.Close()
 
@@ -28,43 +29,41 @@ func SyncDevice() {
 	sqlDb.SetLogger(utils.DefaultGormLogger)
 	sqlDb.LogMode(false)
 
-	createDevices(sqlDb)
-	createTelphones(sqlDb)
-	createTelphoneGroups(sqlDb)
-	deleteMsg()
+	createDevices(sqlDb, logger)
+	createTelphones(sqlDb, logger)
+	createTelphoneGroups(sqlDb, logger)
+	deleteMsg(logger)
 
 }
 
 // 删除3天前的日志记录
-func deleteMsg() {
+func deleteMsg(logger *logging.Logger) {
 	lastWeek := time.Now().AddDate(0, 0, -3).Format("2006-01-02 15:04:05")
 	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
 	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
-	utils.GetSQLite().Close()
 
-	logging.GetSyncLogger().Infof("删除3天前数据库日志记录 :%s", lastWeek)
+	logger.Infof("删除3天前数据库日志记录 :%s", lastWeek)
 }
 
 // 同步设备
-func createDevices(sqlDb *gorm.DB) {
+func createDevices(sqlDb *gorm.DB, logger *logging.Logger) {
 	var cfDevices []*models.CfDevice
 	query := "select ct_loc.loc_desc as loc_desc,pac_room.room_desc as room_desc, pac_bed.bed_code as bed_code, dev_id ,dev_code ,dev_desc ,dev_position ,dev_type,dev_active,dev_status,dev_create_time,mm.ipaddr as dev_ip from cf_device"
 	query += " left join mqtt.mqtt_device as mm on mm.username = cf_device.dev_code"
 	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
 	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
 	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
+	query += " where dev_active = 1 and dev_status =1"
 
 	rows, err := sqlDb.Raw(query).Rows()
 	if err != nil {
-		logging.GetSyncLogger().Error(err)
+		logger.Error(err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var cfDevice models.CfDevice
-		// ScanRows 扫描一行记录到 user
 		sqlDb.ScanRows(rows, &cfDevice)
-
 		cfDevices = append(cfDevices, &cfDevice)
 	}
 
@@ -74,20 +73,20 @@ func createDevices(sqlDb *gorm.DB) {
 		var res interface{}
 		res, err = utils.SyncServices("platform/report/syncdevice", data)
 		if err != nil {
-			logging.GetSyncLogger().Error(err)
+			logger.Error(err)
 		}
-		logging.GetSyncLogger().Infof("数据提交返回信息:%v", res)
+		logger.Infof("数据提交返回信息:%v", res)
 
 	}
 
 }
 
 // 同步通讯录
-func createTelphones(sqlDb *gorm.DB) {
+func createTelphones(sqlDb *gorm.DB, logger *logging.Logger) {
 	var telphones []*models.Telphone
 	rows, err := sqlDb.Raw("select *  from ss_telephone").Rows()
 	if err != nil {
-		logging.GetSyncLogger().Error(err)
+		logger.Error(err)
 	}
 	defer rows.Close()
 
@@ -106,18 +105,18 @@ func createTelphones(sqlDb *gorm.DB) {
 		var res interface{}
 		res, err = utils.SyncServices("platform/report/synctel", data)
 		if err != nil {
-			logging.GetSyncLogger().Error(err)
+			logger.Error(err)
 		}
-		logging.GetSyncLogger().Infof("同步通讯录返回数据:%s", res)
+		logger.Infof("同步通讯录返回数据:%s", res)
 	}
 }
 
 // 同步电话组
-func createTelphoneGroups(sqlDb *gorm.DB) {
+func createTelphoneGroups(sqlDb *gorm.DB, logger *logging.Logger) {
 	var telphoneGroups []*models.TelphoneGroup
 	rows, err := sqlDb.Raw("select *  from ss_telephone_group").Rows()
 	if err != nil {
-		logging.GetSyncLogger().Error(err)
+		logger.Error(err)
 	}
 	defer rows.Close()
 
@@ -136,8 +135,8 @@ func createTelphoneGroups(sqlDb *gorm.DB) {
 		var res interface{}
 		res, err = utils.SyncServices("platform/report/synctelgroup", data)
 		if err != nil {
-			logging.GetSyncLogger().Error(err)
+			logger.Error(err)
 		}
-		logging.GetSyncLogger().Infof("同步通讯录组返回数据:%s", res)
+		logger.Infof("同步通讯录组返回数据:%s", res)
 	}
 }

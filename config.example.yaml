@@ -22,7 +22,7 @@ device:
   timetype: m # h,m,s 同步频率类型
   timeduration: 1 #同步频率
 data:
-  timetype: h # h,m,s 同步频率类型
+  timetype: m # h,m,s 同步频率类型
   timeduration: 1 #同步频率
 web:
   #护理白板账号密码

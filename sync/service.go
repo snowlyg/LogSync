@@ -13,6 +13,7 @@ import (
 
 // 监控服务
 func CheckService() {
+	logger := logging.GetMyLogger("service")
 	// 监控服务
 	// platform_service_id ，service_type_id，create_at，fault_msg
 	// http://xxxx/platform/report/service  服务故障上报url
@@ -20,22 +21,22 @@ func CheckService() {
 	var serverMsgs []*models.ServerMsg
 	var serverNames []string
 
-	logging.GetServiceLogger().Info("<========================>")
-	logging.GetServiceLogger().Info("服务监控开始")
+	logger.Info("<========================>")
+	logger.Info("服务监控开始")
 
 	serverList, err := utils.GetServices()
 	if err != nil {
-		logging.GetServiceLogger().Error(err)
+		logger.Error(err)
 		return
 	}
 	if len(serverList) == 0 {
-		logging.GetServiceLogger().Info("未获取到服务数据")
-		logging.GetServiceLogger().Info("服务监控结束")
+		logger.Info("未获取到服务数据")
+		logger.Info("服务监控结束")
 		return
 	}
 
 	for _, server := range serverList {
-		logging.GetServiceLogger().Infof(fmt.Sprintf("服务名称： %v", server.ServiceName))
+		logger.Infof(fmt.Sprintf("服务名称： %v", server.ServiceName))
 		var serverMsg models.ServerMsg
 		serverMsg.Status = false
 		serverMsg.ServiceTypeId = server.ServiceTypeId
@@ -59,13 +60,13 @@ func CheckService() {
 
 					if err != nil {
 						serverMsg.FaultMsg = err.Error()
-						logging.GetServiceLogger().Infof("MQTT 客户端创建失败: %v ", err)
+						logger.Infof("MQTT 客户端创建失败: %v ", err)
 						conCount++
 						return
 					} else {
 						if mqttClient == nil {
 							serverMsg.FaultMsg = "连接失败"
-							logging.GetServiceLogger().Infof("MQTT 连接失败")
+							logger.Infof("MQTT 连接失败")
 							conCount++
 							return
 						} else {
@@ -74,7 +75,7 @@ func CheckService() {
 							err = mqttClient.Connect()
 							if err != nil {
 								serverMsg.FaultMsg = err.Error()
-								logging.GetServiceLogger().Infof("MQTT 连接出错: %v ", err)
+								logger.Infof("MQTT 连接出错: %v ", err)
 								conCount++
 								return
 							}
@@ -89,17 +90,17 @@ func CheckService() {
 					if err != nil {
 						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
 							serverMsg.Status = true
-							logging.GetServiceLogger().Info("RabbitMq conn success")
+							logger.Info("RabbitMq conn success")
 						} else {
 							serverMsg.FaultMsg = err.Error()
-							logging.GetServiceLogger().Infof("RabbitMq 连接错误: %v ", err)
+							logger.Infof("RabbitMq 连接错误: %v ", err)
 							conCount++
 							return
 						}
 					} else {
 						if rabbitmq == nil {
 							serverMsg.FaultMsg = "连接失败"
-							logging.GetServiceLogger().Infof("RabbitMq 连接失败: 连接失败 ")
+							logger.Infof("RabbitMq 连接失败: 连接失败 ")
 							conCount++
 							return
 						} else {
@@ -112,7 +113,7 @@ func CheckService() {
 				func() {
 					if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
 						serverMsg.FaultMsg = err.Error()
-						logging.GetServiceLogger().Infof("%s连接错误: %v ", server.ServiceName, err)
+						logger.Infof("%s连接错误: %v ", server.ServiceName, err)
 						conCount++
 						return
 					}
@@ -123,21 +124,18 @@ func CheckService() {
 
 		// 故障显示连接次数
 		if conCount > 0 {
-			logging.GetServiceLogger().Infof("%s 连接次数: %d", server.ServiceName, conCount)
+			logger.Infof("%s 连接次数: %d", server.ServiceName, conCount)
 		}
 
 		// 本机存储数据
 		//var oldServerMsg models.ServerMsg
 		//utils.GetSQLite().Where("service_type_id = ?", server.ServiceTypeId).First(&oldServerMsg)
-		//utils.GetSQLite().Close()
 		//if oldServerMsg.ID > 0 {
 		//	oldServerMsg.Status = serverMsg.Status
 		//	oldServerMsg.FaultMsg = serverMsg.FaultMsg
 		//	utils.GetSQLite().Save(&oldServerMsg)
-		//	utils.GetSQLite().Close()
 		//} else {
 		//	utils.GetSQLite().Save(&serverMsg)
-		//	utils.GetSQLite().Close()
 		//}
 
 		serverMsgs = append(serverMsgs, &serverMsg)
@@ -152,10 +150,10 @@ func CheckService() {
 	var res interface{}
 	res, err = utils.SyncServices("platform/report/service", data)
 	if err != nil {
-		logging.GetServiceLogger().Error(err)
+		logger.Error(err)
 	}
 
-	logging.GetServiceLogger().Infof("推送返回信息: %v", res)
-	logging.GetServiceLogger().Info(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(serverMsgs), serverNames))
-	logging.GetServiceLogger().Info("服务监控结束")
+	logger.Infof("推送返回信息: %v", res)
+	logger.Info(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(serverMsgs), serverNames))
+	logger.Info("服务监控结束")
 }

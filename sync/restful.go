@@ -17,40 +17,38 @@ type RestfulMsg struct {
 }
 
 func CheckRestful() {
+	logger := logging.GetMyLogger("restful")
 	var restfulMsgs []*RestfulMsg
 	var restfulUrl []string
 
-	logging.GetRestfulLogger().Info("<========================>")
-	logging.GetRestfulLogger().Info("接口监控开始")
+	logger.Info("<========================>")
+	logger.Info("接口监控开始")
 
 	restfuls, err := utils.GetRestfuls()
 	if err != nil {
-		logging.GetRestfulLogger().Error(err)
+		logger.Error(err)
 		return
 	}
 
 	if len(restfuls) == 0 {
-		logging.GetRestfulLogger().Info("未获取到接口数据")
-		logging.GetRestfulLogger().Info("接口监控结束")
+		logger.Info("未获取到接口数据")
+		logger.Info("接口监控结束")
 		return
 	}
 
 	for _, restful := range restfuls {
 		func() {
 			restfulMsg := &models.RestfulMsg{Url: restful.Url, Model: gorm.Model{CreatedAt: time.Now()}}
-			getRestful(restfulMsg)
+			getRestful(restfulMsg, logger)
 			//// 本机存储数据
 			//var oldRestfulMsg models.RestfulMsg
 			//utils.GetSQLite().Where("url = ?", restful.Url).First(&oldRestfulMsg)
-			//utils.GetSQLite().Close()
 			//if oldRestfulMsg.ID > 0 {
 			//	oldRestfulMsg.Status = restfulMsg.Status
 			//	oldRestfulMsg.ErrMsg = restfulMsg.ErrMsg
 			//	utils.GetSQLite().Save(&oldRestfulMsg)
-			//	utils.GetSQLite().Close()
 			//} else {
 			//	utils.GetSQLite().Save(&restfulMsg)
-			//	utils.GetSQLite().Close()
 			//}
 
 			restfulMsgResponse := &RestfulMsg{restful.Url, restfulMsg.Status, restfulMsg.ErrMsg}
@@ -63,18 +61,18 @@ func CheckRestful() {
 	var restfulMsgJson []byte
 	restfulMsgJson, err = json.Marshal(restfulMsgs)
 	if err != nil {
-		logging.GetRestfulLogger().Errorf("restfulMsgs: %+v\n  json化错误: %+v\n", restfulMsgs, err)
+		logger.Errorf("restfulMsgs: %+v\n  json化错误: %+v\n", restfulMsgs, err)
 	}
 	data := fmt.Sprintf("restful_data=%s", string(restfulMsgJson))
 	var res interface{}
 	res, err = utils.SyncServices("platform/report/restful", data)
 	if err != nil {
-		logging.GetRestfulLogger().Error(err)
+		logger.Error(err)
 	}
 
-	logging.GetRestfulLogger().Infof("推送返回信息: %v\n", res)
-	logging.GetRestfulLogger().Info(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulUrl))
-	logging.GetRestfulLogger().Info("接口监控结束")
+	logger.Infof("推送返回信息: %v\n", res)
+	logger.Info(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulUrl))
+	logger.Info("接口监控结束")
 }
 
 // RestfulResponse
@@ -85,7 +83,7 @@ type RestfulResponse struct {
 }
 
 // getRestful 请求接口
-func getRestful(restfulMsg *models.RestfulMsg) {
+func getRestful(restfulMsg *models.RestfulMsg, logger *logging.Logger) {
 	var re RestfulResponse
 	conCount := 0
 	for conCount < 3 && !restfulMsg.Status {
@@ -97,7 +95,7 @@ func getRestful(restfulMsg *models.RestfulMsg) {
 			conCount++
 			continue
 		}
-		logging.GetRestfulLogger().Info(string(result))
+		logger.Info(string(result))
 		err := json.Unmarshal(result, &re)
 		if err != nil {
 			str := fmt.Sprintf("接口可以访问，但返回数据 %s 无法解析，报错如下：%v", string(result), err)
@@ -123,7 +121,7 @@ func getRestful(restfulMsg *models.RestfulMsg) {
 
 	// 故障显示连接次数
 	if conCount > 0 {
-		logging.GetRestfulLogger().Infof("%s 连接次数: %d", restfulMsg.Url, conCount)
+		logger.Infof("%s 连接次数: %d", restfulMsg.Url, conCount)
 	}
 
 	conCount = 0

@@ -16,9 +16,9 @@ type Model struct {
 var sqlite *gorm.DB
 
 func GetSQLite() *gorm.DB {
-	//if sqlite != nil {
-	//	return sqlite
-	//}
+	if sqlite != nil {
+		return sqlite
+	}
 	dbFile := DBFile()
 	var err error
 	sqlite, err = gorm.Open("sqlite3", fmt.Sprintf("%s?loc=Asia/Shanghai", dbFile))

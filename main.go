@@ -13,7 +13,7 @@ import (
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
-	"github.com/snowlyg/LogSync/utils/logging"
+	_ "net/http/pprof"
 )
 
 var Version string
@@ -22,23 +22,6 @@ type program struct {
 	httpServer *http.Server
 }
 
-//func (p *program) StartHTTP() {
-//	port := utils.Conf().Section("http").Key("port").MustInt64(8001)
-//	p.httpServer = &http.Server{
-//		Addr:              fmt.Sprintf(":%d", port),
-//		Handler:           routers.Router,
-//		ReadHeaderTimeout: 5 * time.Second,
-//	}
-//	link := fmt.Sprintf("http://%s:%d", utils.LocalIP(), port)
-//	log.Println("http server start -->", link)
-//	go func() {
-//		if err := p.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-//			log.Println("start http server error", err)
-//		}
-//		log.Println("http server start")
-//	}()
-//}
-
 func (p *program) Start(s service.Service) error {
 	go p.run()
 	return nil
@@ -46,22 +29,10 @@ func (p *program) Start(s service.Service) error {
 
 func (p *program) run() {
 	defer println("********** START **********")
-	go func() {
-		syncDeviceLog()
-	}()
-
-	go func() {
-		syncRestful()
-	}()
-
-	go func() {
-		syncService()
-	}()
-
-	go func() {
-		syncDevice()
-	}()
-
+	syncDeviceLog()
+	syncRestful()
+	syncService()
+	syncDevice()
 }
 
 func syncDevice() {
@@ -69,15 +40,16 @@ func syncDevice() {
 	v := utils.Config.Data.Timetype
 	var ch chan int
 	tickerSync := getTicker(t, v)
+	defer tickerSync.Stop()
 	go func() {
 		for range tickerSync.C {
 			err := utils.GetToken()
 			if err != nil {
-				logging.GetCommonLogger().Infof("get token err %v", err)
+				fmt.Println(fmt.Sprintf("get token err %v", err))
 				return
 			}
 			sync.SyncDevice()
-			logging.GetCommonLogger().Infof("设备数据同步", time.Now())
+			fmt.Println(fmt.Sprintf("设备数据同步 %v", time.Now()))
 		}
 		ch <- 1
 	}()
@@ -90,18 +62,19 @@ func syncDeviceLog() {
 		t := utils.Config.Device.Timeduration
 		v := utils.Config.Device.Timetype
 		ticker := getTicker(t, v)
+		defer ticker.Stop()
 		for range ticker.C {
 			err := utils.GetToken()
 			if err != nil {
-				logging.GetCommonLogger().Infof("get token err %v", err)
-				return
+				fmt.Println(fmt.Sprintf("get token err %v", err))
+				ch <- 1
 			}
 
 			// 进入当天目录,跳过 23点45 当天凌晨 0点59 分钟，给设备创建目录的时间
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 59) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
 				sync.SyncDeviceLog()
 			}
-			logging.GetCommonLogger().Infof("设备日志监控同步", time.Now())
+			fmt.Println(fmt.Sprintf("设备日志监控同步 %v", time.Now()))
 		}
 		ch <- 1
 	}()
@@ -113,15 +86,16 @@ func syncService() {
 	t := utils.Config.Device.Timeduration
 	v := utils.Config.Device.Timetype
 	ticker := getTicker(t, v)
+	ticker.Stop()
 	go func() {
 		for range ticker.C {
 			err := utils.GetToken()
 			if err != nil {
-				logging.GetCommonLogger().Infof("get token err %v", err)
-				return
+				fmt.Println(fmt.Sprintf("get token err %v", err))
+				ch <- 1
 			}
 			sync.CheckService()
-			logging.GetCommonLogger().Infof("服务数据同步", time.Now())
+			fmt.Println(fmt.Sprintf("服务数据同步 %v", time.Now()))
 		}
 		ch <- 1
 	}()
@@ -133,39 +107,24 @@ func syncRestful() {
 	t := utils.Config.Restful.Timeduration
 	v := utils.Config.Restful.Timetype
 	ticker := getTicker(t, v)
+	ticker.Stop()
 	go func() {
 		for range ticker.C {
 			err := utils.GetToken()
 			if err != nil {
-				logging.GetCommonLogger().Infof("get token err %v", err)
-				return
+				fmt.Println(fmt.Sprintf("get token err %v", err))
+				ch <- 1
 			}
 			sync.CheckRestful()
-			logging.GetCommonLogger().Infof("接口监控同步", time.Now())
+			fmt.Println(fmt.Sprintf("接口监控同步 %v", time.Now()))
 		}
 		ch <- 1
 	}()
 	<-ch
 }
 
-//func (p *program) StopHTTP() (err error) {
-//	if p.httpServer == nil {
-//		err = fmt.Errorf("HTTP Server Not Found")
-//		return
-//	}
-//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-//	defer cancel()
-//	if err = p.httpServer.Shutdown(ctx); err != nil {
-//		return
-//	}
-//	return
-//}
-
 func (p *program) Stop(s service.Service) error {
 	defer log.Println("********** STOP **********")
-	//defer utils.CloseLogWriter()
-	//_ = p.StopHTTP()
-	utils.GetSQLite().Close()
 	return nil
 }
 
@@ -187,6 +146,9 @@ func getTicker(t int64, v string) *time.Ticker {
 var Action = flag.String("action", "", "程序操作指令")
 
 func main() {
+	go func() {
+		http.ListenAndServe("localhost:6061", nil)
+	}()
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [command]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Commands:\n")
@@ -208,11 +170,11 @@ func main() {
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logging.GetCommonLogger().Error(err)
+		fmt.Println(err)
 	}
 
 	if err != nil {
-		logging.GetCommonLogger().Error(err)
+		fmt.Println(err)
 	}
 
 	err = models.Init()
@@ -225,7 +187,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.GetCommonLogger().Info("服务安装成功")
+		fmt.Println(fmt.Sprintf("服务安装成功"))
 		return
 	}
 
@@ -234,7 +196,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.GetCommonLogger().Info("服务卸载成功")
+		fmt.Println(fmt.Sprintf("服务卸载成功"))
 		return
 	}
 
@@ -243,7 +205,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.GetCommonLogger().Info("服务启动成功")
+		fmt.Println(fmt.Sprintf("服务启动成功"))
 		return
 	}
 
@@ -252,14 +214,14 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		logging.GetCommonLogger().Info("服务停止成功")
+		fmt.Println(fmt.Sprintf("服务停止成功"))
 		return
 	}
 
 	if *Action == "sync_device" {
 		err = utils.GetToken()
 		if err != nil {
-			logging.GetCommonLogger().Infof("get token err %v", err)
+			fmt.Println(fmt.Sprintf("get token err %v", err))
 			return
 		}
 		sync.SyncDevice()
@@ -269,7 +231,7 @@ func main() {
 	if *Action == "check_service" {
 		err := utils.GetToken()
 		if err != nil {
-			logging.GetCommonLogger().Infof("get token err %v", err)
+			fmt.Println(fmt.Sprintf("get token err %v", err))
 			return
 		}
 		sync.CheckService()
@@ -277,18 +239,18 @@ func main() {
 	}
 
 	if *Action == "check_device" {
-		err := utils.GetToken()
+		err = utils.GetToken()
 		if err != nil {
-			logging.GetCommonLogger().Infof("get token err %v", err)
+			fmt.Println(fmt.Sprintf("get token err %v", err))
 			return
 		}
 		sync.SyncDeviceLog()
 		return
 	}
 	if *Action == "check_restful" {
-		err := utils.GetToken()
+		err = utils.GetToken()
 		if err != nil {
-			logging.GetCommonLogger().Infof("get token err %v", err)
+			fmt.Println(fmt.Sprintf("get token err %v", err))
 			return
 		}
 		sync.CheckRestful()
@@ -301,12 +263,12 @@ func main() {
 			panic(err)
 		}
 
-		logging.GetCommonLogger().Info("服务重启成功")
+		fmt.Println(fmt.Sprintf("服务重启成功"))
 		return
 	}
 
 	if *Action == "version" {
-		logging.GetCommonLogger().Info(fmt.Sprintf("版本号：%s", Version))
+		fmt.Println(fmt.Sprintf(fmt.Sprintf("版本号：%s", Version)))
 		return
 	}
 

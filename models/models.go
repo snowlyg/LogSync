@@ -6,6 +6,5 @@ import (
 
 func Init() (err error) {
 	utils.GetSQLite().AutoMigrate(LogMsg{}, ServerMsg{}, CfDevice{}, TelphoneGroup{}, Telphone{}, RestfulMsg{})
-	defer utils.GetSQLite().Close()
 	return
 }
