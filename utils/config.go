@@ -18,6 +18,7 @@ var Config = struct {
 	Timeout     int64  `default:"" env:"timeout"`
 	Timeover    int64  `default:"" env:"timeover"`
 	Isresizeimg bool   `default:"false" env:"isresizeimg"`
+	Devicesize  int    `default:"5" env:"devicesize"`
 	Ftp         struct {
 		Ip       string `default:"" env:"FtpIp"`
 		Username string `default:"" env:"FtpUsername"`

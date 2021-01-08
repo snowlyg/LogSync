@@ -10,6 +10,7 @@ imgexts: .png,.jpg,.JPEG,.bmp
 root: log
 outdir: /Users/snowlyg/go/src/github.com/snowlyg/LogSync
 isresizeimg: false
+devicesize: 2 # 每次同步设备数量，一次同步太多数据会超过nginx 最大缓存设置
 
 ftp:
   ip: 10.0.0.23

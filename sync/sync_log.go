@@ -534,6 +534,7 @@ func SyncDeviceLog() {
 	root := utils.Config.Root
 	err = cmdDir(c, root)
 	if err != nil {
+		loggerD.Infof("cmd dir ", getLocation(), err)
 		return
 	}
 
@@ -541,62 +542,80 @@ func SyncDeviceLog() {
 	devices, err = models.GetCfDevice()
 	if err != nil {
 		loggerD.Infof("GetCfDevice", err)
+		return
 	}
-	if err == nil && len(devices) > 0 {
-		for _, device := range devices {
-			loggerD.Infof(fmt.Sprintf("当前设备 >>> %v：%v", device.DevType, device.DevCode))
-			deviceDir := getDeviceDir(device.DevType)
-			// 扫描日志目录，记录日志信息
-			var logMsg models.LogMsg
-			logMsg.DeviceCode = device.DevCode
-			logMsg.DirName = deviceDir
-			if deviceDir == "" {
-				continue
-			}
+	if len(devices) == 0 {
+		loggerD.Infof("devices len is 0")
+		return
+	}
 
-			// 进入设备类型目录
-			err = cmdDir(c, deviceDir)
-			if err != nil {
-				continue
-			}
-
-			// 进入设备编码目录
-			err = cmdDir(c, device.DevCode)
-			if err != nil {
-				cmdDir(c, "../")
-				sendEmptyMsg(&logMsg, getLocation(), "设备志目录不存在")
-				continue
-			}
-
-			pName := time.Now().Format("2006-01-02")
-			err = cmdDir(c, pName)
-			if err != nil {
-				// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
-				if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
-					sendEmptyMsg(&logMsg, getLocation(), "没有创建设备当天日志目录")
-				}
-				cmdDir(c, "../../")
-				continue
-			}
-
-			getDirs(c, logMsg)
-
-			cmdDir(c, "../../../")
+	for _, device := range devices {
+		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v：%v", device.DevType, device.DevCode))
+		deviceDir := getDeviceDir(device.DevType)
+		// 扫描日志目录，记录日志信息
+		var logMsg models.LogMsg
+		logMsg.DeviceCode = device.DevCode
+		logMsg.DirName = deviceDir
+		if deviceDir == "" {
+			continue
 		}
+
+		// 进入设备类型目录
+		err = cmdDir(c, deviceDir)
+		if err != nil {
+			loggerD.Infof("cmd dir ", getLocation(), err)
+			continue
+		}
+
+		// 进入设备编码目录
+		err = cmdDir(c, device.DevCode)
+		if err != nil {
+			loggerD.Infof("cmd dir ", getLocation(), err)
+			cmdDir(c, "../")
+			sendEmptyMsg(&logMsg, getLocation(), "设备志目录不存在")
+			continue
+		}
+
+		pName := time.Now().Format("2006-01-02")
+		err = cmdDir(c, pName)
+		if err != nil {
+			loggerD.Infof("cmd dir ", getLocation(), err)
+			// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
+			if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
+				sendEmptyMsg(&logMsg, getLocation(), "没有创建设备当天日志目录")
+			}
+			cmdDir(c, "../../")
+			continue
+		}
+
+		getDirs(c, logMsg)
+
+		cmdDir(c, "../../../")
 	}
 
-	serverMsgJson, _ := json.Marshal(logMsgs)
-	loggerD.Infof(fmt.Sprintf("日志文件大小：%d", len(serverMsgJson)/1024/1024))
-	data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
-	var res interface{}
-	res, err = utils.SyncServices("platform/report/device", data)
-	if err != nil {
-		loggerD.Error(err)
-	}
-	loggerD.Infof(fmt.Sprintf("提交日志信息返回数据 :%v", res))
-
-	if err := c.Quit(); err != nil {
+	if err = c.Quit(); err != nil {
 		loggerD.Error(fmt.Sprintf("ftp 退出错误：%v", err))
+	}
+
+	var loop = 0
+	for loop < len(logMsgs)/utils.Config.Devicesize {
+		var logMsgNoImags []*models.LogMsg
+		var index = 0
+		for index < utils.Config.Devicesize {
+			logMsgNoImags = append(logMsgNoImags, logMsgs[index+loop*utils.Config.Devicesize])
+			index++
+		}
+
+		serverMsgJson, _ := json.Marshal(logMsgNoImags)
+		loggerD.Infof(fmt.Sprintf("日志文件大小：%d", len(serverMsgJson)/1024/1024))
+		data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
+		var res interface{}
+		res, err = utils.SyncServices("platform/report/device", data)
+		if err != nil {
+			loggerD.Error(err)
+		}
+		loggerD.Infof(fmt.Sprintf("提交日志信息返回数据 :%v", res))
+		loop++
 	}
 
 	loggerD.Infof(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgs), logCodes))
