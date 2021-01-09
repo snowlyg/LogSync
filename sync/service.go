@@ -6,7 +6,6 @@ import (
 	"github.com/snowlyg/LogSync/utils/logging"
 	"time"
 
-	"github.com/antlinker/go-mqtt/client"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 )
@@ -48,45 +47,46 @@ func CheckService() {
 		conCount := 0
 		for conCount < 3 && !serverMsg.Status {
 			switch server.ServiceName {
-			case "EMQX":
-				func() {
-					addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
-					mqttClient, err := client.CreateClient(client.MqttOption{
-						Addr:               addr,
-						ReconnTimeInterval: 0,
-						UserName:           server.Account,
-						Password:           server.Pwd,
-					})
-
-					if err != nil {
-						serverMsg.FaultMsg = err.Error()
-						logger.Infof("MQTT 客户端创建失败: %v ", err)
-						conCount++
-						return
-					} else {
-						if mqttClient == nil {
-							serverMsg.FaultMsg = "连接失败"
-							logger.Infof("MQTT 连接失败")
-							conCount++
-							return
-						} else {
-							defer mqttClient.Disconnect()
-							//建立连接
-							err = mqttClient.Connect()
-							if err != nil {
-								serverMsg.FaultMsg = err.Error()
-								logger.Infof("MQTT 连接出错: %v ", err)
-								conCount++
-								return
-							}
-						}
-					}
-					serverMsg.Status = true
-				}()
+			//case "EMQX":
+			//	func() {
+			//		addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
+			//		var mqttClient client.MqttClienter
+			//		mqttClient, err = client.CreateClient(client.MqttOption{
+			//			Addr:               addr,
+			//			ReconnTimeInterval: 1,
+			//			UserName:           server.Account,
+			//			Password:           server.Pwd,
+			//		})
+			//		if err != nil {
+			//			serverMsg.FaultMsg = err.Error()
+			//			logger.Infof("MQTT 客户端创建失败: %v ", err)
+			//			conCount++
+			//			return
+			//		}
+			//
+			//		if mqttClient == nil {
+			//			serverMsg.FaultMsg = "连接失败"
+			//			logger.Infof("MQTT 连接失败")
+			//			conCount++
+			//			return
+			//		}
+			//
+			//		//建立连接
+			//		err = mqttClient.Connect()
+			//		if err != nil {
+			//			serverMsg.FaultMsg = err.Error()
+			//			logger.Infof("MQTT 连接出错: %v ", err)
+			//			conCount++
+			//			return
+			//		}
+			//		mqttClient.Disconnect()
+			//		serverMsg.Status = true
+			//	}()
 			case "RabbitMQ":
 				func() {
 					mqurl := fmt.Sprintf("amqp://%s:%s@%s:%d/shop", server.Account, server.Pwd, server.Ip, server.Port)
-					rabbitmq, err := NewRabbitMQSimple("imoocSimple", mqurl)
+					var rabbitmq *RabbitMQ
+					rabbitmq, err = NewRabbitMQSimple("imoocSimple", mqurl)
 					if err != nil {
 						if err.Error() == "Exception (403) Reason: \"no access to this vhost\"" {
 							serverMsg.Status = true
@@ -111,7 +111,7 @@ func CheckService() {
 				}()
 			default:
 				func() {
-					if err := utils.IsPortInUse(server.Ip, server.Port); err != nil {
+					if err = utils.IsPortInUse(server.Ip, server.Port); err != nil {
 						serverMsg.FaultMsg = err.Error()
 						logger.Infof("%s连接错误: %v ", server.ServiceName, err)
 						conCount++
@@ -126,17 +126,6 @@ func CheckService() {
 		if conCount > 0 {
 			logger.Infof("%s 连接次数: %d", server.ServiceName, conCount)
 		}
-
-		// 本机存储数据
-		//var oldServerMsg models.ServerMsg
-		//utils.GetSQLite().Where("service_type_id = ?", server.ServiceTypeId).First(&oldServerMsg)
-		//if oldServerMsg.ID > 0 {
-		//	oldServerMsg.Status = serverMsg.Status
-		//	oldServerMsg.FaultMsg = serverMsg.FaultMsg
-		//	utils.GetSQLite().Save(&oldServerMsg)
-		//} else {
-		//	utils.GetSQLite().Save(&serverMsg)
-		//}
 
 		serverMsgs = append(serverMsgs, &serverMsg)
 		serverNames = append(serverNames, serverMsg.ServiceName)

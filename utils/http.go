@@ -159,15 +159,12 @@ func GetToken() error {
 }
 
 func Request(method, url, data string, auth bool) []byte {
-	timeout := Config.Timeout
-	timeover := Config.Timeover
-	host := Config.Host
-	T := time.Tick(time.Duration(timeover) * time.Second)
 	var result = make(chan []byte, 10)
-	t := time.Duration(timeout) * time.Second
-	Client := http.Client{Timeout: t}
+	T := time.Tick(time.Duration(Config.Timeover) * time.Second)
 	go func() {
-		fullUrl := fmt.Sprintf("http://%s/%s", host, url)
+		t := time.Duration(Config.Timeout) * time.Second
+		Client := http.Client{Timeout: t}
+		fullUrl := fmt.Sprintf("http://%s/%s", Config.Host, url)
 		if strings.Contains(url, "http") {
 			fullUrl = url
 		}
