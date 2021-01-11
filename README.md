@@ -119,3 +119,4 @@ CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc
 - v1.9 增加接口监控，修改请求为并发请求
 - v2.0 跳过检测时间增加为凌晨1点
 - v2.1 修复日志打印数据竞争,去除手动同步接口
+- v2.2 增加离线设备提醒
