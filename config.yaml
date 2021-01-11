@@ -1,7 +1,7 @@
-host: test.op.com # 地址
-appid: wxcw846rde12w3fb9p # 接口id
-appsecret: 489r67esrqa341vcnb1m16azfm789nbmnhj8 #接口密钥
-db: root:123456@tcp(127.0.0.1:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
+host: op.chindeo.com # 地址
+appid: dsfdsfdsf # 接口id
+appsecret: sdfsdfsdfdsfsdfsdf #接口密钥
+db: visible:Chindeo@tcp(10.0.0.27:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
 timeout: 5
 timeover: 10
 dirs: bis,nis,nws,webapp
@@ -23,8 +23,8 @@ device:
   timetype: m # h,m,s 同步频率类型
   timeduration: 1 #同步频率
 data:
-  timetype: h # h,m,s 同步频率类型
-  timeduration: 1 #同步频率
+  timetype: m # h,m,s 同步频率类型
+  timeduration: 3 #同步频率
 web:
   #护理白板账号密码
   account: administrator

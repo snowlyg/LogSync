@@ -625,15 +625,15 @@ func SyncDeviceLog() {
 			if err != nil {
 				loggerD.Error(err)
 			}
+			logCodes = nil
 			for _, logMsgSub := range logMsgSubs {
 				logCodes = append(logCodes, logMsgSub.DeviceCode)
 			}
 			loggerD.Infof(fmt.Sprintf("提交日志信息返回数据 :%v", res))
 			loggerD.Infof(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgSubs), logCodes))
+
 		}
 		loop++
 	}
-
 	loggerD.Infof("日志监控结束")
-
 }

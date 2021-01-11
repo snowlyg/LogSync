@@ -102,7 +102,6 @@ func CheckService() {
 	for _, serverMsg := range serverMsgs {
 		serverNames = append(serverNames, serverMsg.ServiceName)
 	}
-	fmt.Println(string(serverMsgJson))
 	logger.Info(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(serverMsgs), serverNames))
 	logger.Info("服务监控结束")
 }
