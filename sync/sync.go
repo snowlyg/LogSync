@@ -32,7 +32,7 @@ func SyncDevice() {
 	createDevices(sqlDb, logger)
 	createTelphones(sqlDb, logger)
 	createTelphoneGroups(sqlDb, logger)
-	deleteMsg(logger)
+	//deleteMsg(logger)
 
 }
 
@@ -41,7 +41,6 @@ func deleteMsg(logger *logging.Logger) {
 	lastWeek := time.Now().AddDate(0, 0, -3).Format("2006-01-02 15:04:05")
 	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
 	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
-
 	logger.Infof("删除3天前数据库日志记录 :%s", lastWeek)
 }
 
@@ -53,7 +52,7 @@ func createDevices(sqlDb *gorm.DB, logger *logging.Logger) {
 	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
 	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
 	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
-	query += " where cf_device.dev_active = '1' and cf_device.dev_status = '1'"
+	query += " where cf_device.dev_active = '1' "
 
 	rows, err := sqlDb.Raw(query).Rows()
 	if err != nil {
@@ -92,14 +91,11 @@ func createTelphones(sqlDb *gorm.DB, logger *logging.Logger) {
 
 	for rows.Next() {
 		var telphone models.Telphone
-		// ScanRows 扫描一行记录到 user
 		sqlDb.ScanRows(rows, &telphone)
-
 		telphones = append(telphones, &telphone)
 	}
 
 	if len(telphones) > 0 {
-
 		telphoneJson, _ := json.Marshal(&telphones)
 		data := fmt.Sprintf("data=%s", telphoneJson)
 		var res interface{}
@@ -122,14 +118,11 @@ func createTelphoneGroups(sqlDb *gorm.DB, logger *logging.Logger) {
 
 	for rows.Next() {
 		var telphoneGroup models.TelphoneGroup
-		// ScanRows 扫描一行记录到 user
 		sqlDb.ScanRows(rows, &telphoneGroup)
-
 		telphoneGroups = append(telphoneGroups, &telphoneGroup)
 	}
 
 	if len(telphoneGroups) > 0 {
-
 		telphoneGroupJson, _ := json.Marshal(&telphoneGroups)
 		data := fmt.Sprintf("data=%s", telphoneGroupJson)
 		var res interface{}

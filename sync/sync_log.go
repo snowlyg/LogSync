@@ -94,7 +94,8 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 					if err != nil {
 						loggerD.Infof(fmt.Sprintf("%s 图片重置失败：%v", s.Name, err))
 					}
-					if file, err := utils.OpenFile(newPath); err == nil {
+					var file []byte
+					if file, err = utils.OpenFile(newPath); err == nil {
 						logMsg.DeviceImg = "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
 					}
 				}
@@ -163,7 +164,7 @@ func getLocation() *time.Location {
 }
 
 // 日志为空，或者目录不存在
-func sendEmptyMsg(logMsg *models.LogMsg, location *time.Location, msg string) {
+func sendEmptyMsg(logMsg *models.LogMsg, msg string) {
 	var oldMsg models.LogMsg
 	utils.GetSQLite().Where("dir_name = ?", logMsg.DirName).
 		Where("device_code = ?", logMsg.DeviceCode).
@@ -475,7 +476,6 @@ func getFileContent(c *ftp.ServerConn, name string) []byte {
 // addLogs 添加日志
 func addLogs(logMsg *models.LogMsg) {
 	logMsgs = append(logMsgs, logMsg)
-	logCodes = append(logCodes, logMsg.DeviceCode)
 }
 
 // 进入下级目录
@@ -537,7 +537,7 @@ func SyncDeviceLog() {
 	root := utils.Config.Root
 	err = cmdDir(c, root)
 	if err != nil {
-		loggerD.Infof("cmd dir ", getLocation(), err)
+		loggerD.Infof("cmd dir ", err)
 		return
 	}
 
@@ -563,29 +563,36 @@ func SyncDeviceLog() {
 			continue
 		}
 
+		if device.DevStatus != 1 {
+			logMsg.FaultMsg = "设备已离线"
+			logMsg.Status = "设备已离线"
+			logMsg.LogAt = time.Now().In(getLocation()).Format("2006-01-02 15:04:05")
+			logMsg.UpdateAt = time.Now()
+		}
+
 		// 进入设备类型目录
 		err = cmdDir(c, deviceDir)
 		if err != nil {
-			loggerD.Infof("cmd dir ", getLocation(), err)
+			loggerD.Infof("cmd dir ", err)
 			continue
 		}
 
 		// 进入设备编码目录
 		err = cmdDir(c, device.DevCode)
 		if err != nil {
-			loggerD.Infof("cmd dir ", getLocation(), err)
+			loggerD.Infof("cmd dir ", err)
 			cmdDir(c, "../")
-			sendEmptyMsg(&logMsg, getLocation(), "设备志目录不存在")
+			sendEmptyMsg(&logMsg, "设备志目录不存在")
 			continue
 		}
 
 		pName := time.Now().Format("2006-01-02")
 		err = cmdDir(c, pName)
 		if err != nil {
-			loggerD.Infof("cmd dir ", getLocation(), err)
+			loggerD.Infof("cmd dir ", err)
 			// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
 			if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
-				sendEmptyMsg(&logMsg, getLocation(), "没有创建设备当天日志目录")
+				sendEmptyMsg(&logMsg, "没有创建设备当天日志目录")
 			}
 			cmdDir(c, "../../")
 			continue
@@ -603,26 +610,27 @@ func SyncDeviceLog() {
 	var loop = 0
 	devicesize := utils.Config.Devicesize
 	for loop < len(logMsgs)/devicesize+1 {
-		var logMsgNoImags []*models.LogMsg
+		var logMsgSubs []*models.LogMsg
 		var index = 0
 		for index < devicesize && index+loop*devicesize < len(logMsgs) {
-			logMsgNoImags = append(logMsgNoImags, logMsgs[index+loop*devicesize])
+			logMsgSubs = append(logMsgSubs, logMsgs[index+loop*devicesize])
 			index++
 		}
 
-		if len(logMsgNoImags) > 0 {
-			serverMsgJson, _ := json.Marshal(logMsgNoImags)
-			loggerD.Infof(fmt.Sprintf("日志文件大小：%d", len(serverMsgJson)/1024/1024))
+		if len(logMsgSubs) > 0 {
+			serverMsgJson, _ := json.Marshal(logMsgSubs)
 			data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/device", data)
 			if err != nil {
 				loggerD.Error(err)
 			}
+			for _, logMsgSub := range logMsgSubs {
+				logCodes = append(logCodes, logMsgSub.DeviceCode)
+			}
 			loggerD.Infof(fmt.Sprintf("提交日志信息返回数据 :%v", res))
-			loggerD.Infof(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgNoImags), logCodes))
+			loggerD.Infof(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgSubs), logCodes))
 		}
-
 		loop++
 	}
 

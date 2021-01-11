@@ -40,17 +40,6 @@ func CheckRestful() {
 		func() {
 			restfulMsg := &models.RestfulMsg{Url: restful.Url, Model: gorm.Model{CreatedAt: time.Now()}}
 			getRestful(restfulMsg, logger)
-			//// 本机存储数据
-			//var oldRestfulMsg models.RestfulMsg
-			//utils.GetSQLite().Where("url = ?", restful.Url).First(&oldRestfulMsg)
-			//if oldRestfulMsg.ID > 0 {
-			//	oldRestfulMsg.Status = restfulMsg.Status
-			//	oldRestfulMsg.ErrMsg = restfulMsg.ErrMsg
-			//	utils.GetSQLite().Save(&oldRestfulMsg)
-			//} else {
-			//	utils.GetSQLite().Save(&restfulMsg)
-			//}
-
 			restfulMsgResponse := &RestfulMsg{restful.Url, restfulMsg.Status, restfulMsg.ErrMsg}
 			restfulMsgs = append(restfulMsgs, restfulMsgResponse)
 			restfulUrl = append(restfulUrl, restful.Url)

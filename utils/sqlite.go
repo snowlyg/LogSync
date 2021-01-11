@@ -25,8 +25,8 @@ func GetSQLite() *gorm.DB {
 	if err != nil {
 		panic(fmt.Sprintf("sqlite init err %+v", err))
 	}
-	sqlite.DB().SetMaxIdleConns(100)
-	sqlite.DB().SetMaxOpenConns(100)
+	sqlite.DB().SetMaxIdleConns(10)
+	sqlite.DB().SetMaxOpenConns(10)
 	sqlite.SetLogger(DefaultGormLogger)
 	sqlite.LogMode(false)
 

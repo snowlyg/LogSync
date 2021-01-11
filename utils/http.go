@@ -72,8 +72,9 @@ func GetServices() ([]*Server, error) {
 		err = GetToken()
 		if err != nil {
 			fmt.Println(fmt.Sprintf("get token err %v", err))
+			return nil, errors.New("token 验证失败")
 		}
-		return nil, errors.New("token 验证失败")
+		return nil, errors.New("重新获取 token")
 	} else {
 		return nil, errors.New(fmt.Sprintf("GetServices 获取服务返回错误信息 :%v", re.Message))
 	}
@@ -97,8 +98,9 @@ func GetRestfuls() ([]*Restful, error) {
 		err = GetToken()
 		if err != nil {
 			fmt.Println(fmt.Sprintf("get token err %v", err))
+			return nil, errors.New("token 验证失败")
 		}
-		return nil, errors.New("token 验证失败")
+		return nil, errors.New("重新获取 token")
 	} else {
 		return nil, errors.New(fmt.Sprintf("GetRestfuls 获取接口返回错误信息 :%v", re.Message))
 	}
@@ -123,8 +125,9 @@ func SyncServices(path, data string) (interface{}, error) {
 		err = GetToken()
 		if err != nil {
 			fmt.Println(fmt.Sprintf("get token err %v", err))
+			return nil, errors.New("token 验证失败")
 		}
-		return nil, errors.New("token 验证失败")
+		return nil, errors.New("重新获取 token")
 	} else {
 		return nil, errors.New(fmt.Sprintf("SyncServices 获取接口返回错误信息 :%v", re.Message))
 	}
@@ -133,9 +136,6 @@ func SyncServices(path, data string) (interface{}, error) {
 //http://fyxt.t.chindeo.com/platform/application/login
 //http://fyxt.t.chindeo.com/platform/report/device
 func GetToken() error {
-	if GetCacheToken() != "" {
-		return nil
-	}
 	var re getToken
 	appid := Config.Appid
 	appsecret := Config.Appsecret

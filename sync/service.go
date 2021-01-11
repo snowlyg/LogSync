@@ -3,11 +3,9 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/snowlyg/LogSync/utils/logging"
-	"time"
-
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
+	"github.com/snowlyg/LogSync/utils/logging"
 )
 
 // 监控服务
@@ -42,46 +40,9 @@ func CheckService() {
 		serverMsg.ServiceName = server.ServiceName
 		serverMsg.ServiceTitle = server.ServiceTitle
 		serverMsg.PlatformServiceId = server.Id
-		serverMsg.CreatedAt = time.Now()
-
 		conCount := 0
 		for conCount < 3 && !serverMsg.Status {
 			switch server.ServiceName {
-			//case "EMQX":
-			//	func() {
-			//		addr := fmt.Sprintf("tcp://%s:%d", server.Ip, server.Port)
-			//		var mqttClient client.MqttClienter
-			//		mqttClient, err = client.CreateClient(client.MqttOption{
-			//			Addr:               addr,
-			//			ReconnTimeInterval: 1,
-			//			UserName:           server.Account,
-			//			Password:           server.Pwd,
-			//		})
-			//		if err != nil {
-			//			serverMsg.FaultMsg = err.Error()
-			//			logger.Infof("MQTT 客户端创建失败: %v ", err)
-			//			conCount++
-			//			return
-			//		}
-			//
-			//		if mqttClient == nil {
-			//			serverMsg.FaultMsg = "连接失败"
-			//			logger.Infof("MQTT 连接失败")
-			//			conCount++
-			//			return
-			//		}
-			//
-			//		//建立连接
-			//		err = mqttClient.Connect()
-			//		if err != nil {
-			//			serverMsg.FaultMsg = err.Error()
-			//			logger.Infof("MQTT 连接出错: %v ", err)
-			//			conCount++
-			//			return
-			//		}
-			//		mqttClient.Disconnect()
-			//		serverMsg.Status = true
-			//	}()
 			case "RabbitMQ":
 				func() {
 					mqurl := fmt.Sprintf("amqp://%s:%s@%s:%d/shop", server.Account, server.Pwd, server.Ip, server.Port)
@@ -126,12 +87,8 @@ func CheckService() {
 		if conCount > 0 {
 			logger.Infof("%s 连接次数: %d", server.ServiceName, conCount)
 		}
-
 		serverMsgs = append(serverMsgs, &serverMsg)
-		serverNames = append(serverNames, serverMsg.ServiceName)
-
 		conCount = 0
-
 	}
 
 	serverMsgJson, _ := json.Marshal(serverMsgs)
@@ -141,8 +98,11 @@ func CheckService() {
 	if err != nil {
 		logger.Error(err)
 	}
-
 	logger.Infof("推送返回信息: %v", res)
+	for _, serverMsg := range serverMsgs {
+		serverNames = append(serverNames, serverMsg.ServiceName)
+	}
+	fmt.Println(string(serverMsgJson))
 	logger.Info(fmt.Sprintf("%d 个服务监控推送完成 : %v", len(serverMsgs), serverNames))
 	logger.Info("服务监控结束")
 }

@@ -1,11 +1,6 @@
 package models
 
-import (
-	"github.com/jinzhu/gorm"
-)
-
 type ServerMsg struct {
-	gorm.Model
 	PlatformServiceId int64  `json:"platform_service_id" gorm:"column:platform_service_id"`       // 服务id
 	ServiceTypeId     int64  `json:"service_type_id" gorm:"column:service_type_id"`               // 服务类型id
 	ServiceName       string `json:"service_name" gorm:"column:service_name;type:varchar(256)"`   // 服务类型名称

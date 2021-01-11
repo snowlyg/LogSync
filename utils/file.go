@@ -22,7 +22,8 @@ func OpenFile(filePath string) ([]byte, error) {
 	}
 	defer f.Close()
 	sourcebuffer := make([]byte, 500000)
-	n, err := f.Read(sourcebuffer)
+	var n int
+	n, err = f.Read(sourcebuffer)
 	if err != nil {
 		return nil, err
 	}
