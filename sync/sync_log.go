@@ -172,7 +172,7 @@ func sendEmptyMsg(logMsg *models.LogMsg, msg string) {
 		First(&oldMsg)
 
 	logMsg.FaultMsg = msg
-	logMsg.Status = msg
+	logMsg.Status = false
 	saveOrUpdate(logMsg, oldMsg)
 	addLogs(logMsg)
 }
@@ -302,7 +302,7 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 			pscpDevice(logMsg, oldMsg, androidPassword, androidAccount, idir, device.DevIp)
 
 		} else {
-			logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
+			logMsg.Status = false
 			if len(logMsg.FaultMsg) == 0 {
 				logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
 			}
@@ -333,7 +333,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 		if len(logMsg.FaultMsg) == 0 {
 			logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通; pscp:%s", err)
 		}
-		logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通; pscp:%s", err)
+		logMsg.Status = false
 		saveOrUpdate(&logMsg, oldMsg)
 		addLogs(&logMsg)
 		loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
@@ -346,7 +346,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 		if len(logMsg.FaultMsg) == 0 {
 			logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;%v :%s", cmd, err)
 		}
-		logMsg.Status = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;%v :%s", cmd, err)
+		logMsg.Status = false
 		saveOrUpdate(&logMsg, oldMsg)
 		addLogs(&logMsg)
 		loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
@@ -415,7 +415,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 		}
 
 		if logMsg.FaultMsg != "" {
-			logMsg.Status = "设备有正常生成了日志,但是设备超过15分钟未上报日志到FTP"
+			logMsg.Status = true
 			saveOrUpdate(&logMsg, oldMsg)
 			addLogs(&logMsg)
 			loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
@@ -428,7 +428,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 // 没有生成日志的逻辑
 func emptyLogRe(logMsg models.LogMsg, oldMsg models.LogMsg) {
 	logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且设备上也没有生成日志"
-	logMsg.Status = "设备超过15分钟未上报日志到FTP,并且设备上也没有生成日志"
+	logMsg.Status = false
 	saveOrUpdate(&logMsg, oldMsg)
 	addLogs(&logMsg)
 	loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
@@ -559,15 +559,22 @@ func SyncDeviceLog() {
 		var logMsg models.LogMsg
 		logMsg.DeviceCode = device.DevCode
 		logMsg.DirName = deviceDir
+		logMsg.Status = true
 		if deviceDir == "" {
 			continue
 		}
 
 		if device.DevStatus != 1 {
-			logMsg.FaultMsg = "设备已离线"
-			logMsg.Status = "设备已离线"
+			if device.DevStatus == 0 {
+				logMsg.FaultMsg = "设备已离线"
+			} else if device.DevStatus == 2 {
+				logMsg.FaultMsg = "设备异常"
+			}
+			logMsg.Status = false
 			logMsg.LogAt = time.Now().In(getLocation()).Format("2006-01-02 15:04:05")
 			logMsg.UpdateAt = time.Now()
+			addLogs(&logMsg)
+			continue
 		}
 
 		// 进入设备类型目录
@@ -601,6 +608,7 @@ func SyncDeviceLog() {
 		getDirs(c, logMsg)
 
 		cmdDir(c, "../../../")
+
 	}
 
 	if err = c.Quit(); err != nil {

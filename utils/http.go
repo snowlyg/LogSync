@@ -71,10 +71,15 @@ func GetServices() ([]*Server, error) {
 	} else if re.Code == 401 {
 		err = GetToken()
 		if err != nil {
-			fmt.Println(fmt.Sprintf("get token err %v", err))
-			return nil, errors.New("token 验证失败")
+			return nil, errors.New(fmt.Sprintf("get token err %v", err))
 		}
 		return nil, errors.New("重新获取 token")
+	} else if re.Code == 402 {
+		err = RfreshToken()
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("refresh token err %v", err))
+		}
+		return nil, errors.New("刷新 token")
 	} else {
 		return nil, errors.New(fmt.Sprintf("GetServices 获取服务返回错误信息 :%v", re.Message))
 	}
@@ -97,10 +102,15 @@ func GetRestfuls() ([]*Restful, error) {
 	} else if re.Code == 401 {
 		err = GetToken()
 		if err != nil {
-			fmt.Println(fmt.Sprintf("get token err %v", err))
-			return nil, errors.New("token 验证失败")
+			return nil, errors.New(fmt.Sprintf("get token err %v", err))
 		}
 		return nil, errors.New("重新获取 token")
+	} else if re.Code == 402 {
+		err = RfreshToken()
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("refresh token err %v", err))
+		}
+		return nil, errors.New("刷新 token")
 	} else {
 		return nil, errors.New(fmt.Sprintf("GetRestfuls 获取接口返回错误信息 :%v", re.Message))
 	}
@@ -124,10 +134,15 @@ func SyncServices(path, data string) (interface{}, error) {
 	} else if re.Code == 401 {
 		err = GetToken()
 		if err != nil {
-			fmt.Println(fmt.Sprintf("get token err %v", err))
-			return nil, errors.New("token 验证失败")
+			return nil, errors.New(fmt.Sprintf("get token err %v", err))
 		}
 		return nil, errors.New("重新获取 token")
+	} else if re.Code == 402 {
+		err = RfreshToken()
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("refresh token err %v", err))
+		}
+		return nil, errors.New("刷新 token")
 	} else {
 		return nil, errors.New(fmt.Sprintf("SyncServices 获取接口返回错误信息 :%v", re.Message))
 	}
@@ -150,7 +165,26 @@ func GetToken() error {
 	}
 
 	if re.Code == 200 {
-		fmt.Println(re.Data.XToken)
+		SetCacheToken(re.Data.XToken)
+		return nil
+	} else {
+		return errors.New(re.Message)
+	}
+}
+
+//http://fyxt.t.chindeo.com/platform/application/update_token
+//http://fyxt.t.chindeo.com/platform/report/device
+func RfreshToken() error {
+	var re getToken
+	result := Request("GET", "platform/application/update_token", "", true)
+	if len(result) == 0 {
+		return errors.New("请求没有返回数据")
+	}
+	err := json.Unmarshal(result, &re)
+	if err != nil {
+		return err
+	}
+	if re.Code == 200 {
 		SetCacheToken(re.Data.XToken)
 		return nil
 	} else {

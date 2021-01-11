@@ -48,7 +48,7 @@ func GetCfDevice() ([]*CfDevice, error) {
 	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
 	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
 	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
-	query += " where cf_device.dev_active = '1' and cf_device.dev_status = '1'"
+	query += " where cf_device.dev_active = '1'"
 
 	rows, _ := sqlDb.Raw(query).Rows()
 	defer rows.Close()
