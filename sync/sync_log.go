@@ -129,6 +129,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			utils.GetSQLite().Save(&logMsg)
 			addLogs(&logMsg)
 			loggerD.Infof(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+			return
 		} else {
 			subT := time.Now().Sub(oldMsg.UpdateAt)
 			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
@@ -139,6 +140,8 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 				utils.GetSQLite().Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "update_at": logMsg.UpdateAt})
 				addLogs(&logMsg)
 			}
+
+			return
 		}
 
 	} else {

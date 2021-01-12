@@ -32,7 +32,7 @@ func SyncDevice() {
 	createDevices(sqlDb, logger)
 	createTelphones(sqlDb, logger)
 	createTelphoneGroups(sqlDb, logger)
-	//deleteMsg(logger)
+	deleteMsg(logger)
 
 }
 
@@ -52,7 +52,7 @@ func createDevices(sqlDb *gorm.DB, logger *logging.Logger) {
 	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
 	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
 	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
-	query += " where cf_device.dev_active = '1' "
+	query += " where cf_device.dev_active = '1'"
 
 	rows, err := sqlDb.Raw(query).Rows()
 	if err != nil {
@@ -75,9 +75,7 @@ func createDevices(sqlDb *gorm.DB, logger *logging.Logger) {
 			logger.Error(err)
 		}
 		logger.Infof("数据提交返回信息:%v", res)
-
 	}
-
 }
 
 // 同步通讯录
