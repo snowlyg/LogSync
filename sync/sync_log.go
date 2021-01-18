@@ -567,11 +567,6 @@ func SyncDeviceLog() {
 		logMsg.DirName = deviceDir
 		logMsg.Status = true
 		logMsg.DevStatus = device.DevStatus
-		// 没有设备类型
-		if deviceDir == "" {
-			continue
-		}
-
 		if device.DevStatus != 1 {
 			if device.DevStatus == 0 {
 				logMsg.FaultMsg = "设备已离线"
@@ -584,7 +579,10 @@ func SyncDeviceLog() {
 			addLogs(&logMsg)
 			continue
 		}
-
+		// 设备类型不在日志扫描范围内
+		if deviceDir == "" {
+			continue
+		}
 		// 进入设备类型目录
 		err = cmdDir(c, deviceDir)
 		if err != nil {
