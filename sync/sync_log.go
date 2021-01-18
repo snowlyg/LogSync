@@ -565,6 +565,7 @@ func SyncDeviceLog() {
 		logMsg.Status = true
 		logMsg.DevStatus = device.DevStatus
 		if deviceDir == "" {
+			addLogs(&logMsg)
 			continue
 		}
 
