@@ -575,7 +575,7 @@ func SyncDeviceLog() {
 							logMsg.StatusMsg = fmt.Sprintf("设备已离线: 设备ip(%s)可正常访问，请及时检查设备应用状态", device.DevIp)
 						}
 					}
-					logMsg.Status = false
+					logMsg.Status = true
 					addLogs(&logMsg)
 					continue
 				} else if device.DevStatus == 2 {
@@ -639,8 +639,14 @@ func SyncDeviceLog() {
 		var index = 0
 		for index < devicesize && index+loop*devicesize < len(logMsgs) {
 			msg := logMsgs[index+loop*devicesize]
-			if isDeviceStatusChange(plaDevices, msg) || isOnlineStatusChange(plaDevices, msg.DeviceCode, msg.DevStatus) {
+			// 如果设备状态改变
+			// 或者在线设备，故障状态改变
+			if isOnlineStatusChange(plaDevices, msg.DeviceCode, msg.DevStatus) {
 				logMsgSubs = append(logMsgSubs, msg)
+			} else {
+				if msg.DevStatus == 1 && isDeviceStatusChange(plaDevices, msg) {
+					logMsgSubs = append(logMsgSubs, msg)
+				}
 			}
 			index++
 		}
@@ -681,7 +687,9 @@ func isOnlineStatusChange(plaDevices []*utils.Device, devCode string, devStatus 
 func isDeviceStatusChange(plaDevices []*utils.Device, logMsg *models.LogMsg) bool {
 	for _, plaDevice := range plaDevices {
 		if plaDevice.DevCode == logMsg.DeviceCode {
-			if (plaDevice.IsError == 1 && logMsg.Status) || (plaDevice.IsError == 0 && !logMsg.Status) {
+			if plaDevice.IsError == 1 && !logMsg.Status {
+				return false
+			} else if plaDevice.IsError == 0 && logMsg.Status {
 				return false
 			}
 		}
