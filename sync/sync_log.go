@@ -122,10 +122,7 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 		}
 
 		logMsg.FaultMsg = string(faultMsgsJson)
-		location := getLocation()
 		if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
-			logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-			logMsg.UpdateAt = time.Now().In(location)
 			utils.GetSQLite().Save(&logMsg)
 			addLogs(&logMsg)
 			loggerD.Infof(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
@@ -135,8 +132,6 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
 				checkLogOverFive(logMsg, oldMsg) // 日志超时
 			} else {
-				logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-				logMsg.UpdateAt = time.Now().In(location)
 				utils.GetSQLite().Model(&oldMsg).Updates(map[string]interface{}{"log_at": logMsg.LogAt, "fault_msg": logMsg.FaultMsg, "device_img": logMsg.DeviceImg, "update_at": logMsg.UpdateAt})
 				addLogs(&logMsg)
 			}
@@ -174,7 +169,7 @@ func sendEmptyMsg(logMsg *models.LogMsg, msg string) {
 		Order("created_at desc").
 		First(&oldMsg)
 
-	logMsg.FaultMsg = msg
+	logMsg.StatusMsg = msg
 	logMsg.Status = false
 	saveOrUpdate(logMsg, oldMsg)
 	addLogs(logMsg)
@@ -182,9 +177,6 @@ func sendEmptyMsg(logMsg *models.LogMsg, msg string) {
 
 // 更新或者新建
 func saveOrUpdate(logMsg *models.LogMsg, oldMsg models.LogMsg) {
-	location := getLocation()
-	logMsg.LogAt = time.Now().In(location).Format("2006-01-02 15:04:05")
-	logMsg.UpdateAt = time.Now().In(location)
 	if oldMsg.ID == 0 { //如果信息有更新就存储，并推送
 		utils.GetSQLite().Save(&logMsg)
 	} else {
@@ -217,7 +209,7 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 		if len(strings.TrimSpace(device.DevIp)) == 0 {
 			logMsg.Status = false
 			if len(logMsg.FaultMsg) == 0 {
-				logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
+				logMsg.StatusMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
 			}
 			saveOrUpdate(&logMsg, oldMsg)
 			addLogs(&logMsg)
@@ -298,7 +290,7 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 		if len(strings.TrimSpace(device.DevIp)) == 0 {
 			logMsg.Status = false
 			if len(logMsg.FaultMsg) == 0 {
-				logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
+				logMsg.StatusMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
 			}
 			saveOrUpdate(&logMsg, oldMsg)
 			addLogs(&logMsg)
@@ -350,7 +342,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 	if err := cmd.Start(); err != nil {
 		loggerD.Infof(fmt.Sprintf("%v 执行出错 %v", cmd, err))
 		if len(logMsg.FaultMsg) == 0 {
-			logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;%v :%s", cmd, err)
+			logMsg.StatusMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;%v :%s", cmd, err)
 		}
 		logMsg.Status = false
 		saveOrUpdate(&logMsg, oldMsg)
@@ -433,7 +425,7 @@ func pscpDevice(logMsg, oldMsg models.LogMsg, password, account, idir, ip string
 
 // 没有生成日志的逻辑
 func emptyLogRe(logMsg models.LogMsg, oldMsg models.LogMsg) {
-	logMsg.FaultMsg = "设备超过15分钟未上报日志到FTP,并且设备上也没有生成日志"
+	logMsg.StatusMsg = "设备超过15分钟未上报日志到FTP,并且设备上也没有生成日志"
 	logMsg.Status = false
 	saveOrUpdate(&logMsg, oldMsg)
 	addLogs(&logMsg)
@@ -558,6 +550,8 @@ func SyncDeviceLog() {
 		return
 	}
 
+	plaDevices, _ := utils.GetDevices()
+
 	for _, device := range devices {
 		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v：%v", device.DevType, device.DevCode))
 		deviceDir := getDeviceDir(device.DevType)
@@ -567,20 +561,37 @@ func SyncDeviceLog() {
 		logMsg.DirName = deviceDir
 		logMsg.Status = true
 		logMsg.DevStatus = device.DevStatus
-		if device.DevStatus != 1 {
-			if device.DevStatus == 0 {
-				logMsg.FaultMsg = "设备已离线"
-			} else if device.DevStatus == 2 {
-				logMsg.FaultMsg = "设备异常"
+		logMsg.LogAt = time.Now().In(getLocation()).Format("2006-01-02 15:04:05")
+		logMsg.UpdateAt = time.Now().In(getLocation())
+		if isOnlineStatusChange(plaDevices, device.DevCode, device.DevStatus) {
+			if device.DevStatus != 1 {
+				if device.DevStatus == 0 {
+					if device.DevIp == "" {
+						logMsg.StatusMsg = fmt.Sprintf("设备已离线: 设备ip为空")
+					} else {
+						if utils.Ping(device.DevIp) == 100 {
+							logMsg.StatusMsg = fmt.Sprintf("设备已离线: 设备ip(%s)无法访问", device.DevIp)
+						} else {
+							logMsg.StatusMsg = fmt.Sprintf("设备已离线: 设备ip(%s)可正常访问，请及时检查设备应用状态", device.DevIp)
+						}
+					}
+					logMsg.Status = false
+					addLogs(&logMsg)
+					continue
+				} else if device.DevStatus == 2 {
+					logMsg.StatusMsg = "设备异常"
+					logMsg.Status = false
+					addLogs(&logMsg)
+					continue
+				}
+
 			}
-			logMsg.Status = false
-			logMsg.LogAt = time.Now().In(getLocation()).Format("2006-01-02 15:04:05")
-			logMsg.UpdateAt = time.Now()
-			addLogs(&logMsg)
-			continue
 		}
+
 		// 设备类型不在日志扫描范围内
+		// PDA 走廊屏 墨水瓶等设备
 		if deviceDir == "" {
+			addLogs(&logMsg)
 			continue
 		}
 		// 进入设备类型目录
@@ -627,7 +638,10 @@ func SyncDeviceLog() {
 		var logMsgSubs []*models.LogMsg
 		var index = 0
 		for index < devicesize && index+loop*devicesize < len(logMsgs) {
-			logMsgSubs = append(logMsgSubs, logMsgs[index+loop*devicesize])
+			msg := logMsgs[index+loop*devicesize]
+			if isDeviceStatusChange(plaDevices, msg) || isOnlineStatusChange(plaDevices, msg.DeviceCode, msg.DevStatus) {
+				logMsgSubs = append(logMsgSubs, msg)
+			}
 			index++
 		}
 
@@ -645,9 +659,32 @@ func SyncDeviceLog() {
 			}
 			loggerD.Infof(fmt.Sprintf("提交日志信息返回数据 :%v", res))
 			loggerD.Infof(fmt.Sprintf("扫描 %d 个设备 ：%v", len(logMsgSubs), logCodes))
-
 		}
 		loop++
 	}
 	loggerD.Infof("日志监控结束")
+}
+
+// 在线状态是否变化
+func isOnlineStatusChange(plaDevices []*utils.Device, devCode string, devStatus int64) bool {
+	for _, plaDevice := range plaDevices {
+		if plaDevice.DevCode == devCode {
+			if plaDevice.DevStatus == devStatus {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// 设备故障状态是否改变
+func isDeviceStatusChange(plaDevices []*utils.Device, logMsg *models.LogMsg) bool {
+	for _, plaDevice := range plaDevices {
+		if plaDevice.DevCode == logMsg.DeviceCode {
+			if (plaDevice.IsError == 1 && logMsg.Status) || (plaDevice.IsError == 0 && !logMsg.Status) {
+				return false
+			}
+		}
+	}
+	return true
 }

@@ -13,7 +13,7 @@ isresizeimg: false
 devicesize: 10 # 每次同步设备数量，一次同步太多数据会超过nginx 最大缓存设置
 
 ftp:
-  ip: 10.0.0.23
+  ip: 10.0.0.27
   username: admin
   password: Chindeo
 restful:
@@ -24,7 +24,7 @@ device:
   timeduration: 1 #同步频率
 data:
   timetype: m # h,m,s 同步频率类型
-  timeduration: 3 #同步频率
+  timeduration: 30 #同步频率
 web:
   #护理白板账号密码
   account: administrator

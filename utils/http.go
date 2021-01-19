@@ -27,6 +27,11 @@ type getRestful struct {
 	Message string     `json:"message"`
 	Data    []*Restful `json:"data"`
 }
+type getDevice struct {
+	Code    int       `json:"code"`
+	Message string    `json:"message"`
+	Data    []*Device `json:"data"`
+}
 
 type Req struct {
 	Code    int         `json:"code"`
@@ -52,6 +57,12 @@ type Server struct {
 type Restful struct {
 	Id  int64  `json:"id"`
 	Url string `json:"url"`
+}
+
+type Device struct {
+	IsError   int64  `json:"is_error" `
+	DevStatus int64  `json:"device_status"`
+	DevCode   string `json:"device_code"`
 }
 
 //http://fyxt.t.chindeo.com/platform/report/getService  获取服务
@@ -113,6 +124,37 @@ func GetRestfuls() ([]*Restful, error) {
 		return nil, errors.New("刷新 token")
 	} else {
 		return nil, errors.New(fmt.Sprintf("GetRestfuls 获取接口返回错误信息 :%v", re.Message))
+	}
+}
+
+//http://fyxt.t.chindeo.com/platform/report/getDevice  获取设备列表
+func GetDevices() ([]*Device, error) {
+	var re getDevice
+	result := Request("GET", "platform/report/getDevice", "", true)
+	if len(result) == 0 {
+		return nil, errors.New(fmt.Sprintf("GetRestfuls 获取设备请求没有返回数据"))
+	}
+	err := json.Unmarshal(result, &re)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("GetRestfuls 获取设备解析返回内容报错 :%v", err))
+	}
+
+	if re.Code == 200 {
+		return re.Data, nil
+	} else if re.Code == 401 {
+		err = GetToken()
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("get token err %v", err))
+		}
+		return nil, errors.New("重新获取 token")
+	} else if re.Code == 402 {
+		err = RfreshToken()
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("refresh token err %v", err))
+		}
+		return nil, errors.New("刷新 token")
+	} else {
+		return nil, errors.New(fmt.Sprintf("GetRestfuls 获取设备返回错误信息 :%v", re.Message))
 	}
 }
 
