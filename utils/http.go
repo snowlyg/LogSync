@@ -59,10 +59,23 @@ type Restful struct {
 	Url string `json:"url"`
 }
 
+type Time struct {
+	time.Time
+}
+
+// returns time.Now() no matter what!
+func (t *Time) UnmarshalJSON(b []byte) error {
+	// you can now parse b as thoroughly as you want
+
+	*t = Time{time.Now()}
+	return nil
+}
+
 type Device struct {
 	IsError   int64  `json:"is_error" `
 	DevStatus int64  `json:"device_status"`
 	DevCode   string `json:"device_code"`
+	LogAt     Time   `json:"log_at"`
 }
 
 //http://fyxt.t.chindeo.com/platform/report/getService  获取服务

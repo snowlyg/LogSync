@@ -7,7 +7,6 @@ import (
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
-	"time"
 )
 
 func SyncDevice() {
@@ -32,16 +31,7 @@ func SyncDevice() {
 	createDevices(logger)
 	createTelphones(sqlDb, logger)
 	createTelphoneGroups(sqlDb, logger)
-	deleteMsg(logger)
 
-}
-
-// 删除3天前的日志记录
-func deleteMsg(logger *logging.Logger) {
-	lastWeek := time.Now().AddDate(0, 0, -3).Format("2006-01-02 15:04:05")
-	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.LogMsg{})
-	utils.GetSQLite().Unscoped().Where("created_at < ?", lastWeek).Delete(models.ServerMsg{})
-	logger.Infof("删除3天前数据库日志记录 :%s", lastWeek)
 }
 
 // 同步设备

@@ -10,7 +10,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kardianos/service"
-	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
 	//_ "net/http/pprof"
@@ -166,11 +165,6 @@ func main() {
 
 	if err != nil {
 		fmt.Println(err)
-	}
-
-	err = models.Init()
-	if err != nil {
-		panic(err)
 	}
 
 	if *Action == "install" {
