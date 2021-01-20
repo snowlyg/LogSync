@@ -39,7 +39,7 @@ func HasChinese(str string) bool {
 
 func InStrArray(s string, ss []string) bool {
 	for _, item := range ss {
-		if strings.Contains(s, item) {
+		if s == item {
 			return true
 		}
 	}

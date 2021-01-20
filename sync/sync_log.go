@@ -76,35 +76,10 @@ func getDirs(devIp string, logMsg models.LogMsg) {
 		return
 	}
 
-	root := utils.Config.Root
-	err = cmdDir(c, root)
+	logPath := fmt.Sprintf("%s/%s/%s/%s", utils.Config.Root, logMsg.DirName, logMsg.DeviceCode, time.Now().Format("2006-01-02"))
+	err = cmdDir(c, logPath)
 	if err != nil {
-		loggerD.Infof("进入日志根目录: ", err)
-		addLogs(&logMsg)
-		return
-	}
-	// 进入设备类型目录
-	err = cmdDir(c, logMsg.DirName)
-	if err != nil {
-		loggerD.Infof("设备类型目录不存在: ", err)
-		pingMsg := utils.GetPingMsg(devIp)
-		sendEmptyMsg(&logMsg, fmt.Sprintf("设备类型目录不存在: %s", pingMsg))
-		return
-	}
-
-	// 进入设备编码目录
-	err = cmdDir(c, logMsg.DeviceCode)
-	if err != nil {
-		loggerD.Infof("设备日志目录不存在 ", err)
-		pingMsg := utils.GetPingMsg(devIp)
-		sendEmptyMsg(&logMsg, fmt.Sprintf("设备日志目录不存在: %s", pingMsg))
-		return
-	}
-
-	pName := time.Now().Format("2006-01-02")
-	err = cmdDir(c, pName)
-	if err != nil {
-		loggerD.Infof("没有创建设备当天日志目录 ", err)
+		loggerD.Infof("没有创建设备当天日志目录 ", logPath, " 错误： ", err)
 		// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
 		if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
 			pingMsg := utils.GetPingMsg(devIp)
@@ -124,12 +99,12 @@ func getDirs(devIp string, logMsg models.LogMsg) {
 	for _, s := range ss {
 		// 文件后缀
 		extStr := utils.Config.Exts
-		exts := strings.Split(extStr, ",")
+		names := strings.Split(extStr, ",")
 		// 图片后缀
 		imgExtStr := utils.Config.Imgexts
 		imgExts := strings.Split(imgExtStr, ",")
 
-		if utils.InStrArray(s.Name, exts) { // 设备日志文件
+		if utils.InStrArray(s.Name, names) { // 设备日志文件
 			faultMsg := new(FaultMsg)
 			faultMsg.Name = s.Name
 			faultMsg.Content = string(getFileContent(c, s.Name))
@@ -557,11 +532,11 @@ func SyncDeviceLog() {
 	}
 
 	for _, device := range devices {
-		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v：%v", device.DevType, device.DevCode))
 		deviceDir, err := utils.GetDeviceDir(device.DevType)
 		if err != nil {
 			loggerD.Errorf("GetDeviceDir", err)
 		}
+		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v ：%v：%v", device.DevType, deviceDir, device.DevCode))
 
 		var logMsg models.LogMsg
 		logMsg.DeviceCode = device.DevCode
@@ -572,7 +547,7 @@ func SyncDeviceLog() {
 		logMsg.UpdateAt = time.Now().In(getLocation())
 		// 设备类型不在日志扫描范围内
 		// PDA 走廊屏 墨水瓶等设备
-		if deviceDir == "other" {
+		if deviceDir == "other" || deviceDir == "" {
 			addLogs(&logMsg)
 			continue
 		}

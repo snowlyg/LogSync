@@ -29,7 +29,7 @@ func SyncDevice() {
 	sqlDb.SetLogger(utils.DefaultGormLogger)
 	sqlDb.LogMode(false)
 
-	createDevices(sqlDb, logger)
+	createDevices(logger)
 	createTelphones(sqlDb, logger)
 	createTelphoneGroups(sqlDb, logger)
 	deleteMsg(logger)
@@ -45,25 +45,10 @@ func deleteMsg(logger *logging.Logger) {
 }
 
 // 同步设备
-func createDevices(sqlDb *gorm.DB, logger *logging.Logger) {
-	var cfDevices []*models.CfDevice
-	query := "select ct_loc.loc_desc as loc_desc,pac_room.room_desc as room_desc, pac_bed.bed_code as bed_code, dev_id ,dev_code ,dev_desc ,dev_position ,dev_type,dev_active,dev_status,dev_create_time,mm.ipaddr as dev_ip from cf_device"
-	query += " left join mqtt.mqtt_device as mm on mm.username = cf_device.dev_code"
-	query += " left join ct_loc on ct_loc.loc_id = cf_device.ct_loc_id"
-	query += " left join pac_room on pac_room.room_id = cf_device.pac_room_id"
-	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
-	query += " where cf_device.dev_active = '1'"
-
-	rows, err := sqlDb.Raw(query).Rows()
+func createDevices(logger *logging.Logger) {
+	cfDevices, err := models.GetCfDevice()
 	if err != nil {
 		logger.Error(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var cfDevice models.CfDevice
-		sqlDb.ScanRows(rows, &cfDevice)
-		cfDevices = append(cfDevices, &cfDevice)
 	}
 
 	if len(cfDevices) > 0 {

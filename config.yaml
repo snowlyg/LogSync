@@ -1,21 +1,21 @@
 host: op.chindeo.com # 地址
 appid: dsfdsfdsf # 接口id
 appsecret: sdfsdfsdfdsfsdfsdf #接口密钥
-db: visible:Chindeo@tcp(10.0.0.27:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
+db: visible:Chindeo@tcp(10.0.0.23:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
 timeout: 5
 timeover: 10
 dir:
   names: nis,bis,webapp,nws
   codes: 1,2,3,4
 exts: fault.log,interface.log,fault.txt,error.txt
-imgexts: .png,.jpg,.JPEG,.bmp
+imgexts: ScreenCapture.png,screen.png
 root: log
 outdir: /Users/snowlyg/go/src/github.com/snowlyg/LogSync
 isresizeimg: false
 devicesize: 10 # 每次同步设备数量，一次同步太多数据会超过nginx 最大缓存设置
 
 ftp:
-  ip: 10.0.0.27
+  ip: 10.0.0.23
   username: admin
   password: Chindeo
 restful:
@@ -26,7 +26,7 @@ device:
   timeduration: 1 #同步频率
 data:
   timetype: m # h,m,s 同步频率类型
-  timeduration: 30 #同步频率
+  timeduration: 5 #同步频率
 web:
   #护理白板账号密码
   account: administrator
