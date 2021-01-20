@@ -56,12 +56,69 @@ type FaultTxt struct {
 }
 
 // 循环扫描日志目录，最多层级为4层
-func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
+func getDirs(devIp string, logMsg models.LogMsg) {
+
+	ip := utils.Config.Ftp.Ip
+	username := utils.Config.Ftp.Username
+	password := utils.Config.Ftp.Password
+	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
+	if err != nil {
+		loggerD.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
+		addLogs(&logMsg)
+		return
+	}
+	defer c.Quit()
+	// 登录ftp
+	err = c.Login(username, password)
+	if err != nil {
+		loggerD.Infof(fmt.Sprintf("ftp 登录错误 %v", err))
+		addLogs(&logMsg)
+		return
+	}
+
+	root := utils.Config.Root
+	err = cmdDir(c, root)
+	if err != nil {
+		loggerD.Infof("进入日志根目录: ", err)
+		addLogs(&logMsg)
+		return
+	}
+	// 进入设备类型目录
+	err = cmdDir(c, logMsg.DirName)
+	if err != nil {
+		loggerD.Infof("设备类型目录不存在: ", err)
+		pingMsg := utils.GetPingMsg(devIp)
+		sendEmptyMsg(&logMsg, fmt.Sprintf("设备类型目录不存在: %s", pingMsg))
+		return
+	}
+
+	// 进入设备编码目录
+	err = cmdDir(c, logMsg.DeviceCode)
+	if err != nil {
+		loggerD.Infof("设备日志目录不存在 ", err)
+		pingMsg := utils.GetPingMsg(devIp)
+		sendEmptyMsg(&logMsg, fmt.Sprintf("设备日志目录不存在: %s", pingMsg))
+		return
+	}
+
+	pName := time.Now().Format("2006-01-02")
+	err = cmdDir(c, pName)
+	if err != nil {
+		loggerD.Infof("没有创建设备当天日志目录 ", err)
+		// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
+		if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
+			pingMsg := utils.GetPingMsg(devIp)
+			sendEmptyMsg(&logMsg, fmt.Sprintf("没有创建设备当天日志目录: %s", pingMsg))
+			return
+		}
+	}
 
 	var faultMsgs []*FaultMsg
 	ss, err := c.List(getCurrentDir(c))
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("获取文件/文件夹列表出错：%v", err))
+		addLogs(&logMsg)
+		return
 	}
 
 	for _, s := range ss {
@@ -144,9 +201,11 @@ func getDirs(c *ftp.ServerConn, logMsg models.LogMsg) {
 			subT := time.Now().Sub(oldMsg.UpdateAt)
 			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
 				checkLogOverFive(logMsg, oldMsg) // 日志超时
+				return
 			}
 		}
 	}
+
 }
 
 // 获取时区
@@ -487,30 +546,7 @@ func SyncDeviceLog() {
 	loggerD.Infof("<========================>")
 	loggerD.Infof("日志监控开始")
 
-	ip := utils.Config.Ftp.Ip
-	username := utils.Config.Ftp.Username
-	password := utils.Config.Ftp.Password
-	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
-	if err != nil {
-		loggerD.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
-		return
-	}
-	// 登录ftp
-	err = c.Login(username, password)
-	if err != nil {
-		loggerD.Infof(fmt.Sprintf("ftp 登录错误 %v", err))
-		return
-	}
-
-	root := utils.Config.Root
-	err = cmdDir(c, root)
-	if err != nil {
-		loggerD.Infof("cmd dir ", err)
-		return
-	}
-
-	var devices []*models.CfDevice
-	devices, err = models.GetCfDevice()
+	devices, err := models.GetCfDevice()
 	if err != nil {
 		loggerD.Infof("GetCfDevice", err)
 		return
@@ -522,11 +558,9 @@ func SyncDeviceLog() {
 
 	for _, device := range devices {
 		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v：%v", device.DevType, device.DevCode))
-		var deviceDir string
-		deviceDir, err = utils.GetDeviceDir(device.DevType)
+		deviceDir, err := utils.GetDeviceDir(device.DevType)
 		if err != nil {
-			loggerD.Errorf("GetDeviceDir ", err)
-			continue
+			loggerD.Errorf("GetDeviceDir", err)
 		}
 
 		var logMsg models.LogMsg
@@ -538,50 +572,12 @@ func SyncDeviceLog() {
 		logMsg.UpdateAt = time.Now().In(getLocation())
 		// 设备类型不在日志扫描范围内
 		// PDA 走廊屏 墨水瓶等设备
-		if deviceDir == "" {
+		if deviceDir == "other" {
 			addLogs(&logMsg)
 			continue
 		}
-		// 进入设备类型目录
-		err = cmdDir(c, deviceDir)
-		if err != nil {
-			loggerD.Infof("cmd dir ", err)
-			continue
-		}
-
-		// 进入设备编码目录
-		err = cmdDir(c, device.DevCode)
-		if err != nil {
-			loggerD.Infof("cmd dir ", err)
-			cmdDir(c, "../")
-			sendEmptyMsg(&logMsg, "设备志目录不存在")
-			continue
-		}
-
-		pName := time.Now().Format("2006-01-02")
-		err = cmdDir(c, pName)
-		if err != nil {
-			loggerD.Infof("cmd dir ", err)
-			// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
-			if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
-				sendEmptyMsg(&logMsg, "没有创建设备当天日志目录")
-			}
-			cmdDir(c, "../../")
-			continue
-		}
-
-		getDirs(c, logMsg)
-
-		cmdDir(c, "../../../")
-
-	}
-
-	if err = c.Logout(); err != nil {
-		loggerD.Error(fmt.Sprintf("ftp logout 错误：%v", err))
-	}
-
-	if err = c.Quit(); err != nil {
-		loggerD.Error(fmt.Sprintf("ftp quit 错误：%v", err))
+		// 扫描日志
+		getDirs(device.DevIp, logMsg)
 	}
 
 	var loop = 0

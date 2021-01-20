@@ -249,11 +249,6 @@ func main() {
 		return
 	}
 
-	if *Action == "ping" {
-		fmt.Println(fmt.Sprintf("ping : %d", utils.Ping("10.0.0.145")))
-		return
-	}
-
 	if *Action == "restart" {
 		err = s.Restart()
 		if err != nil {

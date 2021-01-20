@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func Ping(host string) int {
+func ping(host string) int {
 	count := 3
 	size := 4
 	timeout := 32
@@ -135,5 +135,16 @@ func stat(ip string, sendN int, lostN int, recvN int, shortT int, longT int, sum
 	fmt.Println("往返行程的估计时间(以毫秒为单位):")
 	if recvN != 0 {
 		fmt.Printf("    最短 = %dms，最长 = %dms，平均 = %dms\n", shortT, longT, sumT/sendN)
+	}
+}
+
+func GetPingMsg(devIp string) string {
+	if devIp == "" {
+		return "设备 ip 为空"
+	}
+	if ping(devIp) == 100 {
+		return fmt.Sprintf("设备ip(%s)无法访问", devIp)
+	} else {
+		return fmt.Sprintf("设备ip(%s)可正常访问，请及时检查设备应用状态", devIp)
 	}
 }
