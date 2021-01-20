@@ -4,7 +4,9 @@ appsecret: 489r67esrqa341vcnb1m16azfm789nbmnhj8 #接口密钥
 db: visible:Chindeo@tcp(127.0.0.1:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
 timeout: 5
 timeover: 10
-dirs: bis,nis,nws,webapp
+dir:
+  names: other,nis,bis,webapp,nws
+  codes: 0,1,2,3,4
 exts: .log,.txt
 imgexts: .png,.jpg,.JPEG,.bmp
 root: log

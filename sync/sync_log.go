@@ -200,7 +200,7 @@ func getCurrentDir(c *ftp.ServerConn) string {
 // 日志超时未上传
 func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 	loggerD.Infof(fmt.Sprintf(">>> 日志记录超时,开始排查错误"))
-	if logMsg.DirName == utils.NIS.String() { // 大屏
+	if logMsg.DirName == "nis" { // 大屏
 		loggerD.Infof(fmt.Sprintf(">>> 开始排查大屏"))
 		var device models.CfDevice
 		utils.GetSQLite().Where("dev_code = ?", logMsg.DeviceCode).Find(&device)
@@ -281,7 +281,7 @@ func checkLogOverFive(logMsg, oldMsg models.LogMsg) {
 		//}
 		loggerD.Infof(fmt.Sprintf(">>> 大屏排查结束"))
 		// 安卓设备
-	} else if utils.InStrArray(logMsg.DirName, []string{utils.BIS.String(), utils.NWS.String(), utils.WEBAPP.String()}) {
+	} else if utils.InStrArray(logMsg.DirName, []string{"nis", "nws", "webapp"}) {
 		loggerD.Infof(fmt.Sprintf(">>> 开始排查安卓设备"))
 		androidAccount := utils.Config.Android.Account
 		androidPassword := utils.Config.Android.Password
@@ -448,14 +448,6 @@ func createOutDir(logMsg models.LogMsg) string {
 
 // 获取文件内容
 func getFileContent(c *ftp.ServerConn, name string) []byte {
-	//defer func() { // 必须要先声明defer，否则不能捕获到panic异常
-	//	loggerD.Infof("++++++++++++++++Retr 程序异常退出++++++++++++++++")
-	//	if err := recover(); err != nil {
-	//		loggerD.Error(fmt.Sprintf("recover : %s  ", err)) // 这里的err其实就是panic传入的内容，55
-	//	}
-	//	loggerD.Infof("++++++++++++++++Retr 程序 recover ++++++++++++++++")
-	//}()
-
 	r, err := c.Retr(name)
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
@@ -487,20 +479,6 @@ func cmdDir(c *ftp.ServerConn, root string) error {
 	return nil
 }
 
-// 获取日志类型目录
-func getDeviceDir(deviceTypeId utils.DirName) string {
-	dirStr := utils.Config.Dirs
-	dirs := strings.Split(dirStr, ",")
-	if len(dirs) > 0 {
-		for _, dir := range dirs {
-			if dir == deviceTypeId.String() {
-				return dir
-			}
-		}
-	}
-	return ""
-}
-
 // 扫描设备日志
 func SyncDeviceLog() {
 	loggerD = logging.GetMyLogger("device")
@@ -512,14 +490,6 @@ func SyncDeviceLog() {
 	ip := utils.Config.Ftp.Ip
 	username := utils.Config.Ftp.Username
 	password := utils.Config.Ftp.Password
-	// 扫描错误日志，设备监控
-	//defer func() { // 必须要先声明defer，否则不能捕获到panic异常
-	//	loggerD.Infof("++++++++++++++++ftp 程序异常退出++++++++++++++++")
-	//	if err := recover(); err != nil {
-	//		fmt.Println(err) // 这里的err其实就是panic传入的内容，55
-	//	}
-	//	loggerD.Infof("++++++++++++++++ftp 程序 recover ++++++++++++++++")
-	//}()
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
@@ -550,12 +520,15 @@ func SyncDeviceLog() {
 		return
 	}
 
-	plaDevices, _ := utils.GetDevices()
-
 	for _, device := range devices {
 		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v：%v", device.DevType, device.DevCode))
-		deviceDir := getDeviceDir(device.DevType)
-		// 扫描日志目录，记录日志信息
+		var deviceDir string
+		deviceDir, err = utils.GetDeviceDir(device.DevType)
+		if err != nil {
+			loggerD.Errorf("GetDeviceDir ", err)
+			continue
+		}
+
 		var logMsg models.LogMsg
 		logMsg.DeviceCode = device.DevCode
 		logMsg.DirName = deviceDir
@@ -563,31 +536,6 @@ func SyncDeviceLog() {
 		logMsg.DevStatus = device.DevStatus
 		logMsg.LogAt = time.Now().In(getLocation()).Format("2006-01-02 15:04:05")
 		logMsg.UpdateAt = time.Now().In(getLocation())
-		if isOnlineStatusChange(plaDevices, device.DevCode, device.DevStatus) {
-			if device.DevStatus != 1 {
-				if device.DevStatus == 0 {
-					if device.DevIp == "" {
-						logMsg.StatusMsg = fmt.Sprintf("设备已离线: 设备ip为空")
-					} else {
-						if utils.Ping(device.DevIp) == 100 {
-							logMsg.StatusMsg = fmt.Sprintf("设备已离线: 设备ip(%s)无法访问", device.DevIp)
-						} else {
-							logMsg.StatusMsg = fmt.Sprintf("设备已离线: 设备ip(%s)可正常访问，请及时检查设备应用状态", device.DevIp)
-						}
-					}
-					logMsg.Status = true
-					addLogs(&logMsg)
-					continue
-				} else if device.DevStatus == 2 {
-					logMsg.StatusMsg = "设备异常"
-					logMsg.Status = false
-					addLogs(&logMsg)
-					continue
-				}
-
-			}
-		}
-
 		// 设备类型不在日志扫描范围内
 		// PDA 走廊屏 墨水瓶等设备
 		if deviceDir == "" {
@@ -628,8 +576,12 @@ func SyncDeviceLog() {
 
 	}
 
+	if err = c.Logout(); err != nil {
+		loggerD.Error(fmt.Sprintf("ftp logout 错误：%v", err))
+	}
+
 	if err = c.Quit(); err != nil {
-		loggerD.Error(fmt.Sprintf("ftp 退出错误：%v", err))
+		loggerD.Error(fmt.Sprintf("ftp quit 错误：%v", err))
 	}
 
 	var loop = 0
@@ -639,15 +591,7 @@ func SyncDeviceLog() {
 		var index = 0
 		for index < devicesize && index+loop*devicesize < len(logMsgs) {
 			msg := logMsgs[index+loop*devicesize]
-			// 如果设备状态改变
-			// 或者在线设备，故障状态改变
-			if isOnlineStatusChange(plaDevices, msg.DeviceCode, msg.DevStatus) {
-				logMsgSubs = append(logMsgSubs, msg)
-			} else {
-				if msg.DevStatus == 1 && isDeviceStatusChange(plaDevices, msg) {
-					logMsgSubs = append(logMsgSubs, msg)
-				}
-			}
+			logMsgSubs = append(logMsgSubs, msg)
 			index++
 		}
 
@@ -669,30 +613,4 @@ func SyncDeviceLog() {
 		loop++
 	}
 	loggerD.Infof("日志监控结束")
-}
-
-// 在线状态是否变化
-func isOnlineStatusChange(plaDevices []*utils.Device, devCode string, devStatus int64) bool {
-	for _, plaDevice := range plaDevices {
-		if plaDevice.DevCode == devCode {
-			if plaDevice.DevStatus == devStatus {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// 设备故障状态是否改变
-func isDeviceStatusChange(plaDevices []*utils.Device, logMsg *models.LogMsg) bool {
-	for _, plaDevice := range plaDevices {
-		if plaDevice.DevCode == logMsg.DeviceCode {
-			if plaDevice.IsError == 1 && !logMsg.Status {
-				return false
-			} else if plaDevice.IsError == 0 && logMsg.Status {
-				return false
-			}
-		}
-	}
-	return true
 }

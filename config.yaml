@@ -4,8 +4,10 @@ appsecret: sdfsdfsdfdsfsdfsdf #接口密钥
 db: visible:Chindeo@tcp(10.0.0.27:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
 timeout: 5
 timeover: 10
-dirs: bis,nis,nws,webapp
-exts: .log,.txt
+dir:
+  names: nis,bis,webapp,nws
+  codes: 1,2,3,4
+exts: fault.log,interface.log,fault.txt,error.txt
 imgexts: .png,.jpg,.JPEG,.bmp
 root: log
 outdir: /Users/snowlyg/go/src/github.com/snowlyg/LogSync

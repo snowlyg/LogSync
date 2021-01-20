@@ -6,11 +6,14 @@ import (
 )
 
 var Config = struct {
-	Host        string `default:"" env:"host"`
-	Appid       string `default:"" env:"appid"`
-	Appsecret   string `default:"" env:"appsecret"`
-	DB          string `default:"" env:"db"`
-	Dirs        string `default:"" env:"dirs"`
+	Host      string `default:"" env:"host"`
+	Appid     string `default:"" env:"appid"`
+	Appsecret string `default:"" env:"appsecret"`
+	DB        string `default:"" env:"db"`
+	Dir       struct {
+		Names string `default:"" env:"DirNames"`
+		Codes string `default:"" env:"DirCodes"`
+	}
 	Exts        string `default:"" env:"exts"`
 	Imgexts     string `default:"" env:"imagexts"`
 	Root        string `default:"" env:"root"`
