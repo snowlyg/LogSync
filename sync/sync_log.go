@@ -190,7 +190,7 @@ func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
 			faultMsg := new(FaultMsg)
 			faultMsg.Name = s.Name
 			faultMsg.Content = string(getFileContent(c, s.Name))
-			faultMsg.Time = s.Time.Format("2006-01-02 15:04:05")
+			faultMsg.Time = s.Time.In(getLocation()).Format("2006-01-02 15:04:05")
 			faultMsgs = append(faultMsgs, faultMsg)
 		} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
 			imgDir := utils.Config.Outdir
@@ -237,7 +237,7 @@ func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
 			return
 		} else {
 			subT := time.Now().Sub(logMsg.UpdateAt)
-			fmt.Println(fmt.Sprintf("日志超时时间：%v", subT))
+			loggerD.Infof(fmt.Sprintf("日志超时时间：%v", subT))
 			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
 				checkLogOverFive(logMsg, device) // 日志超时
 			} else {
@@ -250,7 +250,7 @@ func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
 	} else {
 		if !logMsg.UpdateAt.IsZero() { //如果信息有更新就存储，并推送
 			subT := time.Now().Sub(logMsg.UpdateAt)
-			fmt.Println(fmt.Sprintf("日志超时时间_1：%v", subT))
+			loggerD.Infof(fmt.Sprintf("日志超时时间_1：%v", subT))
 			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
 				checkLogOverFive(logMsg, device) // 日志超时
 				return
