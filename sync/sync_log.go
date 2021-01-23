@@ -57,10 +57,10 @@ type FaultLog struct {
 	Face           Plugin `json:"face"`
 	Interf         Plugin `json:"interf"`
 	Iptv           Plugin `json:"iptv"`
+	Mqtt           Plugin `json:"mqtt"`
 	IsBackground   bool   `json:"isBackground"`
 	IsEmptyBed     bool   `json:"isEmptyBed"`
 	IsMainActivity bool   `json:"isMainActivity"`
-	Mqtt           Plugin `json:"mqtt"`
 	Timestamp      string `json:"timestamp"`
 }
 
@@ -106,7 +106,7 @@ func SyncDeviceLog() {
 
 		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v ：%v：%v", device.DevType, deviceDir, device.DevCode))
 
-		location, err := getLocation()
+		location, err := utils.GetLocation()
 		if err != nil {
 			loggerD.Errorf("get location ", err)
 		}
@@ -219,7 +219,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		}
 	}
 
-	location, err := getLocation()
+	location, err := utils.GetLocation()
 	if err != nil {
 		loggerD.Errorf("get location ", err)
 	}
@@ -280,7 +280,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 
 			if isResizeImg && s.Size/1024 > 500 {
 				if len(imgContent) > 0 {
-					err = utils.Create(path, imgContent)
+					err = utils.CreateFile(path, imgContent)
 					if err != nil {
 						loggerD.Infof(fmt.Sprintf("%s 图片生成失败：%v", s.Name, err))
 					}
@@ -351,15 +351,6 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		}
 	}
 
-}
-
-// 获取时区
-func getLocation() (*time.Location, error) {
-	location, err := time.LoadLocation("Local")
-	if err != nil {
-		return location, nil
-	}
-	return location, nil
 }
 
 // 当前路径
@@ -462,7 +453,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 			if err != nil {
 				continue
 			}
-			location, err := getLocation()
+			location, err := utils.GetLocation()
 			if err != nil {
 				loggerD.Errorf("get location ", err)
 			}
@@ -539,7 +530,7 @@ func getDeviceByCode(remoteDevices []*utils.Device, code string) *utils.Device {
 
 // 判断日志是否超时
 func checkOverTime(timeTxt string) (bool, float64, error) {
-	location, err := getLocation()
+	location, err := utils.GetLocation()
 	if err != nil {
 		return true, 0, err
 	}
@@ -548,7 +539,7 @@ func checkOverTime(timeTxt string) (bool, float64, error) {
 		return true, 0, err
 	}
 	subT := time.Now().In(location).Sub(timestamp)
-	if subT.Minutes() > 15 {
+	if subT.Minutes() > utils.Config.Log.Overtime {
 		return true, subT.Minutes(), nil
 	}
 
@@ -557,7 +548,7 @@ func checkOverTime(timeTxt string) (bool, float64, error) {
 
 // 判断日志是否超时
 func checkSyncTime(timetxt string, txtTime time.Time) (bool, float64, error) {
-	location, err := getLocation()
+	location, err := utils.GetLocation()
 	if err != nil {
 		return true, 0, err
 	}
@@ -566,7 +557,7 @@ func checkSyncTime(timetxt string, txtTime time.Time) (bool, float64, error) {
 		return true, 0, err
 	}
 	subT := txtTime.In(location).Sub(timestamp)
-	if math.Abs(subT.Minutes()) > 5 {
+	if math.Abs(subT.Minutes()) > utils.Config.Log.Synctime {
 		return false, math.Abs(subT.Minutes()), nil
 	}
 
@@ -589,7 +580,19 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.Mqtt = faultLog.Mqtt.Reason
 		logMsg.Timestamp = faultLog.Timestamp
 
-		if logMsg.DevType == 1 || (logMsg.DevType >= 5 && logMsg.DevType <= 10) || logMsg.IsBackground == "1" {
+		if logMsg.DevType >= 5 && logMsg.DevType <= 10 {
+			return nil
+		}
+
+		// 门旁 没有 mqtt
+		if logMsg.DevType != 3 {
+			if codeIsError(faultLog.Mqtt.Code) {
+				logMsg.Status = false
+				logMsg.StatusMsg += fmt.Sprintf("插件(mqtt): %s", faultLog.Mqtt.Reason)
+			}
+		}
+
+		if logMsg.DevType == 1 {
 			return nil
 		}
 
@@ -609,18 +612,12 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 				logMsg.StatusMsg += fmt.Sprintf("插件(iptv): %s", faultLog.Iptv.Reason)
 			}
 		}
+
 		// 护士站主机没有face
 		if logMsg.DevType != 4 {
 			if codeIsError(faultLog.Face.Code) && faultLog.Face.Code != "0" {
 				logMsg.Status = false
 				logMsg.StatusMsg += fmt.Sprintf("插件(face): %s", faultLog.Face.Reason)
-			}
-		}
-		// 门旁 没有 mqtt
-		if logMsg.DevType != 3 {
-			if codeIsError(faultLog.Mqtt.Code) {
-				logMsg.Status = false
-				logMsg.StatusMsg += fmt.Sprintf("插件(mqtt): %s", faultLog.Mqtt.Reason)
 			}
 		}
 
@@ -679,7 +676,7 @@ func getTimestamp(ts string) (time.Time, error) {
 	if ts == "" {
 		return time.Time{}, errors.New("时间为空")
 	}
-	location, err := getLocation()
+	location, err := utils.GetLocation()
 	if err != nil {
 		return time.Time{}, err
 	}

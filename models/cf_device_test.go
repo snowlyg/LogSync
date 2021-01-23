@@ -3,7 +3,6 @@ package models
 import (
 	"github.com/snowlyg/LogSync/utils"
 	"os"
-	"reflect"
 	"testing"
 )
 
@@ -18,7 +17,7 @@ func TestGetCfDevice(t *testing.T) {
 		{
 			name:    "测试获取设备数据",
 			want:    nil,
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -28,7 +27,7 @@ func TestGetCfDevice(t *testing.T) {
 				t.Errorf("GetCfDevice() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if len(got) == 0 {
 				t.Errorf("GetCfDevice() got = %v, want %v", got, tt.want)
 			}
 		})

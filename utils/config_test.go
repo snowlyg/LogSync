@@ -31,7 +31,7 @@ func TestInitConfig(t *testing.T) {
 					want: "sdfsdfsdfdsfsdfsdf",
 				}, {
 					key:  Config.DB,
-					want: "visible:Chindeo@tcp(10.0.0.23:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local",
+					want: "visible:Chindeo@tcp(127.0.0.1:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local",
 				}, {
 					key:  strconv.FormatInt(Config.Timeout, 10),
 					want: "5",
@@ -119,6 +119,12 @@ func TestInitConfig(t *testing.T) {
 				}, {
 					key:  Config.Faultmsg.Logsync,
 					want: "日志同步异常",
+				}, {
+					key:  strconv.FormatInt(int64(Config.Log.Overtime), 10),
+					want: "15",
+				}, {
+					key:  strconv.FormatInt(int64(Config.Log.Synctime), 10),
+					want: "5",
 				},
 			},
 		},

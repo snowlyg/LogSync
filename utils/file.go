@@ -4,8 +4,8 @@ import (
 	"os"
 )
 
-func Create(filePath string, b []byte) error {
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
+func CreateFile(filePath string, b []byte) error {
+	f, err := os.OpenFile(filePath, os.O_TRUNC|os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -16,7 +16,7 @@ func Create(filePath string, b []byte) error {
 }
 
 func OpenFile(filePath string) ([]byte, error) {
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	f, err := os.OpenFile(filePath, os.O_TRUNC|os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}

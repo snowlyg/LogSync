@@ -54,6 +54,10 @@ var Config = struct {
 		Plugin  string `default:"" env:"FaultmsgPlugin"`
 		Logsync string `default:"" env:"FaultmsgLogsync"`
 	}
+	Log struct {
+		Overtime float64 `default:"15" env:"LogOvertime"`
+		Synctime float64 `default:"5" env:"LogSynctime"`
+	}
 }{}
 
 func InitConfig() {

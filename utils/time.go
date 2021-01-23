@@ -67,3 +67,12 @@ func UpTimeString() string {
 	seconds := d / time.Second
 	return fmt.Sprintf("%d Days %d Hours %d Mins %d Secs", days, hours, minutes, seconds)
 }
+
+// 获取时区
+func GetLocation() (*time.Location, error) {
+	location, err := time.LoadLocation("Local")
+	if err != nil {
+		return location, nil
+	}
+	return location, nil
+}
