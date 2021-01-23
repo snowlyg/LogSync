@@ -1,7 +1,7 @@
-host: op.chindeo.com # 地址
+host: test.op.com # 地址
 appid: dsfdsfdsf # 接口id
 appsecret: sdfsdfsdfdsfsdfsdf #接口密钥
-db: visible:Chindeo@tcp(10.0.0.23:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
+db: visible:Chindeo@tcp(127.0.0.1:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local # mysql
 timeout: 5
 timeover: 10
 dir:
@@ -15,7 +15,7 @@ isresizeimg: false
 devicesize: 10 # 每次同步设备数量，一次同步太多数据会超过nginx 最大缓存设置
 
 ftp:
-  ip: 10.0.0.23
+  ip: 127.0.0.1 #10.0.0.23
   username: admin
   password: Chindeo
 restful:
@@ -31,9 +31,14 @@ web:
   #护理白板账号密码
   account: administrator
   password: 123456
-  inDir: D:/App/data/log
+  indir: D:/App/data/log
 
 android:
   account: root
   password: Chindeo
-  inDir: /sdcard/chindeo_app/log
+  indir: /sdcard/chindeo_app/log
+
+faultmsg:
+  device: 设备异常
+  plugin: 插件异常
+  logsync: 日志同步异常

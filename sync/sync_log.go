@@ -3,9 +3,11 @@ package sync
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/snowlyg/LogSync/utils/logging"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,40 +18,53 @@ import (
 	"github.com/snowlyg/LogSync/utils"
 )
 
-// 日志信息同步接口
-//http://fyxt.t.chindeo.com/platform/report/device
-//
-
-//'device_code.require'       => '设备编码不能为空！',  string
-//'fault_msg.require'         => '故障信息不能为空！',  string
-//'create_at.require'         => '创建时间不能为空！' 时间格式
-//'dir_name.require'          => '目录名称' 时间格式
-
-var logMsgs []*models.LogMsg // 日志
-var logCodes []string        // 日志
-var loggerD *logging.Logger
-
 type FaultMsg struct {
 	Name    string
 	Content string
 	Time    string
 }
 
-// fault.log 文件
-type FaultLog struct {
-	AppType        string `json:"appType"`
+type Plugin struct {
+	Code   string `json:"code"`
+	Reason string `json:"reason"`
+}
+
+type LogMsg struct {
+	DevIp          string `json:"device_ip"` // 服务id
+	DevType        int64  `json:"device_type_id"`
+	DirName        string `json:"dir_name"`    //系统类型，bis/nis/nws
+	DeviceCode     string `json:"device_code"` //设备编码
+	FaultMsg       string `json:"fault_msg"`   //故障信息
+	StatusMsg      string `json:"wechat_msg"`  //状态信息
+	DeviceImg      string `json:"device_img"`  //设备截图
+	Status         bool   `json:"status"`      //故障类型，设备掉线，程序关闭，程序异常
+	LogAt          string `json:"log_at"`      //记录时间
 	Call           string `json:"call"`
 	Face           string `json:"face"`
 	Interf         string `json:"interf"`
 	Iptv           string `json:"iptv"`
-	IsBackground   string `json:"isBackground"`
-	IsEmptyBed     string `json:"isEmptyBed"`
-	IsMainActivity string `json:"isMainActivity"`
+	IsBackground   string `json:"is_background"`
+	IsEmptyBed     string `json:"is_empty_bed"`
+	IsMainActivity string `json:"is_main_activity"`
 	Mqtt           string `json:"mqtt"`
 	Timestamp      string `json:"timestamp"`
 }
 
-// fault.txt 文件
+// fault.log 文件内容 bis:床旁 nws: 护士站主机  webapp:门旁
+type FaultLog struct {
+	AppType        string `json:"appType"`
+	Call           Plugin `json:"call"`
+	Face           Plugin `json:"face"`
+	Interf         Plugin `json:"interf"`
+	Iptv           Plugin `json:"iptv"`
+	IsBackground   bool   `json:"isBackground"`
+	IsEmptyBed     bool   `json:"isEmptyBed"`
+	IsMainActivity bool   `json:"isMainActivity"`
+	Mqtt           Plugin `json:"mqtt"`
+	Timestamp      string `json:"timestamp"`
+}
+
+// fault.txt 文件内容  nis : 护理大屏
 type FaultTxt struct {
 	Reason    string `json:"reason"`
 	Mqtt      string `json:"mqtt"`
@@ -58,9 +73,9 @@ type FaultTxt struct {
 
 // 扫描设备日志
 func SyncDeviceLog() {
-	loggerD = logging.GetMyLogger("device")
-	logMsgs = nil
-	logCodes = nil
+	loggerD := logging.GetMyLogger("device")
+	var logMsgs []*LogMsg
+	var logCodes []string
 	loggerD.Infof("<========================>")
 	loggerD.Infof("日志监控开始")
 
@@ -74,42 +89,51 @@ func SyncDeviceLog() {
 		return
 	}
 
+	// 远程设备信息
 	remoteDevices, _ := utils.GetDevices()
 	for _, device := range devices {
+		// 是否在远程监控范围，远程可设置监控范围
 		remoteDevice := getDeviceByCode(remoteDevices, device.DevCode)
 		if remoteDevice == nil {
 			loggerD.Errorf("当前设备 >>> %v ", device.DevCode, "跳过日志检查")
 			continue
 		}
+		// 获取设备类型编码
 		deviceDir, err := utils.GetDeviceDir(device.DevType)
 		if err != nil {
 			loggerD.Errorf("GetDeviceDir", err)
 		}
+
 		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v ：%v：%v", device.DevType, deviceDir, device.DevCode))
 
-		var logMsg models.LogMsg
-		logMsg.DeviceCode = device.DevCode
-		logMsg.DirName = deviceDir
-		logMsg.Status = true
-		logMsg.DevStatus = device.DevStatus
-		logMsg.LogAt = time.Now().In(getLocation()).Format("2006-01-02 15:04:05")
-		if remoteDevice != nil {
-			logMsg.UpdateAt = remoteDevice.LogAt.In(getLocation())
+		location, err := getLocation()
+		if err != nil {
+			loggerD.Errorf("get location ", err)
 		}
+		logMsg := &LogMsg{
+			DevIp:      device.DevIp,
+			DevType:    device.DevType,
+			DeviceCode: device.DevCode,
+			DirName:    deviceDir,
+			Status:     true,
+			LogAt:      time.Now().In(location).Format(utils.DateTimeLayout),
+		}
+
 		// 设备类型不在日志扫描范围内
-		// PDA 走廊屏 墨水瓶等设备
+		//  PDA 走廊屏 墨水瓶等设备
 		if deviceDir == "other" || deviceDir == "" {
-			addLogs(&logMsg)
+			logMsgs = append(logMsgs, logMsg)
 			continue
 		}
 		// 扫描日志
-		getDirs(device.DevIp, logMsg, device)
+		getDirs(logMsg, loggerD)
+		logMsgs = append(logMsgs, logMsg)
 	}
 
 	var loop = 0
 	devicesize := utils.Config.Devicesize
 	for loop < len(logMsgs)/devicesize+1 {
-		var logMsgSubs []*models.LogMsg
+		var logMsgSubs []*LogMsg
 		var index = 0
 		for index < devicesize && index+loop*devicesize < len(logMsgs) {
 			msg := logMsgs[index+loop*devicesize]
@@ -137,8 +161,8 @@ func SyncDeviceLog() {
 	loggerD.Infof("日志监控结束")
 }
 
-// 循环扫描日志目录，最多层级为4层
-func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
+// 循环扫描日志目录
+func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 
 	ip := utils.Config.Ftp.Ip
 	username := utils.Config.Ftp.Username
@@ -146,7 +170,6 @@ func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
-		addLogs(&logMsg)
 		return
 	}
 	defer c.Quit()
@@ -154,49 +177,105 @@ func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
 	err = c.Login(username, password)
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("ftp 登录错误 %v", err))
-		addLogs(&logMsg)
 		return
 	}
 
-	logPath := fmt.Sprintf("%s/%s/%s/%s", utils.Config.Root, logMsg.DirName, logMsg.DeviceCode, time.Now().Format("2006-01-02"))
-	err = cmdDir(c, logPath)
+	logPath := fmt.Sprintf("%s/%s/%s/%s", utils.Config.Root, logMsg.DirName, logMsg.DeviceCode, time.Now().Format(utils.DateLayout))
+	err = cmdDir(c, loggerD, logPath)
 	if err != nil {
-		loggerD.Infof("没有创建设备当天日志目录 ", logPath, " 错误： ", err)
+		loggerD.Infof("ftp 进入路径 ", logPath, " 出错 ", err)
 		// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
 		if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
-			pingMsg := utils.GetPingMsg(devIp)
-			sendEmptyMsg(&logMsg, fmt.Sprintf("没有创建设备当天日志目录: %s", pingMsg))
-			return
+			if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
+				msg := fmt.Sprintf("【%s】ftp日志路径 %s 访问失败; %s", utils.Config.Faultmsg.Device, logPath, pingMsg)
+				logMsg.StatusMsg = msg
+				logMsg.Status = false
+				loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
+				return
+			} else {
+				checkLogOverFive(logMsg, loggerD) // 日志超时
+				return
+			}
 		}
 	}
 
 	var faultMsgs []*FaultMsg
-	ss, err := c.List(getCurrentDir(c))
+	ss, err := c.List(getCurrentDir(c, loggerD))
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("获取文件/文件夹列表出错：%v", err))
-		addLogs(&logMsg)
 		return
 	}
 
+	if len(ss) == 0 {
+		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
+			msg := fmt.Sprintf("【%s】服务器日志没有文件 %s", utils.Config.Faultmsg.Device, pingMsg)
+			logMsg.StatusMsg = msg
+			logMsg.Status = false
+			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
+			return
+		} else {
+			checkLogOverFive(logMsg, loggerD) // 日志超时
+			return
+		}
+	}
+
+	location, err := getLocation()
+	if err != nil {
+		loggerD.Errorf("get location ", err)
+	}
+
+	isOverTime := false
+	isSyncTime := true
+	syncTimeMsg := ""
+	overTimeMsg := ""
 	for _, s := range ss {
-		// 文件后缀
+		// 需要扫描的文件
 		extStr := utils.Config.Exts
 		names := strings.Split(extStr, ",")
-		// 图片后缀
+		// 需要扫描的图片
 		imgExtStr := utils.Config.Imgexts
 		imgExts := strings.Split(imgExtStr, ",")
 
 		if utils.InStrArray(s.Name, names) { // 设备日志文件
+			fileData, err := getFileContent(c, s.Name)
+			if err != nil {
+				continue
+			}
+			err = getPluginsInfo(s.Name, fileData, logMsg)
+			if err != nil {
+				continue
+			}
+			// 服务器时间是否同步
+			if isSyncTime {
+				var subT float64
+				if isSyncTime, subT, err = checkSyncTime(logMsg.Timestamp, s.Time); err != nil {
+					continue
+				}
+				syncTimeMsg = fmt.Sprintf("日志记录时间 %s ;服务器时间 %s ;偏差 %f 分钟", logMsg.Timestamp, s.Time.In(location).Format(utils.DateTimeLayout), subT)
+			}
+			//有超时跳过检查
+			if !isOverTime && isSyncTime {
+				var subT float64
+				if isOverTime, subT, err = checkOverTime(logMsg.Timestamp); err != nil {
+					continue
+				}
+				overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %f 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+			}
 			faultMsg := new(FaultMsg)
 			faultMsg.Name = s.Name
-			faultMsg.Content = string(getFileContent(c, s.Name))
-			faultMsg.Time = s.Time.In(getLocation()).Format("2006-01-02 15:04:05")
+			faultMsg.Content = string(fileData)
+			faultMsg.Time = s.Time.In(location).Format(utils.DateTimeLayout)
 			faultMsgs = append(faultMsgs, faultMsg)
+
 		} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
+			fileData, err := getFileContent(c, s.Name)
+			if err != nil {
+				continue
+			}
 			imgDir := utils.Config.Outdir
 			path := fmt.Sprintf("%simg/%s.png", imgDir, logMsg.DeviceCode)
 			newPath := fmt.Sprintf("%simg/%s_%s.png", imgDir, logMsg.DeviceCode, "new")
-			imgContent := getFileContent(c, s.Name)
+			imgContent := fileData
 			isResizeImg := utils.Config.Isresizeimg
 
 			if isResizeImg && s.Size/1024 > 500 {
@@ -224,6 +303,31 @@ func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
 		}
 	}
 
+	// 设备与服务器时间不一致
+	// 设备异常
+	if !isSyncTime {
+		msg := fmt.Sprintf("【%s】服务器时间和日志记录时间不一致; %s", utils.Config.Faultmsg.Device, syncTimeMsg)
+		logMsg.StatusMsg = msg
+		logMsg.Status = false
+		loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
+		return
+	}
+
+	// 超时尝试 ping 设备
+	// 日志异常
+	if isOverTime {
+		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
+			msg := fmt.Sprintf("【%s】%s;%s", utils.Config.Faultmsg.Device, overTimeMsg, pingMsg)
+			logMsg.StatusMsg = msg
+			logMsg.Status = false
+			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
+			return
+		} else {
+			checkLogOverFive(logMsg, loggerD)
+			return
+		}
+	}
+
 	if faultMsgs != nil {
 		faultMsgsJson, err := json.Marshal(faultMsgs)
 		if err != nil {
@@ -231,56 +335,35 @@ func getDirs(devIp string, logMsg models.LogMsg, device *models.CfDevice) {
 		}
 
 		logMsg.FaultMsg = string(faultMsgsJson)
-		if logMsg.UpdateAt.IsZero() { //如果信息有更新就存储，并推送
-			addLogs(&logMsg)
-			loggerD.Infof(fmt.Sprintf("%s: 初次记录设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
-			return
-		} else {
-			subT := time.Now().Sub(logMsg.UpdateAt)
-			loggerD.Infof(fmt.Sprintf("日志超时时间：%v", subT))
-			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
-				checkLogOverFive(logMsg, device) // 日志超时
-			} else {
-				addLogs(&logMsg)
-			}
-
-			return
-		}
+		loggerD.Infof(fmt.Sprintf("设备 %s 日志解析完成", logMsg.DeviceCode))
+		return
 
 	} else {
-		if !logMsg.UpdateAt.IsZero() { //如果信息有更新就存储，并推送
-			subT := time.Now().Sub(logMsg.UpdateAt)
-			loggerD.Infof(fmt.Sprintf("日志超时时间_1：%v", subT))
-			if subT.Minutes() >= 15 && time.Now().Hour() != 0 {
-				checkLogOverFive(logMsg, device) // 日志超时
-				return
-			}
+		// 日志异常
+		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
+			msg := fmt.Sprintf("【%s】没有生成日志;%s", utils.Config.Faultmsg.Device, pingMsg)
+			logMsg.StatusMsg = msg
+			logMsg.Status = false
+			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
+			return
+		} else {
+			checkLogOverFive(logMsg, loggerD)
 		}
 	}
 
 }
 
 // 获取时区
-func getLocation() *time.Location {
+func getLocation() (*time.Location, error) {
 	location, err := time.LoadLocation("Local")
 	if err != nil {
-		loggerD.Errorf(fmt.Sprintf("时区设置错误 %v", err))
+		return location, nil
 	}
-	if location == nil {
-		loggerD.Errorf(fmt.Sprintf("时区设置为空"))
-	}
-	return location
-}
-
-// 日志为空，或者目录不存在
-func sendEmptyMsg(logMsg *models.LogMsg, msg string) {
-	logMsg.StatusMsg = msg
-	logMsg.Status = false
-	addLogs(logMsg)
+	return location, nil
 }
 
 // 当前路径
-func getCurrentDir(c *ftp.ServerConn) string {
+func getCurrentDir(c *ftp.ServerConn, loggerD *logging.Logger) string {
 	dir, err := c.CurrentDir()
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("获取当前文件夹出错：%v", err))
@@ -293,224 +376,157 @@ func getCurrentDir(c *ftp.ServerConn) string {
 }
 
 // 日志超时未上传
-func checkLogOverFive(logMsg models.LogMsg, device *models.CfDevice) {
+func checkLogOverFive(logMsg *LogMsg, loggerD *logging.Logger) {
 	loggerD.Infof(fmt.Sprintf(">>> 日志记录超时,开始排查错误"))
+	loggerD.Infof(fmt.Sprintf("dev_id : %s /dev_code : %s", logMsg.DevIp, logMsg.DeviceCode))
 	if logMsg.DirName == "nis" { // 大屏
 		loggerD.Infof(fmt.Sprintf(">>> 开始排查大屏"))
-		webAccount := utils.Config.Web.Account
-		webPassword := utils.Config.Web.Password
-		if len(strings.TrimSpace(device.DevIp)) == 0 {
-			logMsg.Status = false
-			if len(logMsg.FaultMsg) == 0 {
-				logMsg.StatusMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
-			}
-			//saveOrUpdate(&logMsg, oldMsg)
-			addLogs(&logMsg)
-			loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
-			return
-		}
 		// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
-		inDir := utils.Config.Web.Indir
-		idir := fmt.Sprintf("%s/%s/%s/%s/", inDir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format("2006-01-02"))
-		pscpDevice(logMsg, webPassword, webAccount, idir, device.DevIp)
+		dir := fmt.Sprintf("%s/%s/%s/%s/", utils.Config.Web.Indir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format(utils.DateLayout))
+		pscpDevice(logMsg, loggerD, utils.Config.Web.Password, utils.Config.Web.Account, dir, logMsg.DevIp)
 		loggerD.Infof(fmt.Sprintf(">>> 大屏排查结束"))
 		// 安卓设备
-	} else if utils.InStrArray(logMsg.DirName, []string{"nis", "nws", "webapp"}) {
+	} else if utils.InStrArray(logMsg.DirName, []string{"bis", "nws", "webapp"}) {
 		loggerD.Infof(fmt.Sprintf(">>> 开始排查安卓设备"))
-		androidAccount := utils.Config.Android.Account
-		androidPassword := utils.Config.Android.Password
-		if len(strings.TrimSpace(device.DevIp)) == 0 {
-			logMsg.Status = false
-			if len(logMsg.FaultMsg) == 0 {
-				logMsg.StatusMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;设备ip：%s 错误", device.DevIp)
-			}
-			//saveOrUpdate(&logMsg, oldMsg)
-			addLogs(&logMsg)
-			loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
-			return
-		}
-		if len(strings.TrimSpace(device.DevIp)) > 0 {
-			loggerD.Infof(fmt.Sprintf("dev_id : %s /dev_code : %s", device.DevIp, logMsg.DeviceCode))
-
-			// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
-			inDir := utils.Config.Android.Indir
-			idir := fmt.Sprintf("%s/%s/", inDir, time.Now().Format("2006-01-02"))
-
-			pscpDevice(logMsg, androidPassword, androidAccount, idir, device.DevIp)
-
-		}
+		// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
+		dir := fmt.Sprintf("%s/%s/", utils.Config.Android.Indir, time.Now().Format(utils.DateLayout))
+		pscpDevice(logMsg, loggerD, utils.Config.Android.Password, utils.Config.Android.Account, dir, logMsg.DevIp)
 		loggerD.Infof(fmt.Sprintf(">>> 安卓设备排查结束"))
+	} else {
+		loggerD.Infof(fmt.Sprintf("未设置排查类型 %s", logMsg.DirName))
 	}
+
 	loggerD.Infof(fmt.Sprintf("日志记录超时,排查错误完成"))
 }
 
 // 使用 pscp 获取设备上的日志
-func pscpDevice(logMsg models.LogMsg, password, account, idir, ip string) {
-	odir := createOutDir(logMsg)
-
-	err := os.RemoveAll(odir)
+func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir, ip string) {
+	loggerD.Infof(fmt.Sprintf("开始执行远程复制日志操作"))
+	defer loggerD.Infof(fmt.Sprintf("结束执行远程复制日志操作"))
+	logMsg.Status = false
+	logMsg.StatusMsg = fmt.Sprintf("【%s】设备 %s(%s) 可以访问;", utils.Config.Faultmsg.Logsync, logMsg.DeviceCode, logMsg.DevIp)
+	oDir := createOutDir(logMsg.DirName, logMsg.DeviceCode, loggerD)
+	err := os.RemoveAll(oDir)
 	if err != nil {
-		loggerD.Errorf(fmt.Sprintf("%s: RemoveAll %s ", odir, err))
+		loggerD.Errorf(fmt.Sprintf("%s: RemoveAll %s ", oDir, err))
+		return
 	}
 
-	args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, idir), odir}
+	args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
 	cmd := exec.Command("pscp", args...)
-	loggerD.Infof(fmt.Sprintf("cmd： %v", cmd))
+	loggerD.Infof(fmt.Sprintf("%+v", cmd))
 	cmd.Stdin = strings.NewReader("y")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		loggerD.Infof(fmt.Sprintf("pscp %v  执行出错 %v", args, err))
-		if len(logMsg.FaultMsg) == 0 {
-			logMsg.FaultMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通; pscp:%s", err)
-		}
-		logMsg.Status = false
-		//saveOrUpdate(&logMsg, oldMsg)
-		addLogs(&logMsg)
-		loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
+		loggerD.Infof(fmt.Sprintf("%+v  cmd.StdoutPipe %+v", cmd, err))
 		return
 	}
 	defer stdout.Close()
 
 	if err := cmd.Start(); err != nil {
-		loggerD.Infof(fmt.Sprintf("%v 执行出错 %v", cmd, err))
-		if len(logMsg.FaultMsg) == 0 {
-			logMsg.StatusMsg = fmt.Sprintf("设备超过15分钟未上报日志到FTP,并且PING不通;%v :%s", cmd, err)
-		}
-		logMsg.Status = false
-		//saveOrUpdate(&logMsg, oldMsg)
-		addLogs(&logMsg)
-		loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息成功", time.Now().String(), logMsg.DeviceCode))
+		loggerD.Infof(fmt.Sprintf("%+v cmd.Start() %+v", cmd, err))
 		return
-	} else {
-		time.Sleep(2 * time.Second)
-		logFiles, err := utils.ListDir(odir, "log")
-		if err != nil {
-			loggerD.Infof(fmt.Sprintf("%s 获取日志文件 出错： %v ", time.Now().Format("2006-01-02 15:04:05"), err))
-		}
-
-		var faultMags []*FaultMsg
-		for _, fileName := range logFiles {
-			if file, err := utils.OpenFile(fileName); err == nil {
-				faultMsg := new(FaultMsg)
-				faultMsg.Name = fileName
-				faultMsg.Content = string(file)
-				faultMags = append(faultMags, faultMsg)
-
-				if strings.ContainsAny(fileName, "fault.log") {
-					var faultLog FaultLog
-					err := json.Unmarshal(file, &faultLog)
-					if err != nil {
-						loggerD.Errorf("FaultLog json.Unmarshal error：%v", err)
-					}
-
-					timestamp, err := time.Parse("2006-01-02 15:04:05", faultLog.Timestamp)
-					if err != nil {
-						loggerD.Errorf(" time.Parse error：%v", err)
-					}
-
-					subT := time.Now().Sub(timestamp)
-					if subT.Minutes() >= 10 {
-						emptyLogRe(logMsg)
-						return
-					}
-
-				} else if strings.ContainsAny(fileName, "fault.txt") {
-					var faultTxt FaultTxt
-					err := json.Unmarshal(file, &faultTxt)
-					if err != nil {
-						loggerD.Errorf("FaultLog json.Unmarshal error：%v", err)
-					}
-
-					timestamp, err := time.Parse("2006-01-02 15:04:05", faultTxt.Timestamp)
-					if err != nil {
-						loggerD.Errorf(" time.Parse error：%v", err)
-					}
-
-					subT := time.Now().Sub(timestamp)
-					if subT.Minutes() >= 10 {
-						emptyLogRe(logMsg)
-						return
-					}
-				}
-			}
-		}
-
-		if faultMags != nil {
-			faultMsgsJson, err := json.Marshal(faultMags)
-			if err != nil {
-				loggerD.Errorf(fmt.Sprintf("JSON 化数据出错 %v", err))
-			}
-
-			logMsg.FaultMsg = string(faultMsgsJson)
-		}
-
-		if logMsg.FaultMsg != "" {
-			logMsg.Status = true
-			//saveOrUpdate(&logMsg, oldMsg)
-			addLogs(&logMsg)
-			loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
-		} else {
-			emptyLogRe(logMsg)
-		}
 	}
-}
 
-// 没有生成日志的逻辑
-func emptyLogRe(logMsg models.LogMsg) {
-	logMsg.StatusMsg = "设备超过15分钟未上报日志到FTP,并且设备上也没有生成日志"
-	logMsg.Status = false
-	//saveOrUpdate(&logMsg, oldMsg)
-	addLogs(&logMsg)
-	loggerD.Infof(fmt.Sprintf("%s: 扫描设备 %s  错误信息完成", time.Now().String(), logMsg.DeviceCode))
+	time.Sleep(2 * time.Second)
+
+	logFiles, err := utils.ListDir(oDir, "log")
+	if err != nil {
+		loggerD.Infof(fmt.Sprintf("从路径 %s 获取日志文件出错 %v ", oDir, err))
+		return
+	}
+
+	// 没有文件
+	if len(logFiles) == 0 {
+		msg := "设备内没有生成新的日志"
+		logMsg.StatusMsg += msg
+		loggerD.Infof(msg)
+		return
+	}
+
+	isOverTime := false
+	overTimeMsg := ""
+	var faultMags []*FaultMsg
+	for _, fileName := range logFiles {
+		file, err := utils.OpenFile(fileName)
+		if err != nil {
+			continue
+		}
+		err = getPluginsInfo(fileName, file, logMsg)
+		if err != nil {
+			continue
+		}
+		if !isOverTime {
+			var subT float64
+			isOverTime, subT, err = checkOverTime(logMsg.Timestamp)
+			if err != nil {
+				continue
+			}
+			location, err := getLocation()
+			if err != nil {
+				loggerD.Errorf("get location ", err)
+			}
+			overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %f 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+		}
+
+		faultMsg := new(FaultMsg)
+		faultMsg.Name = fileName
+		faultMsg.Content = string(file)
+		faultMags = append(faultMags, faultMsg)
+	}
+
+	if isOverTime {
+		logMsg.StatusMsg += overTimeMsg
+		logMsg.Status = false
+		return
+	}
+
+	logMsg.FaultMsg += "设备内正常生成了日志"
 }
 
 // 创建目录
-func createOutDir(logMsg models.LogMsg) string {
+func createOutDir(dirName, deviceCode string, loggerD *logging.Logger) string {
 	outDir := utils.Config.Outdir
-	odir := fmt.Sprintf("%s/other_logs/%s/%s/%s", outDir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format("2006-01-02"))
+	oDir := fmt.Sprintf("%s/other_logs/%s/%s/%s", outDir, dirName, deviceCode, time.Now().Format(utils.DateLayout))
 
-	if !utils.Exist(odir) {
-		err := utils.CreateDir(odir)
+	if !utils.Exist(oDir) {
+		err := utils.CreateDir(oDir)
 		if err != nil {
-			loggerD.Errorf(fmt.Sprintf("%s 文件夹创建错误： %v", odir, err))
+			loggerD.Errorf(fmt.Sprintf("%s 文件夹创建错误： %v", oDir, err))
 		}
 	}
-	return odir
+	return oDir
 }
 
 // 获取文件内容
-func getFileContent(c *ftp.ServerConn, name string) []byte {
+func getFileContent(c *ftp.ServerConn, name string) ([]byte, error) {
 	r, err := c.Retr(name)
 	if err != nil {
-		loggerD.Errorf(fmt.Sprintf("Retr 文件内容出错 Error: %s  ", err))
+		return nil, err
 	}
 	defer r.Close()
 
 	var buf []byte
 	buf, err = ioutil.ReadAll(r)
 	if err != nil {
-		loggerD.Errorf(fmt.Sprintf("获取文件内容出错  Error: %s  ", err))
+		return nil, err
 	}
 
-	return buf
-}
-
-// addLogs 添加日志
-func addLogs(logMsg *models.LogMsg) {
-	logMsgs = append(logMsgs, logMsg)
+	return buf, nil
 }
 
 // 进入下级目录
-func cmdDir(c *ftp.ServerConn, root string) error {
+func cmdDir(c *ftp.ServerConn, loggerD *logging.Logger, root string) error {
 	err := c.ChangeDir(root)
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("进入下级目录出错：%v", err))
 		return err
 	}
-	getCurrentDir(c)
+	getCurrentDir(c, loggerD)
 	return nil
 }
 
+// 获取远程设备信息
 func getDeviceByCode(remoteDevices []*utils.Device, code string) *utils.Device {
 	for _, device := range remoteDevices {
 		if device.DevCode == code {
@@ -519,4 +535,158 @@ func getDeviceByCode(remoteDevices []*utils.Device, code string) *utils.Device {
 	}
 
 	return nil
+}
+
+// 判断日志是否超时
+func checkOverTime(timeTxt string) (bool, float64, error) {
+	location, err := getLocation()
+	if err != nil {
+		return true, 0, err
+	}
+	timestamp, err := getTimestamp(timeTxt)
+	if err != nil {
+		return true, 0, err
+	}
+	subT := time.Now().In(location).Sub(timestamp)
+	if subT.Minutes() > 15 {
+		return true, subT.Minutes(), nil
+	}
+
+	return false, 0, nil
+}
+
+// 判断日志是否超时
+func checkSyncTime(timetxt string, txtTime time.Time) (bool, float64, error) {
+	location, err := getLocation()
+	if err != nil {
+		return true, 0, err
+	}
+	timestamp, err := getTimestamp(timetxt)
+	if err != nil {
+		return true, 0, err
+	}
+	subT := txtTime.In(location).Sub(timestamp)
+	if math.Abs(subT.Minutes()) > 5 {
+		return false, math.Abs(subT.Minutes()), nil
+	}
+
+	return true, 0, nil
+}
+
+func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
+	if strings.Contains(fileName, "fault.log") {
+		faultLog, err := getFaultLog(file)
+		if err != nil {
+			return err
+		}
+		logMsg.Call = faultLog.Call.Reason
+		logMsg.Face = faultLog.Face.Reason
+		logMsg.Interf = faultLog.Interf.Reason
+		logMsg.Iptv = faultLog.Iptv.Reason
+		logMsg.IsBackground = getBoolToInt(faultLog.IsBackground)
+		logMsg.IsEmptyBed = getBoolToInt(faultLog.IsEmptyBed)
+		logMsg.IsMainActivity = getBoolToInt(faultLog.IsMainActivity)
+		logMsg.Mqtt = faultLog.Mqtt.Reason
+		logMsg.Timestamp = faultLog.Timestamp
+
+		if logMsg.DevType == 1 || (logMsg.DevType >= 5 && logMsg.DevType <= 10) || logMsg.IsBackground == "1" {
+			return nil
+		}
+
+		if codeIsError(faultLog.Call.Code) && faultLog.Call.Code != "3" {
+			logMsg.Status = false
+			logMsg.StatusMsg += fmt.Sprintf("插件(call): %s", faultLog.Call.Reason)
+		}
+
+		// 护士站主机,门旁没有iptv,interf
+		if logMsg.DevType != 4 && logMsg.DevType != 3 {
+			if codeIsError(faultLog.Interf.Code) {
+				logMsg.Status = false
+				logMsg.StatusMsg += fmt.Sprintf("插件(interf): %s", faultLog.Interf.Reason)
+			}
+			if codeIsError(faultLog.Iptv.Code) {
+				logMsg.Status = false
+				logMsg.StatusMsg += fmt.Sprintf("插件(iptv): %s", faultLog.Iptv.Reason)
+			}
+		}
+		// 护士站主机没有face
+		if logMsg.DevType != 4 {
+			if codeIsError(faultLog.Face.Code) && faultLog.Face.Code != "0" {
+				logMsg.Status = false
+				logMsg.StatusMsg += fmt.Sprintf("插件(face): %s", faultLog.Face.Reason)
+			}
+		}
+		// 门旁 没有 mqtt
+		if logMsg.DevType != 3 {
+			if codeIsError(faultLog.Mqtt.Code) {
+				logMsg.Status = false
+				logMsg.StatusMsg += fmt.Sprintf("插件(mqtt): %s", faultLog.Mqtt.Reason)
+			}
+		}
+
+	} else if strings.Contains(fileName, "fault.txt") {
+		faultTxt, err := getFaultTxt(file)
+		if err != nil {
+			return err
+		}
+		if faultTxt.Mqtt == "false" {
+			logMsg.Status = false
+			logMsg.StatusMsg = fmt.Sprintf("插件(mqtt): %s", faultTxt.Reason)
+		}
+		logMsg.Mqtt = faultTxt.Reason
+		logMsg.Timestamp = faultTxt.Timestamp
+	}
+	return nil
+}
+
+//设备状态码不是:1,200,999 的时候报错
+func codeIsError(code string) bool {
+	if code != "1" && code != "200" && code != "999" {
+		return true
+	}
+
+	return false
+}
+
+func getFaultLog(file []byte) (*FaultLog, error) {
+	var faultLog FaultLog
+	err := json.Unmarshal(file, &faultLog)
+	if err != nil {
+		return nil, err
+	}
+	return &faultLog, nil
+}
+
+func getBoolToInt(b bool) string {
+	if b {
+		return "1"
+	} else {
+		return "2"
+	}
+}
+
+func getFaultTxt(file []byte) (*FaultTxt, error) {
+	var faultTxt FaultTxt
+	err := json.Unmarshal(file, &faultTxt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &faultTxt, nil
+}
+
+func getTimestamp(ts string) (time.Time, error) {
+	if ts == "" {
+		return time.Time{}, errors.New("时间为空")
+	}
+	location, err := getLocation()
+	if err != nil {
+		return time.Time{}, err
+	}
+	timestamp, err := time.ParseInLocation(utils.DateTimeLayout, ts, location)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return timestamp, nil
 }

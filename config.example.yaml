@@ -31,9 +31,14 @@ web:
   #护理白板账号密码
   account: administrator
   password: 123456
-  inDir: D:/App/data/log
+  indir: D:/App/data/log
 
 android:
   account: root
   password: Chindeo
-  inDir: /sdcard/chindeo_app/log
+  indir: /sdcard/chindeo_app/log
+
+faultmsg:
+  device: 设备异常
+  plugin: 插件异常s
+  logsync: 日志同步异常

@@ -11,6 +11,13 @@ import (
 // nws 护士站主机
 // webapp 门旁
 func getDirs() (map[string]string, error) {
+	if len(Config.Dir.Names) == 0 {
+		return nil, errors.New("设备类型名称配置为空")
+	}
+	if len(Config.Dir.Codes) == 0 {
+		return nil, errors.New("设备类型代码配置为空")
+	}
+
 	names := strings.Split(Config.Dir.Names, ",")
 	codes := strings.Split(Config.Dir.Codes, ",")
 	if len(names) == 0 {

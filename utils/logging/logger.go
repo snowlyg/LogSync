@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"io"
 	"log"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/opentracing/opentracing-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

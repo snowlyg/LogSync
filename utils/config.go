@@ -49,9 +49,14 @@ var Config = struct {
 		Password string `default:"" env:"AndroidPassword"`
 		Indir    string `default:"" env:"AndroidIndir"`
 	}
+	Faultmsg struct {
+		Device  string `default:"" env:"FaultmsgDevice"`
+		Plugin  string `default:"" env:"FaultmsgPlugin"`
+		Logsync string `default:"" env:"FaultmsgLogsync"`
+	}
 }{}
 
-func init() {
+func InitConfig() {
 	if err := configor.Load(&Config, ConfigFile()); err != nil {
 		panic(fmt.Sprintf("Config Path:%s ,Error:%+v\n", ConfigFile(), err))
 	}

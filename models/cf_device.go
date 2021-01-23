@@ -1,19 +1,10 @@
 package models
 
 import (
-	"errors"
 	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/snowlyg/LogSync/utils"
 )
-
-//dev_id as local_device_id,
-//dev_code as device_code,
-//dev_desc as device_desc,
-//dev_position as device_position ,
-//dev_type as device_type_id,
-//dev_ip as device_ip,
-//dev_active as device_active,
-//dev_create_time as create_at
 
 type CfDevice struct {
 	DevId         int64  `json:"local_device_id" gorm:"column:dev_id"`                        // 服务id
@@ -50,11 +41,12 @@ func GetCfDevice() ([]*CfDevice, error) {
 	query += " left join pac_bed on pac_bed.bed_id = cf_device.pac_bed_id"
 	query += " where cf_device.dev_active = '1'"
 
-	rows, _ := sqlDb.Raw(query).Rows()
-	defer rows.Close()
-	if rows == nil {
-		return nil, errors.New("get 0 data")
+	rows, err := sqlDb.Raw(query).Rows()
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		var cfDevice CfDevice
 		sqlDb.ScanRows(rows, &cfDevice)

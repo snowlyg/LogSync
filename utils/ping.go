@@ -138,13 +138,13 @@ func stat(ip string, sendN int, lostN int, recvN int, shortT int, longT int, sum
 	}
 }
 
-func GetPingMsg(devIp string) string {
+func GetPingMsg(devIp string) (bool, string) {
 	if devIp == "" {
-		return "设备 ip 为空"
+		return false, "设备ip为空，请检查设备是否绑定ip"
 	}
 	if ping(devIp) == 100 {
-		return fmt.Sprintf("设备ip(%s)无法访问", devIp)
+		return false, fmt.Sprintf("设备ip(%s)无法访问", devIp)
 	} else {
-		return fmt.Sprintf("设备ip(%s)可正常访问，请及时检查设备应用状态", devIp)
+		return true, fmt.Sprintf("设备ip(%s)可正常访问，请及时检查设备应用状态", devIp)
 	}
 }

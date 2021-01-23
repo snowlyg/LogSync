@@ -11,6 +11,9 @@ import (
 )
 
 func CWD() string {
+	if os.Getenv("LogSyncConfigPath") != "" {
+		return os.Getenv("LogSyncConfigPath")
+	}
 	path, err := os.Executable()
 	if err != nil {
 		return ""
@@ -18,54 +21,8 @@ func CWD() string {
 	return filepath.Dir(path)
 }
 
-func EXEName() string {
-	path, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-}
-
-func LogDir() string {
-	dir := filepath.Join(CWD(), "logs")
-	EnsureDir(dir)
-	return dir
-}
-
-var FlagVarDBFile string
-
 func ConfigFile() string {
-	if FlagVarDBFile != "" {
-		return FlagVarDBFile
-	}
-	if Exist(DBFileDev()) {
-		return DBFileDev()
-	}
 	return filepath.Join(CWD(), "config.yaml")
-}
-
-func DBFile() string {
-	if FlagVarDBFile != "" {
-		return FlagVarDBFile
-	}
-	if Exist(DBFileDev()) {
-		return DBFileDev()
-	}
-	return filepath.Join(CWD(), strings.ToLower(EXEName()+".db"))
-}
-
-func DBFileDev() string {
-	return filepath.Join(CWD(), strings.ToLower(EXEName())+".dev.db")
-}
-
-func EnsureDir(dir string) (err error) {
-	if _, err = os.Stat(dir); os.IsNotExist(err) {
-		err = os.MkdirAll(dir, 0755)
-		if err != nil {
-			return
-		}
-	}
-	return
 }
 
 func Exist(path string) bool {

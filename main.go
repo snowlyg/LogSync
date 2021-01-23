@@ -12,7 +12,7 @@ import (
 	"github.com/kardianos/service"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
-	_ "net/http/pprof"
+	//_ "net/http/pprof"
 )
 
 var Version string
@@ -136,9 +136,9 @@ func getTicker(t int64, v string) *time.Ticker {
 var Action = flag.String("action", "", "程序操作指令")
 
 func main() {
-	go func() {
-		http.ListenAndServe("localhost:6061", nil)
-	}()
+	//go func() {
+	//	http.ListenAndServe("localhost:6061", nil)
+	//}()
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [command]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Commands:\n")
@@ -147,9 +147,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "    程序操作指令\n")
 		fmt.Fprintf(os.Stderr, "\n")
 	}
-
 	flag.Parse()
-
+	utils.InitConfig()
 	// 初始化日志目录
 	svcConfig := &service.Config{
 		Name:        "LogSync",  //服务显示名称
@@ -200,46 +199,6 @@ func main() {
 			panic(err)
 		}
 		fmt.Println(fmt.Sprintf("服务停止成功"))
-		return
-	}
-
-	if *Action == "sync_device" {
-		err = utils.GetToken()
-		if err != nil {
-			fmt.Println(fmt.Sprintf("get token err %v", err))
-			return
-		}
-		sync.SyncDevice()
-		return
-	}
-
-	if *Action == "check_service" {
-		err = utils.GetToken()
-		if err != nil {
-			fmt.Println(fmt.Sprintf("get token err %v", err))
-			return
-		}
-		sync.CheckService()
-		return
-	}
-
-	if *Action == "check_device" {
-		err = utils.GetToken()
-		if err != nil {
-			fmt.Println(fmt.Sprintf("get token err %v", err))
-			return
-		}
-		sync.SyncDeviceLog()
-		return
-	}
-
-	if *Action == "check_restful" {
-		err = utils.GetToken()
-		if err != nil {
-			fmt.Println(fmt.Sprintf("get token err %v", err))
-			return
-		}
-		sync.CheckRestful()
 		return
 	}
 
