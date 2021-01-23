@@ -106,6 +106,16 @@ go build -ldflags "-w -s -X main.Version=v1.9  -o ./cmd/LogSync.exe
 CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc CXX=/usr/local/bin/x86_64-w64-mingw32-g+ go build -ldflags " -w -s -X main.Version=v2.1" -race  -o ./cmd/LogSync.exe
 ```
 
+#### 模拟日志
+- del
+- device 
+- plugin
+- real
+
+```shell script
+go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
+```
+
 #### 版本更新
 
 - v1.1 增加 pscp 输入参数 y,重启程序后不检查超时15分钟
