@@ -55,8 +55,8 @@ var Config = struct {
 		Logsync string `default:"" env:"FaultmsgLogsync"`
 	}
 	Log struct {
-		Overtime float64 `default:"15" env:"LogOvertime"`
-		Synctime float64 `default:"5" env:"LogSynctime"`
+		Overtime int64 `default:"15" env:"LogOvertime"`
+		Synctime int64 `default:"5" env:"LogSynctime"`
 	}
 }{}
 

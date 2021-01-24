@@ -181,7 +181,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 	}
 
 	logPath := fmt.Sprintf("%s/%s/%s/%s", utils.Config.Root, logMsg.DirName, logMsg.DeviceCode, time.Now().Format(utils.DateLayout))
-	err = cmdDir(c, loggerD, logPath)
+	err = cmdDir(c, logPath)
 	if err != nil {
 		loggerD.Infof("ftp 进入路径 ", logPath, " 出错 ", err)
 		// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
@@ -199,8 +199,15 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		}
 	}
 
-	var faultMsgs []*FaultMsg
-	ss, err := c.List(getCurrentDir(c, loggerD))
+	dir, err := getCurrentDir(c)
+	if err != nil {
+		loggerD.Infof(fmt.Sprintf("获取文件当前路径出错：%v", err))
+		return
+	}
+
+	loggerD.Infof(fmt.Sprintf("当前路径 >>> %v", logPath))
+
+	ss, err := c.List(dir)
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("获取文件/文件夹列表出错：%v", err))
 		return
@@ -223,7 +230,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 	if err != nil {
 		loggerD.Errorf("get location ", err)
 	}
-
+	var faultMsgs []*FaultMsg
 	isOverTime := false
 	isSyncTime := true
 	syncTimeMsg := ""
@@ -247,19 +254,19 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			}
 			// 服务器时间是否同步
 			if isSyncTime {
-				var subT float64
+				var subT int64
 				if isSyncTime, subT, err = checkSyncTime(logMsg.Timestamp, s.Time); err != nil {
 					continue
 				}
-				syncTimeMsg = fmt.Sprintf("日志记录时间 %s ;服务器时间 %s ;偏差 %f 分钟", logMsg.Timestamp, s.Time.In(location).Format(utils.DateTimeLayout), subT)
+				syncTimeMsg = fmt.Sprintf("日志记录时间 %s ;服务器时间 %s ;偏差 %d 分钟", logMsg.Timestamp, s.Time.In(location).Format(utils.DateTimeLayout), subT)
 			}
 			//有超时跳过检查
 			if !isOverTime && isSyncTime {
-				var subT float64
+				var subT int64
 				if isOverTime, subT, err = checkOverTime(logMsg.Timestamp); err != nil {
 					continue
 				}
-				overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %f 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+				overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
 			}
 			faultMsg := new(FaultMsg)
 			faultMsg.Name = s.Name
@@ -354,16 +361,12 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 }
 
 // 当前路径
-func getCurrentDir(c *ftp.ServerConn, loggerD *logging.Logger) string {
+func getCurrentDir(c *ftp.ServerConn) (string, error) {
 	dir, err := c.CurrentDir()
 	if err != nil {
-		loggerD.Infof(fmt.Sprintf("获取当前文件夹出错：%v", err))
-		return ""
+		return "", err
 	}
-
-	loggerD.Infof(fmt.Sprintf("当前路径 >>> %v", dir))
-
-	return dir
+	return dir, err
 }
 
 // 日志超时未上传
@@ -396,8 +399,12 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	defer loggerD.Infof(fmt.Sprintf("结束执行远程复制日志操作"))
 	logMsg.Status = false
 	logMsg.StatusMsg = fmt.Sprintf("【%s】设备 %s(%s) 可以访问;", utils.Config.Faultmsg.Logsync, logMsg.DeviceCode, logMsg.DevIp)
-	oDir := createOutDir(logMsg.DirName, logMsg.DeviceCode, loggerD)
-	err := os.RemoveAll(oDir)
+	oDir, err := createOutDir(logMsg.DirName, logMsg.DeviceCode)
+	if err != nil {
+		loggerD.Errorf(fmt.Sprintf("createOutDir %s error %s ", oDir, err))
+		return
+	}
+	err = os.RemoveAll(oDir)
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("%s: RemoveAll %s ", oDir, err))
 		return
@@ -448,7 +455,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 			continue
 		}
 		if !isOverTime {
-			var subT float64
+			var subT int64
 			isOverTime, subT, err = checkOverTime(logMsg.Timestamp)
 			if err != nil {
 				continue
@@ -457,7 +464,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 			if err != nil {
 				loggerD.Errorf("get location ", err)
 			}
-			overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %f 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+			overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
 		}
 
 		faultMsg := new(FaultMsg)
@@ -476,17 +483,16 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 }
 
 // 创建目录
-func createOutDir(dirName, deviceCode string, loggerD *logging.Logger) string {
+func createOutDir(dirName, deviceCode string) (string, error) {
 	outDir := utils.Config.Outdir
 	oDir := fmt.Sprintf("%s/other_logs/%s/%s/%s", outDir, dirName, deviceCode, time.Now().Format(utils.DateLayout))
-
 	if !utils.Exist(oDir) {
 		err := utils.CreateDir(oDir)
 		if err != nil {
-			loggerD.Errorf(fmt.Sprintf("%s 文件夹创建错误： %v", oDir, err))
+			return "", err
 		}
 	}
-	return oDir
+	return oDir, nil
 }
 
 // 获取文件内容
@@ -506,14 +512,12 @@ func getFileContent(c *ftp.ServerConn, name string) ([]byte, error) {
 	return buf, nil
 }
 
-// 进入下级目录
-func cmdDir(c *ftp.ServerConn, loggerD *logging.Logger, root string) error {
+// 进入目录
+func cmdDir(c *ftp.ServerConn, root string) error {
 	err := c.ChangeDir(root)
 	if err != nil {
-		loggerD.Infof(fmt.Sprintf("进入下级目录出错：%v", err))
 		return err
 	}
-	getCurrentDir(c, loggerD)
 	return nil
 }
 
@@ -524,12 +528,11 @@ func getDeviceByCode(remoteDevices []*utils.Device, code string) *utils.Device {
 			return device
 		}
 	}
-
 	return nil
 }
 
 // 判断日志是否超时
-func checkOverTime(timeTxt string) (bool, float64, error) {
+func checkOverTime(timeTxt string) (bool, int64, error) {
 	location, err := utils.GetLocation()
 	if err != nil {
 		return true, 0, err
@@ -539,15 +542,16 @@ func checkOverTime(timeTxt string) (bool, float64, error) {
 		return true, 0, err
 	}
 	subT := time.Now().In(location).Sub(timestamp)
-	if subT.Minutes() > utils.Config.Log.Overtime {
-		return true, subT.Minutes(), nil
+	ceil := int64(math.Ceil(subT.Minutes()))
+	if ceil > utils.Config.Log.Overtime {
+		return true, ceil, nil
 	}
 
-	return false, 0, nil
+	return false, ceil, nil
 }
 
 // 判断日志是否超时
-func checkSyncTime(timetxt string, txtTime time.Time) (bool, float64, error) {
+func checkSyncTime(timetxt string, txtTime time.Time) (bool, int64, error) {
 	location, err := utils.GetLocation()
 	if err != nil {
 		return true, 0, err
@@ -557,13 +561,20 @@ func checkSyncTime(timetxt string, txtTime time.Time) (bool, float64, error) {
 		return true, 0, err
 	}
 	subT := txtTime.In(location).Sub(timestamp)
-	if math.Abs(subT.Minutes()) > utils.Config.Log.Synctime {
-		return false, math.Abs(subT.Minutes()), nil
+	abs := int64(math.Abs(math.Ceil(subT.Minutes())))
+	if abs > utils.Config.Log.Synctime {
+		return false, abs, nil
 	}
 
-	return true, 0, nil
+	return true, abs, nil
 }
 
+//1.isEmptyBed 空城就不报错，
+//2.code：状态码 1 200,999 都算正常 ，
+//3.1 设备类型是护士站主机 没有插件是face 或 iptv  或 interf  ，
+//3.2 设备类型是门旁 没有插件是iptv 或mqtt 或 interf
+//4.1 code：3， 插件是call 正常
+//4.2 code:0 , 插件是face 正常
 func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 	if strings.Contains(fileName, "fault.log") {
 		faultLog, err := getFaultLog(file)
@@ -579,56 +590,67 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.IsMainActivity = getBoolToInt(faultLog.IsMainActivity)
 		logMsg.Mqtt = faultLog.Mqtt.Reason
 		logMsg.Timestamp = faultLog.Timestamp
-
+		if logMsg.DevType == 0 {
+			deviceTypeId, err := utils.GetDeviceTypeId(faultLog.AppType)
+			if err != nil {
+				return err
+			}
+			logMsg.DevType = deviceTypeId
+		}
 		if logMsg.DevType >= 5 && logMsg.DevType <= 10 {
 			return nil
 		}
 
+		pluginError := true
+		statusMsg := fmt.Sprintf("【%s】", utils.Config.Faultmsg.Plugin)
 		// 门旁 没有 mqtt
 		if logMsg.DevType != 3 {
 			if codeIsError(faultLog.Mqtt.Code) {
-				logMsg.Status = false
-				logMsg.StatusMsg += fmt.Sprintf("插件(mqtt): %s", faultLog.Mqtt.Reason)
+				pluginError = false
+				statusMsg += fmt.Sprintf("插件(mqtt): %s;", faultLog.Mqtt.Reason)
 			}
-		}
-
-		if logMsg.DevType == 1 {
-			return nil
-		}
-
-		if codeIsError(faultLog.Call.Code) && faultLog.Call.Code != "3" {
-			logMsg.Status = false
-			logMsg.StatusMsg += fmt.Sprintf("插件(call): %s", faultLog.Call.Reason)
 		}
 
 		// 护士站主机,门旁没有iptv,interf
 		if logMsg.DevType != 4 && logMsg.DevType != 3 {
 			if codeIsError(faultLog.Interf.Code) {
-				logMsg.Status = false
-				logMsg.StatusMsg += fmt.Sprintf("插件(interf): %s", faultLog.Interf.Reason)
+				pluginError = false
+				statusMsg += fmt.Sprintf("插件(interf): %s;", faultLog.Interf.Reason)
 			}
 			if codeIsError(faultLog.Iptv.Code) {
-				logMsg.Status = false
-				logMsg.StatusMsg += fmt.Sprintf("插件(iptv): %s", faultLog.Iptv.Reason)
+				pluginError = false
+				statusMsg += fmt.Sprintf("插件(iptv): %s;", faultLog.Iptv.Reason)
 			}
 		}
 
 		// 护士站主机没有face
 		if logMsg.DevType != 4 {
 			if codeIsError(faultLog.Face.Code) && faultLog.Face.Code != "0" {
-				logMsg.Status = false
-				logMsg.StatusMsg += fmt.Sprintf("插件(face): %s", faultLog.Face.Reason)
+				pluginError = false
+				statusMsg += fmt.Sprintf("插件(face): %s;", faultLog.Face.Reason)
 			}
 		}
 
+		if codeIsError(faultLog.Call.Code) && faultLog.Call.Code != "3" {
+			pluginError = false
+			statusMsg += fmt.Sprintf("插件(call): %s;", faultLog.Call.Reason)
+		}
+
+		logMsg.Status = pluginError
+		logMsg.StatusMsg += statusMsg
+
 	} else if strings.Contains(fileName, "fault.txt") {
+		if logMsg.DevType == 0 {
+			logMsg.DevType = 1
+		}
 		faultTxt, err := getFaultTxt(file)
 		if err != nil {
 			return err
 		}
+
 		if faultTxt.Mqtt == "false" {
 			logMsg.Status = false
-			logMsg.StatusMsg = fmt.Sprintf("插件(mqtt): %s", faultTxt.Reason)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s", utils.Config.Faultmsg.Plugin, faultTxt.Reason)
 		}
 		logMsg.Mqtt = faultTxt.Reason
 		logMsg.Timestamp = faultTxt.Timestamp

@@ -1,30 +1,35 @@
 package main
 
 import (
+	"github.com/snowlyg/LogSync/utils"
+	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestGetPath(t *testing.T) {
-	logPaths := []string{
-		"/Users/snowlyg/ftp/admin/bis/A4580F450042",
-		"/Users/snowlyg/ftp/admin/bis/A4580F46AB32",
-		"/Users/snowlyg/ftp/admin/bis/A4580F46AB33",
-		"/Users/snowlyg/ftp/admin/bis/A4580F48337F",
-		"/Users/snowlyg/ftp/admin/bis/A4580F48337E",
-	}
+	location, _ := utils.GetLocation()
+	device1 := device{"A4580F48337E", "bis", "fault.log"}
+	device2 := device{"A4580F48337F", "bis", "fault.log"}
 	tests := []struct {
 		name string
-		want []string
+		arg  device
+		want string
 	}{
 		{
-			name: "日志文件路径集合",
-			want: logPaths,
+			name: "日志文件路径A4580F48337E",
+			arg:  device1,
+			want: filepath.Join("/Users/snowlyg/ftp/admin/log/bis/A4580F48337E", time.Now().In(location).Format(utils.DateLayout)),
+		}, {
+			name: "日志文件路径A4580F48337F",
+			arg:  device2,
+			want: filepath.Join("/Users/snowlyg/ftp/admin/log/bis/A4580F48337F", time.Now().In(location).Format(utils.DateLayout)),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetPath(); !reflect.DeepEqual(got, tt.want) {
+			if got := GetPath(tt.arg); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetPath() = %v, want %v", got, tt.want)
 			}
 		})

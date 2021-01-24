@@ -41,14 +41,14 @@ func getDirs() (map[string]string, error) {
 func GetDeviceDir(deviceTypeId int64) (string, error) {
 	dirs, err := getDirs()
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	if len(dirs) > 0 {
 		for d, dir := range dirs {
 			var typeid int
 			typeid, err = strconv.Atoi(d)
 			if err != nil {
-				return "", nil
+				return "", err
 			}
 			if int64(typeid) == deviceTypeId {
 				return dir, nil
@@ -56,4 +56,24 @@ func GetDeviceDir(deviceTypeId int64) (string, error) {
 		}
 	}
 	return "other", nil
+}
+
+// 获取日志类型目录
+func GetDeviceTypeId(deviceDir string) (int64, error) {
+	dirs, err := getDirs()
+	if err != nil {
+		return 0, err
+	}
+	if len(dirs) > 0 {
+		for d, dir := range dirs {
+			if dir == deviceDir {
+				typeid, err := strconv.Atoi(d)
+				if err != nil {
+					return 0, err
+				}
+				return int64(typeid), nil
+			}
+		}
+	}
+	return 0, nil
 }

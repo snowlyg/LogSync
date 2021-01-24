@@ -107,10 +107,10 @@ CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc
 ```
 
 #### 模拟日志
-- del
-- device 
-- plugin
-- real
+- del  删除日志文件
+- device 设备日志时间和服务器时间不一致
+- plugin 插件故障
+- real 正常
 
 ```shell script
 go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
