@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,7 +19,7 @@ import (
 	"github.com/snowlyg/LogSync/utils"
 )
 
-type FaultMsg struct {
+type FileInfo struct {
 	Name    string
 	Content string
 	Time    string
@@ -62,6 +63,20 @@ type FaultLog struct {
 	IsEmptyBed     bool   `json:"isEmptyBed"`
 	IsMainActivity bool   `json:"isMainActivity"`
 	Timestamp      string `json:"timestamp"`
+}
+
+// interface.log
+//requestType为0表示get请求，为1表示post请求，
+//postParamType为0表示post请求的参数为Map，
+//postParamType为1表示post请求的参数为Json，code为-1表示返回体为空，code为-2表示JSON解析出错
+type InterfaceLog struct {
+	Msg           string `json:"msg"`
+	PostParamJson string `json:"postParamJson"`
+	PostParamType string `json:"postParamType"`
+	Remark        string `json:"remark"`
+	RequestType   string `json:"requestType"`
+	Timestamp     string `json:"timestamp"`
+	Url           string `json:"url"`
 }
 
 // fault.txt 文件内容  nis : 护理大屏
@@ -229,7 +244,6 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 	if err != nil {
 		loggerD.Errorf("get location ", err)
 	}
-	var faultMsgs []*FaultMsg
 	isOverTime := false
 	isSyncTime := true
 	syncTimeMsg := ""
@@ -241,19 +255,12 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		// 需要扫描的图片
 		imgExtStr := utils.Config.Imgexts
 		imgExts := strings.Split(imgExtStr, ",")
-
 		if utils.InStrArray(s.Name, names) { // 设备日志文件
 			fileData, err := getFileContent(c, s.Name)
 			if err != nil {
+				loggerD.Infof(fmt.Sprintf("获取日志文件内容 %s 错误 %+v", s.Name, err))
 				continue
 			}
-
-			faultMsg := new(FaultMsg)
-			faultMsg.Name = s.Name
-			faultMsg.Content = string(fileData)
-			faultMsg.Time = s.Time.In(location).Format(utils.DateTimeLayout)
-			faultMsgs = append(faultMsgs, faultMsg)
-
 			err = getPluginsInfo(s.Name, fileData, logMsg)
 			if err != nil {
 				loggerD.Infof(fmt.Sprintf("解析日志文件 %s 错误 %+v", s.Name, err))
@@ -342,27 +349,17 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		}
 	}
 
-	if faultMsgs != nil {
-		faultMsgsJson, err := json.Marshal(faultMsgs)
-		if err != nil {
-			loggerD.Errorf(fmt.Sprintf("json 化数据错误 ：%v", err))
-		}
-
-		logMsg.FaultMsg = string(faultMsgsJson)
-		loggerD.Infof(fmt.Sprintf("设备 %s 日志解析完成", logMsg.DeviceCode))
-		return
-
-	} else {
+	if logMsg.FaultMsg == "" {
 		// 日志异常
 		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
-			msg := fmt.Sprintf("【%s】没有生成日志;%s", utils.Config.Faultmsg.Device, pingMsg)
+			msg := fmt.Sprintf("【%s】没有生成插件日志;%s", utils.Config.Faultmsg.Device, pingMsg)
 			logMsg.StatusMsg = msg
 			logMsg.Status = false
 			logMsg.StatusType = utils.Config.Faultmsg.Device
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
 		} else {
-			loggerD.Infof(fmt.Sprintf("设备%s;日志内容为空", logMsg.DeviceCode))
+			loggerD.Infof(fmt.Sprintf("设备%s;没有生成插件日志", logMsg.DeviceCode))
 			checkLogOverFive(logMsg, loggerD)
 		}
 	}
@@ -419,28 +416,23 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		loggerD.Errorf(fmt.Sprintf("%s: RemoveAll %s ", oDir, err))
 		return
 	}
-
+	cmdName := "pscp"
 	args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
-	cmd := exec.Command("pscp", args...)
+	cmd := exec.Command(cmdName, args...)
 	loggerD.Infof(fmt.Sprintf("%+v", cmd))
-	cmd.Stdin = strings.NewReader("y")
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		loggerD.Infof(fmt.Sprintf("%+v  cmd.StdoutPipe %+v", cmd, err))
-		return
-	}
-	defer stdout.Close()
-
-	if err := cmd.Start(); err != nil {
-		loggerD.Infof(fmt.Sprintf("%+v cmd.Start() %+v", cmd, err))
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
 		return
 	}
 
-	time.Sleep(2 * time.Second)
+	loggerD.Infof(fmt.Sprintf("cmd out %+v", out.String()))
 
 	logFiles, err := utils.ListDir(oDir, "log")
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("从路径 %s 获取日志文件出错 %v ", oDir, err))
+		logMsg.StatusMsg += "执行 pscp 没有获取到日志，请确认设备是否已经安装 scp 服务"
 		return
 	}
 
@@ -454,7 +446,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 
 	isOverTime := false
 	overTimeMsg := ""
-	var faultMags []*FaultMsg
+	var faultMags []*FileInfo
 	for _, fileName := range logFiles {
 		file, err := utils.OpenFile(fileName)
 		if err != nil {
@@ -477,7 +469,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 			overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
 		}
 
-		faultMsg := new(FaultMsg)
+		faultMsg := new(FileInfo)
 		faultMsg.Name = fileName
 		faultMsg.Content = string(file)
 		faultMags = append(faultMags, faultMsg)
@@ -579,6 +571,15 @@ func checkSyncTime(timetxt string, txtTime time.Time) (bool, int64, error) {
 	return true, abs, nil
 }
 
+// 逐行获取
+func getInterfaceInfo(file []byte) (int64, error) {
+	//interfaceLog, err := getInterfaceLog(file)
+	//if err != nil {
+	//	return err
+	//}
+	return 0, nil
+}
+
 //1.isEmptyBed 空城就不报错，
 //2.code：状态码 1 200,999 都算正常 ，
 //3.1 设备类型是护士站主机 没有插件是face 或 iptv  或 interf  ，
@@ -591,6 +592,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		if err != nil {
 			return err
 		}
+		logMsg.FaultMsg = string(file)
 		logMsg.Call = faultLog.Call.Reason
 		logMsg.Face = faultLog.Face.Reason
 		logMsg.Interf = faultLog.Interf.Reason
@@ -655,6 +657,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.StatusMsg += statusMsg
 
 	} else if strings.Contains(fileName, "fault.txt") {
+		logMsg.FaultMsg = string(file)
 		if logMsg.DevType == 0 {
 			logMsg.DevType = 1
 		}
@@ -684,6 +687,23 @@ func codeIsError(code string) bool {
 	return false
 }
 
+func getBoolToInt(b bool) string {
+	if b {
+		return "1"
+	} else {
+		return "2"
+	}
+}
+
+func getInterfaceLog(file []byte) (*InterfaceLog, error) {
+	var interfaceLog InterfaceLog
+	err := json.Unmarshal(file, &interfaceLog)
+	if err != nil {
+		return nil, err
+	}
+	return &interfaceLog, nil
+}
+
 func getFaultLog(file []byte) (*FaultLog, error) {
 	var faultLog FaultLog
 	err := json.Unmarshal(file, &faultLog)
@@ -691,14 +711,6 @@ func getFaultLog(file []byte) (*FaultLog, error) {
 		return nil, err
 	}
 	return &faultLog, nil
-}
-
-func getBoolToInt(b bool) string {
-	if b {
-		return "1"
-	} else {
-		return "2"
-	}
 }
 
 func getFaultTxt(file []byte) (*FaultTxt, error) {

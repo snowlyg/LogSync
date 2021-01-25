@@ -9,17 +9,18 @@ import (
 const root = "/Users/snowlyg/ftp/admin/log"
 
 type device struct {
-	Code     string
-	Type     string
-	FileName string
+	Code              string
+	Type              string
+	FileName          string
+	InterfaceFileName string
 }
 
 func GetDevices() []device {
 	return []device{
-		{"A4580F48337E", "bis", "fault.log"},
-		{"A4580F48337F", "bis", "fault.log"},
-		{"4CEDFB5F7187", "nis", "fault.txt"},
-		{"4CEDFB698175", "nis", "fault.txt"},
+		{"A4580F48337E", "bis", "fault.log", "interface.log"},
+		{"A4580F48337F", "bis", "fault.log", "interface.log"},
+		{"4CEDFB5F7187", "nis", "fault.txt", "error.txt"},
+		{"4CEDFB698175", "nis", "fault.txt", "error.txt"},
 	}
 }
 

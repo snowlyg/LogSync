@@ -3,6 +3,7 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jlaffaye/ftp"
 	"github.com/snowlyg/LogSync/utils"
 	"os"
 	"reflect"
@@ -22,6 +23,8 @@ var faultLogErrorNis = &FaultLog{"nis", Plugin{"8", "连接失败"}, Plugin{"8",
 var faultLogErrorWebApp = &FaultLog{"webapp", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogErrorNws = &FaultLog{"nws", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "已就绪"}, Plugin{"1", "OK"}, Plugin{"1", "已就绪"}, Plugin{"200", "已就绪"}, true, false, false, timestamp}
+
+var interfaceLog = &InterfaceLog{"Service Unavailable", "", "", "", "", time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout), "http://10.0.0.23/app/verify/cipherText"}
 
 func Test_getTimestamp(t *testing.T) {
 	type args struct {
@@ -510,6 +513,64 @@ func Test_getDeviceByCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := getDeviceByCode(tt.args.remoteDevices, tt.args.code); got != nil && got.DevCode != tt.want {
 				t.Errorf("getDeviceByCode() = %v, want %v", got.DevCode, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getInterfaceLog(t *testing.T) {
+	type args struct {
+		file []byte
+	}
+	b, _ := json.Marshal(interfaceLog)
+	tests := []struct {
+		name string
+		args args
+		want *InterfaceLog
+	}{
+		{
+			name: "生成接口统计文件",
+			args: args{b},
+			want: interfaceLog,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getInterfaceLog(tt.args.file)
+			if err != nil {
+				t.Errorf("getInterfaceLog() error = %v", err)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getInterfaceLog() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getFileInfo(t *testing.T) {
+	type args struct {
+		s        *ftp.Entry
+		fileData []byte
+		location *time.Location
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getFileInfo(tt.args.s, tt.args.fileData, tt.args.location)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getFileInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getFileInfo() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

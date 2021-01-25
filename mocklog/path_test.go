@@ -10,8 +10,8 @@ import (
 
 func TestGetPath(t *testing.T) {
 	location, _ := utils.GetLocation()
-	device1 := device{"A4580F48337E", "bis", "fault.log"}
-	device2 := device{"A4580F48337F", "bis", "fault.log"}
+	device1 := device{"A4580F48337E", "bis", "fault.log", "interface.log"}
+	device2 := device{"A4580F48337F", "bis", "fault.log", "interface.log"}
 	tests := []struct {
 		name string
 		arg  device

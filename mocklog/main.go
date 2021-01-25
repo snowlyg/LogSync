@@ -51,6 +51,25 @@ func main() {
 			if err != nil {
 				fmt.Println(err)
 			}
+
+			err = CreateInterfaceFile(device, []map[string]string{
+				{
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				}, {
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				}, {
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				},
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 		fmt.Println(fmt.Sprintf("生成时间异常文件"))
 		return
@@ -69,6 +88,24 @@ func main() {
 			if err != nil {
 				fmt.Println(err)
 			}
+			err = CreateInterfaceFile(device, []map[string]string{
+				{
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				}, {
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				}, {
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				},
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 		fmt.Println(fmt.Sprintf("生成插件异常文件"))
 		return
@@ -84,6 +121,24 @@ func main() {
 			interf := sync.Plugin{Code: "1", Reason: "OK"}
 			timestamp := time.Now().In(location).Format(utils.DateTimeLayout)
 			err = CreateFaultFile(device, plugin, interf, timestamp, "true", "已就绪")
+			if err != nil {
+				fmt.Println(err)
+			}
+			err = CreateInterfaceFile(device, []map[string]string{
+				{
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				}, {
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				}, {
+					"msg":       "Service Unavailable",
+					"url":       "http://10.0.0.23/app/verify/cipherText",
+					"timestamp": time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout),
+				},
+			})
 			if err != nil {
 				fmt.Println(err)
 			}

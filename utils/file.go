@@ -15,6 +15,17 @@ func CreateFile(filePath string, b []byte) error {
 	return nil
 }
 
+func AppendFile(filePath string, b []byte) error {
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_RDWR|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	f.WriteString(string(b) + "\r\n\r\n")
+
+	return nil
+}
+
 func OpenFile(filePath string) ([]byte, error) {
 	f, err := os.OpenFile(filePath, os.O_TRUNC|os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
