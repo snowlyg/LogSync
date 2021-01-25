@@ -481,7 +481,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		return
 	}
 
-	logMsg.FaultMsg += "设备内正常生成了日志"
+	logMsg.StatusMsg += "设备内正常生成了日志"
 }
 
 // 创建目录
@@ -592,7 +592,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		if err != nil {
 			return err
 		}
-		logMsg.FaultMsg = string(file)
+		//logMsg.FaultMsg = string(file)
 		logMsg.Call = faultLog.Call.Reason
 		logMsg.Face = faultLog.Face.Reason
 		logMsg.Interf = faultLog.Interf.Reason
@@ -657,7 +657,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.StatusMsg += statusMsg
 
 	} else if strings.Contains(fileName, "fault.txt") {
-		logMsg.FaultMsg = string(file)
+		//logMsg.FaultMsg = string(file)
 		if logMsg.DevType == 0 {
 			logMsg.DevType = 1
 		}
