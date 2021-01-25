@@ -157,7 +157,7 @@ func SyncDeviceLog() {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/device", data)
 			if err != nil {
-				loggerD.Error(err)
+				loggerD.Errorf("提交日志信息", "错误", err)
 			}
 			logCodes = nil
 			for _, logMsgSub := range logMsgSubs {
@@ -592,7 +592,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		if err != nil {
 			return err
 		}
-		//logMsg.FaultMsg = string(file)
+		logMsg.FaultMsg = string(file)
 		logMsg.Call = faultLog.Call.Reason
 		logMsg.Face = faultLog.Face.Reason
 		logMsg.Interf = faultLog.Interf.Reason
@@ -657,7 +657,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.StatusMsg += statusMsg
 
 	} else if strings.Contains(fileName, "fault.txt") {
-		//logMsg.FaultMsg = string(file)
+		logMsg.FaultMsg = string(file)
 		if logMsg.DevType == 0 {
 			logMsg.DevType = 1
 		}
