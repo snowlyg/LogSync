@@ -32,13 +32,13 @@ type Plugin struct {
 type LogMsg struct {
 	DevIp          string `json:"device_ip"` // 服务id
 	DevType        int64  `json:"device_type_id"`
-	DirName        string `json:"dir_name"`    //系统类型，bis/nis/nws
+	DirName        string `json:"dir_name"`    //系统类型，bis/nis/nws/webapp
 	DeviceCode     string `json:"device_code"` //设备编码
 	FaultMsg       string `json:"fault_msg"`   //故障信息
 	StatusMsg      string `json:"wechat_msg"`  //状态信息
 	DeviceImg      string `json:"device_img"`  //设备截图
-	Status         bool   `json:"status"`      //故障类型，设备掉线，程序关闭，程序异常
-	LogAt          string `json:"log_at"`      //记录时间
+	Status         bool   `json:"status"`
+	StatusType     string `json:"status_type"` //故障类型，设备异常，插件异常，日志异常
 	Call           string `json:"call"`
 	Face           string `json:"face"`
 	Interf         string `json:"interf"`
@@ -67,7 +67,7 @@ type FaultLog struct {
 // fault.txt 文件内容  nis : 护理大屏
 type FaultTxt struct {
 	Reason    string `json:"reason"`
-	Mqtt      string `json:"mqtt"`
+	Mqtt      bool   `json:"mqtt"`
 	Timestamp string `json:"timestamp"`
 }
 
@@ -106,17 +106,12 @@ func SyncDeviceLog() {
 
 		loggerD.Infof(fmt.Sprintf("当前设备 >>> %v ：%v：%v", device.DevType, deviceDir, device.DevCode))
 
-		location, err := utils.GetLocation()
-		if err != nil {
-			loggerD.Errorf("get location ", err)
-		}
 		logMsg := &LogMsg{
 			DevIp:      device.DevIp,
 			DevType:    device.DevType,
 			DeviceCode: device.DevCode,
 			DirName:    deviceDir,
 			Status:     true,
-			LogAt:      time.Now().In(location).Format(utils.DateTimeLayout),
 		}
 
 		// 设备类型不在日志扫描范围内
@@ -189,6 +184,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
 				msg := fmt.Sprintf("【%s】ftp日志路径 %s 访问失败; %s", utils.Config.Faultmsg.Device, logPath, pingMsg)
 				logMsg.StatusMsg = msg
+				logMsg.StatusType = utils.Config.Faultmsg.Device
 				logMsg.Status = false
 				loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 				return
@@ -219,6 +215,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			msg := fmt.Sprintf("【%s】服务器日志没有文件 %s", utils.Config.Faultmsg.Device, pingMsg)
 			logMsg.StatusMsg = msg
 			logMsg.Status = false
+			logMsg.StatusType = utils.Config.Faultmsg.Device
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
 		} else {
@@ -323,6 +320,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		msg := fmt.Sprintf("【%s】服务器时间和日志记录时间不一致; %s", utils.Config.Faultmsg.Device, syncTimeMsg)
 		logMsg.StatusMsg = msg
 		logMsg.Status = false
+		logMsg.StatusType = utils.Config.Faultmsg.Device
 		loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 		return
 	}
@@ -334,6 +332,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			msg := fmt.Sprintf("【%s】%s;%s", utils.Config.Faultmsg.Device, overTimeMsg, pingMsg)
 			logMsg.StatusMsg = msg
 			logMsg.Status = false
+			logMsg.StatusType = utils.Config.Faultmsg.Device
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
 		} else {
@@ -359,6 +358,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			msg := fmt.Sprintf("【%s】没有生成日志;%s", utils.Config.Faultmsg.Device, pingMsg)
 			logMsg.StatusMsg = msg
 			logMsg.Status = false
+			logMsg.StatusType = utils.Config.Faultmsg.Device
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
 		} else {
@@ -408,6 +408,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	defer loggerD.Infof(fmt.Sprintf("结束执行远程复制日志操作"))
 	logMsg.Status = false
 	logMsg.StatusMsg = fmt.Sprintf("【%s】设备 %s(%s) 可以访问;", utils.Config.Faultmsg.Logsync, logMsg.DeviceCode, logMsg.DevIp)
+	logMsg.StatusType = utils.Config.Faultmsg.Logsync
 	oDir, err := createOutDir(logMsg.DirName, logMsg.DeviceCode)
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("createOutDir %s error %s ", oDir, err))
@@ -616,7 +617,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		if logMsg.DevType != 3 {
 			if codeIsError(faultLog.Mqtt.Code) {
 				pluginError = false
-				statusMsg += fmt.Sprintf("插件(mqtt): %s;", faultLog.Mqtt.Reason)
+				statusMsg += fmt.Sprintf("插件(mqtt): (%s)%s;", faultLog.Mqtt.Code, faultLog.Mqtt.Reason)
 			}
 		}
 
@@ -624,11 +625,11 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		if logMsg.DevType != 4 && logMsg.DevType != 3 {
 			if codeIsError(faultLog.Interf.Code) {
 				pluginError = false
-				statusMsg += fmt.Sprintf("插件(interf): %s;", faultLog.Interf.Reason)
+				statusMsg += fmt.Sprintf("插件(interf): (%s)%s;", faultLog.Interf.Code, faultLog.Interf.Reason)
 			}
 			if codeIsError(faultLog.Iptv.Code) {
 				pluginError = false
-				statusMsg += fmt.Sprintf("插件(iptv): %s;", faultLog.Iptv.Reason)
+				statusMsg += fmt.Sprintf("插件(iptv): (%s)%s;", faultLog.Iptv.Code, faultLog.Iptv.Reason)
 			}
 		}
 
@@ -636,13 +637,18 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		if logMsg.DevType != 4 {
 			if codeIsError(faultLog.Face.Code) && faultLog.Face.Code != "0" {
 				pluginError = false
-				statusMsg += fmt.Sprintf("插件(face): %s;", faultLog.Face.Reason)
+				statusMsg += fmt.Sprintf("插件(face): (%s)%s;", faultLog.Face.Code, faultLog.Face.Reason)
 			}
 		}
 
 		if codeIsError(faultLog.Call.Code) && faultLog.Call.Code != "3" {
 			pluginError = false
-			statusMsg += fmt.Sprintf("插件(call): %s;", faultLog.Call.Reason)
+			statusMsg += fmt.Sprintf("插件(call): (%s)%s;", faultLog.Call.Code, faultLog.Call.Reason)
+		}
+
+		// 插件异常
+		if !pluginError {
+			logMsg.StatusType = utils.Config.Faultmsg.Plugin
 		}
 
 		logMsg.Status = pluginError
@@ -657,10 +663,12 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 			return err
 		}
 
-		if faultTxt.Mqtt == "false" {
+		if !faultTxt.Mqtt {
 			logMsg.Status = false
 			logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s", utils.Config.Faultmsg.Plugin, faultTxt.Reason)
+			logMsg.StatusType = utils.Config.Faultmsg.Plugin
 		}
+
 		logMsg.Mqtt = faultTxt.Reason
 		logMsg.Timestamp = faultTxt.Timestamp
 	}

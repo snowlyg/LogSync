@@ -13,8 +13,8 @@ import (
 var location, _ = utils.GetLocation()
 
 var timestamp = "2021-01-23 23:45:20"
-var faultTxtError = &FaultTxt{"连接失败", "false", timestamp}
-var faultTxtSuccess = &FaultTxt{"已连接", "true", timestamp}
+var faultTxtError = &FaultTxt{"连接失败", false, timestamp}
+var faultTxtSuccess = &FaultTxt{"已连接", true, timestamp}
 
 //{"appType":"bis","call":{"code":"3","reason":"连接失败"},"face":{"code":"3","reason":"连接失败"},"interf":{"code":"3","reason":"连接失败"},"iptv":{"code":"3","reason":"连接失败"},"mqtt":{"code":"3","reason":"连接失败"},"isBackground":true,"isEmptyBed":false,"isMainActivity":false,"timestamp":"2021-01-23 23:45:20"}
 var faultLogErrorBis = &FaultLog{"bis", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
@@ -241,7 +241,7 @@ func Test_getPluginsInfo_Text(t *testing.T) {
 				statusMsg = reason
 			}
 			if tt.args.logMsg.Mqtt != tt.want.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, reason)
+				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.reason)
 			}
 			if tt.args.logMsg.Timestamp != tt.want.timestamp {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Timestamp, tt.want.timestamp)
@@ -262,6 +262,10 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 		file     []byte
 		logMsg   *LogMsg
 	}
+	type plugin struct {
+		code   string
+		reason string
+	}
 	bLogErrorNis, _ := json.Marshal(faultLogErrorNis)
 	bLogErrorBis, _ := json.Marshal(faultLogErrorBis)
 	bLogErrorWebApp, _ := json.Marshal(faultLogErrorWebApp)
@@ -272,11 +276,11 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 		args args
 		want struct {
 			status    bool
-			mqtt      string
-			call      string
-			face      string
-			interf    string
-			iptv      string
+			mqtt      plugin
+			call      plugin
+			face      plugin
+			interf    plugin
+			iptv      plugin
 			timestamp string
 		}
 	}{
@@ -285,61 +289,61 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 			args: args{"fault.log", bLogSuccess, &LogMsg{Status: true}},
 			want: struct {
 				status    bool
-				mqtt      string
-				call      string
-				face      string
-				interf    string
-				iptv      string
+				mqtt      plugin
+				call      plugin
+				face      plugin
+				interf    plugin
+				iptv      plugin
 				timestamp string
-			}{true, "已就绪", "已就绪", "已就绪", "OK", "已就绪", timestamp},
+			}{true, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"200", "OK"}, plugin{"1", "已就绪"}, timestamp},
 		}, {
 			name: "fault_log_error_nis",
 			args: args{"fault.log", bLogErrorNis, &LogMsg{Status: true}},
 			want: struct {
 				status    bool
-				mqtt      string
-				call      string
-				face      string
-				interf    string
-				iptv      string
+				mqtt      plugin
+				call      plugin
+				face      plugin
+				interf    plugin
+				iptv      plugin
 				timestamp string
-			}{false, "连接失败", "连接失败", "连接失败", "连接失败", "连接失败", timestamp},
+			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		}, {
 			name: "fault_log_error_bis",
 			args: args{"fault.log", bLogErrorBis, &LogMsg{Status: true}},
 			want: struct {
 				status    bool
-				mqtt      string
-				call      string
-				face      string
-				interf    string
-				iptv      string
+				mqtt      plugin
+				call      plugin
+				face      plugin
+				interf    plugin
+				iptv      plugin
 				timestamp string
-			}{false, "连接失败", "连接失败", "连接失败", "连接失败", "连接失败", timestamp},
+			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		}, {
 			name: "fault_log_error_webapp",
 			args: args{"fault.log", bLogErrorWebApp, &LogMsg{Status: true}},
 			want: struct {
 				status    bool
-				mqtt      string
-				call      string
-				face      string
-				interf    string
-				iptv      string
+				mqtt      plugin
+				call      plugin
+				face      plugin
+				interf    plugin
+				iptv      plugin
 				timestamp string
-			}{false, "连接失败", "连接失败", "连接失败", "连接失败", "连接失败", timestamp},
+			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		}, {
 			name: "fault_log_error_nws",
 			args: args{"fault.log", bLogErrorNws, &LogMsg{Status: true}},
 			want: struct {
 				status    bool
-				mqtt      string
-				call      string
-				face      string
-				interf    string
-				iptv      string
+				mqtt      plugin
+				call      plugin
+				face      plugin
+				interf    plugin
+				iptv      plugin
 				timestamp string
-			}{false, "连接失败", "连接失败", "连接失败", "连接失败", "连接失败", timestamp},
+			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		},
 	}
 	for _, tt := range tests {
@@ -353,32 +357,32 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 			statusMsg := fmt.Sprintf("【%s】", utils.Config.Faultmsg.Plugin)
 			if !tt.want.status {
 				if tt.args.logMsg.DevType != 3 {
-					statusMsg += fmt.Sprintf("插件(mqtt): %s;", tt.want.mqtt)
+					statusMsg += fmt.Sprintf("插件(mqtt): (%s)%s;", tt.want.mqtt.code, tt.want.mqtt.reason)
 				}
 				// 护士站主机,门旁没有iptv,interf
 				if tt.args.logMsg.DevType != 3 && tt.args.logMsg.DevType != 4 {
-					statusMsg += fmt.Sprintf("插件(interf): %s;", tt.want.interf)
-					statusMsg += fmt.Sprintf("插件(iptv): %s;", tt.want.iptv)
+					statusMsg += fmt.Sprintf("插件(interf): (%s)%s;", tt.want.interf.code, tt.want.interf.reason)
+					statusMsg += fmt.Sprintf("插件(iptv): (%s)%s;", tt.want.iptv.code, tt.want.iptv.reason)
 				}
 				if tt.args.logMsg.DevType != 4 {
-					statusMsg += fmt.Sprintf("插件(face): %s;", tt.want.face)
+					statusMsg += fmt.Sprintf("插件(face): (%s)%s;", tt.want.face.code, tt.want.face.reason)
 				}
-				statusMsg += fmt.Sprintf("插件(call): %s;", tt.want.call)
+				statusMsg += fmt.Sprintf("插件(call): (%s)%s;", tt.want.call.code, tt.want.call.reason)
 
 			}
-			if tt.args.logMsg.Mqtt != tt.want.mqtt {
+			if tt.args.logMsg.Mqtt != tt.want.mqtt.reason {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.mqtt)
 			}
-			if tt.args.logMsg.Call != tt.want.call {
+			if tt.args.logMsg.Call != tt.want.call.reason {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.call)
 			}
-			if tt.args.logMsg.Face != tt.want.face {
+			if tt.args.logMsg.Face != tt.want.face.reason {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.face)
 			}
-			if tt.args.logMsg.Interf != tt.want.interf {
+			if tt.args.logMsg.Interf != tt.want.interf.reason {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.interf)
 			}
-			if tt.args.logMsg.Iptv != tt.want.iptv {
+			if tt.args.logMsg.Iptv != tt.want.iptv.reason {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.iptv)
 			}
 			if tt.args.logMsg.Timestamp != tt.want.timestamp {

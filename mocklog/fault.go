@@ -5,6 +5,7 @@ import (
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
 	"path/filepath"
+	"strconv"
 )
 
 func CreateFaultFile(device device, plugin, interf sync.Plugin, timestamp, mqtt, reason string) error {
@@ -22,8 +23,9 @@ func CreateFaultFile(device device, plugin, interf sync.Plugin, timestamp, mqtt,
 		b, _ := json.Marshal(faultLog)
 		return utils.CreateFile(filepath.Join(GetPath(device), device.FileName), b)
 	} else if device.Type == "nis" {
+		bl, _ := strconv.ParseBool(mqtt)
 		faultTxt := sync.FaultTxt{
-			Mqtt:      mqtt,
+			Mqtt:      bl,
 			Reason:    reason,
 			Timestamp: timestamp,
 		}

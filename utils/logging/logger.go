@@ -58,10 +58,6 @@ const (
 // Logger name for default loggers
 const (
 	DefaultLoggerName = "_default"
-	SlowLoggerName    = "_slow"
-	GenLoggerName     = "_gen"
-	CrashLoggerName   = "_crash"
-	BalanceLoggerName = "_balance"
 )
 
 var scene sync.Map
@@ -69,15 +65,6 @@ var scene sync.Map
 func init() {
 	_defaultLogger = New()
 	scene.Store(DefaultLoggerName, _defaultLogger)
-	scene.Store(SlowLoggerName, slowlog)
-	scene.Store(GenLoggerName, genlog)
-	scene.Store(CrashLoggerName, crashlog)
-	scene.Store(BalanceLoggerName, balancelog)
-	//logs[DefaultLoggerName] = _defaultLogger
-	//logs[SlowLoggerName] = slowlog
-	//logs[GenLoggerName] = genlog
-	//logs[CrashLoggerName] = crashlog
-	//logs[BalanceLoggerName] = balancelog
 }
 
 var logs = map[string]*Logger{}
@@ -136,7 +123,7 @@ func InitData(path string, rolling RollingFormat) error {
 	return nil
 }
 
-// InitData logger
+// InitDataWithKey logger
 func InitDataWithKey(path string, rolling RollingFormat, task string) error {
 	err := InitData(path, rolling)
 	if err != nil {
