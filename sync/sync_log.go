@@ -261,6 +261,9 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 				loggerD.Infof(fmt.Sprintf("获取日志文件内容 %s 错误 %+v", s.Name, err))
 				continue
 			}
+			if s.Name == "fault.log" || s.Name == "fault.txt" {
+				logMsg.FaultMsg = string(fileData)
+			}
 			err = getPluginsInfo(s.Name, fileData, logMsg)
 			if err != nil {
 				loggerD.Infof(fmt.Sprintf("解析日志文件 %s 错误 %+v", s.Name, err))
@@ -592,7 +595,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		if err != nil {
 			return err
 		}
-		logMsg.FaultMsg = string(file)
+
 		logMsg.Call = faultLog.Call.Reason
 		logMsg.Face = faultLog.Face.Reason
 		logMsg.Interf = faultLog.Interf.Reason
@@ -657,7 +660,6 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.StatusMsg += statusMsg
 
 	} else if strings.Contains(fileName, "fault.txt") {
-		logMsg.FaultMsg = string(file)
 		if logMsg.DevType == 0 {
 			logMsg.DevType = 1
 		}
