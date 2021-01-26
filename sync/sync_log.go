@@ -264,6 +264,15 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 				}
 				logMsg.InterfaceError = len(interfaceLogs)
 			}
+
+			if s.Name == "error.txt" {
+				errorTxt, err := readErrorTxtLine(c, s.Name)
+				if err != nil {
+					loggerD.Infof(fmt.Sprintf("获取 error.txt 内容 %s 错误 %+v", s.Name, err))
+					continue
+				}
+				logMsg.InterfaceError = errorTxt
+			}
 			if s.Name == "fault.log" || s.Name == "fault.txt" {
 				fileData, err := getFileContent(c, s.Name)
 				if err != nil {
@@ -702,6 +711,37 @@ func getBoolToString(b bool) string {
 	} else {
 		return "2"
 	}
+}
+
+func readErrorTxtLine(c *ftp.ServerConn, name string) (int, error) {
+	var count int
+	if !strings.Contains(name, "error.txt") {
+		return count, nil
+	}
+	r, err := c.Retr(name)
+	if err != nil {
+		return count, err
+	}
+	defer r.Close()
+
+	lineReader := bufio.NewReader(r)
+	for {
+		// 相同使用场景下可以采用的方法
+		// func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error)
+		// func (b *Reader) ReadBytes(delim byte) (line []byte, err error)
+		// func (b *Reader) ReadString(delim byte) (line string, err error)
+		line, err := lineReader.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if len(line) == 0 {
+			continue
+		}
+		if strings.Contains(line, "http://") {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // 获取 interface.log 文件内容，解析错误数据

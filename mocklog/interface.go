@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
@@ -27,14 +28,15 @@ func CreateInterfaceFile(device device, infos []map[string]string) error {
 		}
 
 	} else if device.Type == "nis" {
-		//bl, _ := strconv.ParseBool(mqtt)
-		//faultTxt := sync.FaultTxt{
-		//	Mqtt:      bl,
-		//	Reason:    reason,
-		//	Timestamp: timestamp,
-		//}
-		//b, _ := json.Marshal(faultTxt)
-		//return utils.CreateFile(filepath.Join(GetPath(device), device.FileName), b)
+		//[2020-12-30 15:17:08]
+		//Message: http://10.0.0.23/app/telephone/list, 服务器出错500
+		for i := 0; i < 5; i++ {
+			b := bytes.NewBufferString("[2020-12-30 15:17:08]" + "\r\n" + "Message: http://10.0.0.23/app/telephone/list, 服务器出错500")
+			err := utils.AppendFile(filepath.Join(GetPath(device), device.InterfaceFileName), b.Bytes())
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

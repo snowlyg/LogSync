@@ -577,9 +577,9 @@ func Test_readInterfaceLogLine(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want []*InterfaceLog
+		want int
 	}{
-		{name: "获取解析interface.log", args: args{}, want: nil},
+		{name: "获取解析interface.log", args: args{c, "interface.log"}, want: 6},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -588,8 +588,55 @@ func Test_readInterfaceLogLine(t *testing.T) {
 				t.Errorf("readInterfaceLogLine() error = %v", err)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if len(got) != tt.want {
 				t.Errorf("readInterfaceLogLine() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_readErrorTxtLine(t *testing.T) {
+	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	utils.InitConfig()
+	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
+	if err != nil {
+		t.Errorf("ftp con error = %v", err)
+		return
+	}
+	defer c.Quit()
+	// 登录ftp
+	err = c.Login(utils.Config.Ftp.Username, utils.Config.Ftp.Password)
+	if err != nil {
+		t.Errorf("ftp login error = %v", err)
+		return
+	}
+
+	logPath := fmt.Sprintf("%s/%s/%s/%s", utils.Config.Root, "nis", "4CEDFB698175", time.Now().Format(utils.DateLayout))
+	err = cmdDir(c, logPath)
+	if err != nil {
+		t.Errorf("cmd %s error = %v", logPath, err)
+		return
+	}
+	type args struct {
+		c    *ftp.ServerConn
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{name: "获取解析 error.txt", args: args{c, "error.txt"}, want: 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := readErrorTxtLine(tt.args.c, tt.args.name)
+			if err != nil {
+				t.Errorf("readErrorTxtLine() error = %v", err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("readErrorTxtLine() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
