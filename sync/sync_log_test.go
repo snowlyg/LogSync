@@ -24,7 +24,7 @@ var faultLogErrorWebApp = &FaultLog{"webapp", Plugin{"8", "连接失败"}, Plugi
 var faultLogErrorNws = &FaultLog{"nws", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "已就绪"}, Plugin{"1", "OK"}, Plugin{"1", "已就绪"}, Plugin{"200", "已就绪"}, true, false, false, timestamp}
 
-var interfaceLog = &InterfaceLog{"Service Unavailable", "", "", "", "", time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout), "http://10.0.0.23/app/verify/cipherText"}
+var interfaceLog = &InterfaceLog{"Service Unavailable", "", 1, "", 1, time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout), "http://10.0.0.23/app/verify/cipherText"}
 
 func Test_getTimestamp(t *testing.T) {
 	type args struct {
@@ -241,7 +241,7 @@ func Test_getPluginsInfo_Text(t *testing.T) {
 			reason := tt.want.reason
 			if !tt.want.status {
 				reason = fmt.Sprintf("【%s】插件(mqtt): %s", utils.Config.Faultmsg.Plugin, tt.want.reason)
-				statusMsg = reason
+				statusMsg = reason + ";设备ip为空，请检查设备是否绑定ip"
 			}
 			if tt.args.logMsg.Mqtt != tt.want.reason {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.reason)

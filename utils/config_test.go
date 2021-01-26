@@ -73,13 +73,13 @@ func TestInitConfig(t *testing.T) {
 					want: "m",
 				}, {
 					key:  strconv.FormatInt(Config.Restful.Timeduration, 10),
-					want: "1",
+					want: "5",
 				}, {
 					key:  Config.Device.Timetype,
 					want: "m",
 				}, {
 					key:  strconv.FormatInt(Config.Device.Timeduration, 10),
-					want: "1",
+					want: "5",
 				}, {
 					key:  Config.Data.Timetype,
 					want: "m",

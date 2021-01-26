@@ -12,9 +12,9 @@ func CreateInterfaceFile(device device, infos []map[string]string) error {
 		for _, info := range infos {
 			faultLog := sync.InterfaceLog{
 				PostParamJson: "",
-				PostParamType: "",
+				PostParamType: 1,
 				Remark:        "",
-				RequestType:   "",
+				RequestType:   1,
 				Msg:           info["msg"],
 				Url:           info["url"],
 				Timestamp:     info["timestamp"],

@@ -76,9 +76,9 @@ type FaultLog struct {
 type InterfaceLog struct {
 	Msg           string `json:"msg"`
 	PostParamJson string `json:"postParamJson"`
-	PostParamType string `json:"postParamType"`
+	PostParamType int    `json:"postParamType"`
 	Remark        string `json:"remark"`
-	RequestType   string `json:"requestType"`
+	RequestType   int    `json:"requestType"`
 	Timestamp     string `json:"timestamp"`
 	Url           string `json:"url"`
 }
@@ -436,7 +436,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		cmd.Stdout = &out
 		if err := cmd.Run(); err != nil {
 			loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
-			logMsg.StatusMsg += "执行 pscp 失败，请确认设备已经安装 scp 服务，并且允许有远程连接"
+			logMsg.StatusMsg += "执行 pscp 失败，请确认设备已经安装 scp 服务，并且允许远程连接"
 			return
 		}
 
@@ -446,7 +446,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	logFiles, err := utils.ListDir(oDir, "log")
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("从路径 %s 获取日志文件出错 %v ", oDir, err))
-		logMsg.StatusMsg += "执行 pscp 没有获取到日志，请确认设备已经安装 scp 服务，并且允许有远程连接"
+		logMsg.StatusMsg += "执行 pscp 没有获取到日志，请确认设备已经安装 scp 服务，并且允许远程连接"
 		return
 	}
 
