@@ -15,6 +15,7 @@ func CreateFile(filePath string, b []byte) error {
 	return nil
 }
 
+// 添加文本
 func AppendFile(filePath string, b []byte) error {
 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {

@@ -116,8 +116,8 @@ func Test_getBoolToInt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getBoolToInt(tt.args.b); got != tt.want {
-				t.Errorf("getBoolToInt() = %v, want %v", got, tt.want)
+			if got := getBoolToString(tt.args.b); got != tt.want {
+				t.Errorf("getBoolToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -536,41 +536,60 @@ func Test_getInterfaceLog(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getInterfaceLog(tt.args.file)
+			got, err := createInterfaceLog(tt.args.file)
 			if err != nil {
-				t.Errorf("getInterfaceLog() error = %v", err)
+				t.Errorf("createInterfaceLog() error = %v", err)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getInterfaceLog() got = %v, want %v", got, tt.want)
+				t.Errorf("createInterfaceLog() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_getFileInfo(t *testing.T) {
+func Test_readInterfaceLogLine(t *testing.T) {
+	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	utils.InitConfig()
+	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
+	if err != nil {
+		t.Errorf("ftp con error = %v", err)
+		return
+	}
+	defer c.Quit()
+	// 登录ftp
+	err = c.Login(utils.Config.Ftp.Username, utils.Config.Ftp.Password)
+	if err != nil {
+		t.Errorf("ftp login error = %v", err)
+		return
+	}
+
+	logPath := fmt.Sprintf("%s/%s/%s/%s", utils.Config.Root, "bis", "A4580F48337E", time.Now().Format(utils.DateLayout))
+	err = cmdDir(c, logPath)
+	if err != nil {
+		t.Errorf("cmd %s error = %v", logPath, err)
+		return
+	}
 	type args struct {
-		s        *ftp.Entry
-		fileData []byte
-		location *time.Location
+		c    *ftp.ServerConn
+		name string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    []byte
-		wantErr bool
+		name string
+		args args
+		want []*InterfaceLog
 	}{
-		// TODO: Add test cases.
+		{name: "获取解析interface.log", args: args{}, want: nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getFileInfo(tt.args.s, tt.args.fileData, tt.args.location)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getFileInfo() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := readInterfaceLogLine(tt.args.c, tt.args.name)
+			if err != nil {
+				t.Errorf("readInterfaceLogLine() error = %v", err)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getFileInfo() got = %v, want %v", got, tt.want)
+				t.Errorf("readInterfaceLogLine() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

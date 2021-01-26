@@ -1,16 +1,19 @@
 package sync
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/snowlyg/LogSync/utils/logging"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -40,6 +43,7 @@ type LogMsg struct {
 	DeviceImg      string `json:"device_img"`  //设备截图
 	Status         bool   `json:"status"`
 	StatusType     string `json:"status_type"` //故障类型，设备异常，插件异常，日志异常
+	InterfaceError int    `json:"interface_error"`
 	Call           string `json:"call"`
 	Face           string `json:"face"`
 	Interf         string `json:"interf"`
@@ -173,18 +177,14 @@ func SyncDeviceLog() {
 
 // 循环扫描日志目录
 func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
-
-	ip := utils.Config.Ftp.Ip
-	username := utils.Config.Ftp.Username
-	password := utils.Config.Ftp.Password
-	c, err := ftp.Dial(fmt.Sprintf("%s:21", ip), ftp.DialWithTimeout(15*time.Second))
+	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
 		return
 	}
 	defer c.Quit()
 	// 登录ftp
-	err = c.Login(username, password)
+	err = c.Login(utils.Config.Ftp.Username, utils.Config.Ftp.Password)
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("ftp 登录错误 %v", err))
 		return
@@ -256,19 +256,28 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		imgExtStr := utils.Config.Imgexts
 		imgExts := strings.Split(imgExtStr, ",")
 		if utils.InStrArray(s.Name, names) { // 设备日志文件
-			fileData, err := getFileContent(c, s.Name)
-			if err != nil {
-				loggerD.Infof(fmt.Sprintf("获取日志文件内容 %s 错误 %+v", s.Name, err))
-				continue
+			if s.Name == "interface.log" {
+				interfaceLogs, err := readInterfaceLogLine(c, s.Name)
+				if err != nil {
+					loggerD.Infof(fmt.Sprintf("获取 interface.log 内容 %s 错误 %+v", s.Name, err))
+					continue
+				}
+				logMsg.InterfaceError = len(interfaceLogs)
 			}
 			if s.Name == "fault.log" || s.Name == "fault.txt" {
+				fileData, err := getFileContent(c, s.Name)
+				if err != nil {
+					loggerD.Infof(fmt.Sprintf("获取日志文件内容 %s 错误 %+v", s.Name, err))
+					continue
+				}
 				logMsg.FaultMsg = string(fileData)
+				err = getPluginsInfo(s.Name, fileData, logMsg)
+				if err != nil {
+					loggerD.Infof(fmt.Sprintf("解析日志文件 %s 错误 %+v", s.Name, err))
+					continue
+				}
 			}
-			err = getPluginsInfo(s.Name, fileData, logMsg)
-			if err != nil {
-				loggerD.Infof(fmt.Sprintf("解析日志文件 %s 错误 %+v", s.Name, err))
-				continue
-			}
+
 			// 服务器时间是否同步
 			if isSyncTime {
 				var subT int64
@@ -419,23 +428,26 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		loggerD.Errorf(fmt.Sprintf("%s: RemoveAll %s ", oDir, err))
 		return
 	}
-	cmdName := "pscp"
-	args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
-	cmd := exec.Command(cmdName, args...)
-	loggerD.Infof(fmt.Sprintf("%+v", cmd))
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
-		return
-	}
 
-	loggerD.Infof(fmt.Sprintf("cmd out %+v", out.String()))
+	if runtime.GOOS == "windows" {
+		args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
+		cmd := exec.Command("pscp", args...)
+		loggerD.Infof(fmt.Sprintf("%+v", cmd))
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		if err := cmd.Run(); err != nil {
+			loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
+			logMsg.StatusMsg += "执行 pscp 失败，请确认设备已经安装 scp 服务，并且允许有远程连接"
+			return
+		}
+
+		loggerD.Infof(fmt.Sprintf("cmd out %+v", out.String()))
+	}
 
 	logFiles, err := utils.ListDir(oDir, "log")
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("从路径 %s 获取日志文件出错 %v ", oDir, err))
-		logMsg.StatusMsg += "执行 pscp 没有获取到日志，请确认设备是否已经安装 scp 服务"
+		logMsg.StatusMsg += "执行 pscp 没有获取到日志，请确认设备已经安装 scp 服务，并且允许有远程连接"
 		return
 	}
 
@@ -574,22 +586,17 @@ func checkSyncTime(timetxt string, txtTime time.Time) (bool, int64, error) {
 	return true, abs, nil
 }
 
-// 逐行获取
-func getInterfaceInfo(file []byte) (int64, error) {
-	//interfaceLog, err := getInterfaceLog(file)
-	//if err != nil {
-	//	return err
-	//}
-	return 0, nil
-}
-
 //1.isEmptyBed 空城就不报错，
 //2.code：状态码 1 200,999 都算正常 ，
 //3.1 设备类型是护士站主机 没有插件是face 或 iptv  或 interf  ，
 //3.2 设备类型是门旁 没有插件是iptv 或mqtt 或 interf
 //4.1 code：3， 插件是call 正常
 //4.2 code:0 , 插件是face 正常
+//4.3 code:-1 , interf 正常
 func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
+	if !strings.Contains(fileName, "fault.log") && !strings.Contains(fileName, "fault.txt") {
+		return nil
+	}
 	if strings.Contains(fileName, "fault.log") {
 		faultLog, err := getFaultLog(file)
 		if err != nil {
@@ -600,9 +607,9 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.Face = faultLog.Face.Reason
 		logMsg.Interf = faultLog.Interf.Reason
 		logMsg.Iptv = faultLog.Iptv.Reason
-		logMsg.IsBackground = getBoolToInt(faultLog.IsBackground)
-		logMsg.IsEmptyBed = getBoolToInt(faultLog.IsEmptyBed)
-		logMsg.IsMainActivity = getBoolToInt(faultLog.IsMainActivity)
+		logMsg.IsBackground = getBoolToString(faultLog.IsBackground)
+		logMsg.IsEmptyBed = getBoolToString(faultLog.IsEmptyBed)
+		logMsg.IsMainActivity = getBoolToString(faultLog.IsMainActivity)
 		logMsg.Mqtt = faultLog.Mqtt.Reason
 		logMsg.Timestamp = faultLog.Timestamp
 		if logMsg.DevType == 0 {
@@ -628,7 +635,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 
 		// 护士站主机,门旁没有iptv,interf
 		if logMsg.DevType != 4 && logMsg.DevType != 3 {
-			if codeIsError(faultLog.Interf.Code) {
+			if codeIsError(faultLog.Interf.Code) && faultLog.Face.Code != "-1" {
 				pluginError = false
 				statusMsg += fmt.Sprintf("插件(interf): (%s)%s;", faultLog.Interf.Code, faultLog.Interf.Reason)
 			}
@@ -669,9 +676,11 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		}
 
 		if !faultTxt.Mqtt {
-			logMsg.Status = false
-			logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s", utils.Config.Faultmsg.Plugin, faultTxt.Reason)
-			logMsg.StatusType = utils.Config.Faultmsg.Plugin
+			if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
+				logMsg.Status = false
+				logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s;%s", utils.Config.Faultmsg.Plugin, faultTxt.Reason, pingMsg)
+				logMsg.StatusType = utils.Config.Faultmsg.Plugin
+			}
 		}
 
 		logMsg.Mqtt = faultTxt.Reason
@@ -685,11 +694,11 @@ func codeIsError(code string) bool {
 	if code != "1" && code != "200" && code != "999" {
 		return true
 	}
-
 	return false
 }
 
-func getBoolToInt(b bool) string {
+// bool to string
+func getBoolToString(b bool) string {
 	if b {
 		return "1"
 	} else {
@@ -697,7 +706,43 @@ func getBoolToInt(b bool) string {
 	}
 }
 
-func getInterfaceLog(file []byte) (*InterfaceLog, error) {
+// 获取 interface.log 文件内容，解析错误数据
+func readInterfaceLogLine(c *ftp.ServerConn, name string) ([]*InterfaceLog, error) {
+	if !strings.Contains(name, "interface.log") {
+		return nil, nil
+	}
+	r, err := c.Retr(name)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	lineReader := bufio.NewReader(r)
+	var interfaceLogs []*InterfaceLog
+	for {
+		// 相同使用场景下可以采用的方法
+		// func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error)
+		// func (b *Reader) ReadBytes(delim byte) (line []byte, err error)
+		// func (b *Reader) ReadString(delim byte) (line string, err error)
+		line, _, err := lineReader.ReadLine()
+		if err == io.EOF {
+			break
+		}
+		if len(line) == 0 {
+			continue
+		}
+		interfaceLog, err := createInterfaceLog(line)
+		if err != nil {
+			continue
+		}
+		interfaceLogs = append(interfaceLogs, interfaceLog)
+	}
+
+	return interfaceLogs, nil
+}
+
+// 获取 interface.log 文件内容
+func createInterfaceLog(file []byte) (*InterfaceLog, error) {
 	var interfaceLog InterfaceLog
 	err := json.Unmarshal(file, &interfaceLog)
 	if err != nil {
@@ -706,6 +751,7 @@ func getInterfaceLog(file []byte) (*InterfaceLog, error) {
 	return &interfaceLog, nil
 }
 
+// 获取 fault.log 文件内容
 func getFaultLog(file []byte) (*FaultLog, error) {
 	var faultLog FaultLog
 	err := json.Unmarshal(file, &faultLog)
@@ -715,6 +761,7 @@ func getFaultLog(file []byte) (*FaultLog, error) {
 	return &faultLog, nil
 }
 
+// 获取 fault.txt 文件内容
 func getFaultTxt(file []byte) (*FaultTxt, error) {
 	var faultTxt FaultTxt
 	err := json.Unmarshal(file, &faultTxt)
@@ -725,6 +772,7 @@ func getFaultTxt(file []byte) (*FaultTxt, error) {
 	return &faultTxt, nil
 }
 
+// string to time
 func getTimestamp(ts string) (time.Time, error) {
 	if ts == "" {
 		return time.Time{}, errors.New("时间为空")

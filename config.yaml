@@ -20,10 +20,10 @@ ftp:
   password: Chindeo
 restful:
   timetype: m # h,m,s 同步频率类型
-  timeduration: 1 #同步频率
+  timeduration: 5 #同步频率
 device:
   timetype: m # h,m,s 同步频率类型
-  timeduration: 1 #同步频率
+  timeduration: 5 #同步频率
 data:
   timetype: m # h,m,s 同步频率类型
   timeduration: 5 #同步频率
