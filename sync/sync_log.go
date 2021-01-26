@@ -276,25 +276,24 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 					loggerD.Infof(fmt.Sprintf("解析日志文件 %s 错误 %+v", s.Name, err))
 					continue
 				}
-			}
-
-			// 服务器时间是否同步
-			if isSyncTime {
-				var subT int64
-				if isSyncTime, subT, err = checkSyncTime(logMsg.Timestamp, s.Time); err != nil {
-					loggerD.Infof(fmt.Sprintf("检查时间同步错误 %+v", err))
-					continue
+				// 服务器时间是否同步
+				if isSyncTime {
+					var subT int64
+					if isSyncTime, subT, err = checkSyncTime(logMsg.Timestamp, s.Time); err != nil {
+						loggerD.Infof(fmt.Sprintf("检查时间同步错误 %+v", err))
+						continue
+					}
+					syncTimeMsg = fmt.Sprintf("日志记录时间 %s ;服务器时间 %s ;偏差 %d 分钟", logMsg.Timestamp, s.Time.In(location).Format(utils.DateTimeLayout), subT)
 				}
-				syncTimeMsg = fmt.Sprintf("日志记录时间 %s ;服务器时间 %s ;偏差 %d 分钟", logMsg.Timestamp, s.Time.In(location).Format(utils.DateTimeLayout), subT)
-			}
-			//有超时跳过检查
-			if !isOverTime && isSyncTime {
-				var subT int64
-				if isOverTime, subT, err = checkOverTime(logMsg.Timestamp); err != nil {
-					loggerD.Infof(fmt.Sprintf("检查时间超时错误 %+v", err))
-					continue
+				//有超时跳过检查
+				if !isOverTime && isSyncTime {
+					var subT int64
+					if isOverTime, subT, err = checkOverTime(logMsg.Timestamp); err != nil {
+						loggerD.Infof(fmt.Sprintf("检查时间超时错误 %+v", err))
+						continue
+					}
+					overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
 				}
-				overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
 			}
 
 		} else if utils.InStrArray(s.Name, imgExts) { // 设备截屏图片
