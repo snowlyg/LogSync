@@ -676,11 +676,10 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		}
 
 		if !faultTxt.Mqtt {
-			if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
-				logMsg.Status = false
-				logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s;%s", utils.Config.Faultmsg.Plugin, faultTxt.Reason, pingMsg)
-				logMsg.StatusType = utils.Config.Faultmsg.Plugin
-			}
+			_, pingMsg := utils.GetPingMsg(logMsg.DevIp)
+			logMsg.Status = false
+			logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s;%s", utils.Config.Faultmsg.Plugin, faultTxt.Reason, pingMsg)
+			logMsg.StatusType = utils.Config.Faultmsg.Plugin
 		}
 
 		logMsg.Mqtt = faultTxt.Reason
