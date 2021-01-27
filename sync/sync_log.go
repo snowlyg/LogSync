@@ -456,18 +456,20 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 	if runtime.GOOS == "windows" {
 		// Tasklist /s 218.22.123.26 /u jtdd /p 12345678
 		// /FI "USERNAME ne NT AUTHORITY\SYSTEM" /FI "STATUS eq running"
-		args := []string{"/s", ip, "/u", account, "/p", password, "/FI", "\"IMAGENAME eq App.exe\""}
-		cmd := exec.Command("Tasklist", args...)
+		args := []string{"/C", "tasklist", "/S", ip, "/U", account, "/P", password, "/FI", "IMAGENAME eq App.exe"}
+		cmd := exec.Command("cmd.exe", args...)
 		loggerD.Infof(fmt.Sprintf("%+v", cmd))
 		var out bytes.Buffer
+		var outErr bytes.Buffer
 		cmd.Stdout = &out
+		cmd.Stderr = &outErr
 		if err := cmd.Run(); err != nil {
-			loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
+			loggerD.Infof(fmt.Sprintf("%+v error %+v", cmd, outErr.String()))
 			logMsg.StatusMsg += "执行 Tasklist 失败，请确认应用程序是否已经开启;"
 			return false
 		}
 
-		loggerD.Infof(fmt.Sprintf("cmd out %+v", out.String()))
+		loggerD.Infof(fmt.Sprintf("out put %+v", out.String()))
 		if strings.Count(out.String(), "App.exe") == 5 {
 			logMsg.StatusMsg += "设备 App应用进程在运行中；"
 			return true
@@ -496,18 +498,19 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	}
 
 	if runtime.GOOS == "windows" {
-		args := []string{"-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
-		cmd := exec.Command("pscp", args...)
+		args := []string{"/C", "pscp", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
+		cmd := exec.Command("cmd.exe", args...)
 		loggerD.Infof(fmt.Sprintf("%+v", cmd))
 		var out bytes.Buffer
+		var outErr bytes.Buffer
 		cmd.Stdout = &out
+		cmd.Stderr = &outErr
 		if err := cmd.Run(); err != nil {
-			loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
+			loggerD.Infof(fmt.Sprintf("%+v error %+v", cmd, outErr.String()))
 			logMsg.StatusMsg += "执行 pscp 失败;"
 			return
 		}
-
-		loggerD.Infof(fmt.Sprintf("cmd out %+v", out.String()))
+		loggerD.Infof(fmt.Sprintf("out put %+v", out.String()))
 	}
 
 	logFiles, err := utils.ListDir(oDir, "log")

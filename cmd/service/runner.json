@@ -1,0 +1,13 @@
+{
+  "Name": "LogSync",
+  "DisplayName": "LogSync",
+  "Description": "LogSync",
+
+  "Dir": "C:\\Users\\Administrator\\Desktop\\log",
+  "Exec": "C:\\Users\\Administrator\\Desktop\\log\\LogSync.exe",
+  "Args": [],
+  "Env": [],
+
+  "Stderr": "C:\\Users\\Administrator\\Desktop\\log\\builder_err.log",
+  "Stdout": "C:\\Users\\Administrator\\Desktop\\log\\builder_out.log"
+}
