@@ -424,11 +424,17 @@ func getCurrentDir(c *ftp.ServerConn) (string, error) {
 func checkLogOverFive(logMsg *LogMsg, loggerD *logging.Logger) {
 	loggerD.Infof(fmt.Sprintf(">>> 日志记录超时,开始排查错误"))
 	loggerD.Infof(fmt.Sprintf("dev_id : %s /dev_code : %s", logMsg.DevIp, logMsg.DeviceCode))
+	logMsg.Status = false
+	logMsg.StatusMsg += fmt.Sprintf("设备 %s(%s) 可以访问;", logMsg.DeviceCode, logMsg.DevIp)
+	logMsg.StatusType = utils.Config.Faultmsg.Logsync
 	if logMsg.DirName == "nis" { // 大屏
 		loggerD.Infof(fmt.Sprintf(">>> 开始排查大屏"))
-		// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
-		dir := fmt.Sprintf("%s/%s/%s/%s/", utils.Config.Web.Indir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format(utils.DateLayout))
-		pscpDevice(logMsg, loggerD, utils.Config.Web.Password, utils.Config.Web.Account, dir, logMsg.DevIp)
+		if tasklistDevice(logMsg, loggerD, utils.Config.Web.Password, utils.Config.Web.Account, logMsg.DevIp) {
+			// pscp -scp -r -pw Chindeo root@10.0.0.202:/www/ D:/
+			dir := fmt.Sprintf("%s/%s/%s/%s/", utils.Config.Web.Indir, logMsg.DirName, logMsg.DeviceCode, time.Now().Format(utils.DateLayout))
+			pscpDevice(logMsg, loggerD, utils.Config.Web.Password, utils.Config.Web.Account, dir, logMsg.DevIp)
+		}
+
 		loggerD.Infof(fmt.Sprintf(">>> 大屏排查结束"))
 		// 安卓设备
 	} else if utils.InStrArray(logMsg.DirName, []string{"bis", "nws", "webapp"}) {
@@ -444,13 +450,40 @@ func checkLogOverFive(logMsg *LogMsg, loggerD *logging.Logger) {
 	loggerD.Infof(fmt.Sprintf("日志记录超时,排查错误完成"))
 }
 
+func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, ip string) bool {
+	loggerD.Infof(fmt.Sprintf("开始执行远程查看进程操作"))
+	defer loggerD.Infof(fmt.Sprintf("结束执行远程查看进程操作"))
+	if runtime.GOOS == "windows" {
+		// Tasklist /s 218.22.123.26 /u jtdd /p 12345678
+		// /FI "USERNAME ne NT AUTHORITY\SYSTEM" /FI "STATUS eq running"
+		args := []string{"/s", ip, "/u", account, "/p", password, "/FI", "\"IMAGENAME eq App.exe\""}
+		cmd := exec.Command("Tasklist", args...)
+		loggerD.Infof(fmt.Sprintf("%+v", cmd))
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		if err := cmd.Run(); err != nil {
+			loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
+			logMsg.StatusMsg += "执行 Tasklist 失败，请确认设备开启RPC服务的支持，并且允许远程连接"
+			return false
+		}
+
+		loggerD.Infof(fmt.Sprintf("cmd out %+v", out.String()))
+		if strings.Count(out.String(), "App.exe") == 5 {
+			logMsg.StatusMsg += "设备 App应用进程在运行中；"
+			return true
+		} else {
+			logMsg.StatusMsg += "设备 App应用进程未运行，请确认应用程序是否已经开启"
+			return false
+		}
+	}
+
+	return false
+}
+
 // 使用 pscp 获取设备上的日志
 func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir, ip string) {
 	loggerD.Infof(fmt.Sprintf("开始执行远程复制日志操作"))
 	defer loggerD.Infof(fmt.Sprintf("结束执行远程复制日志操作"))
-	logMsg.Status = false
-	logMsg.StatusMsg += fmt.Sprintf("设备 %s(%s) 可以访问;", logMsg.DeviceCode, logMsg.DevIp)
-	logMsg.StatusType = utils.Config.Faultmsg.Logsync
 	oDir, err := createOutDir(logMsg.DirName, logMsg.DeviceCode)
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("createOutDir %s error %s ", oDir, err))
