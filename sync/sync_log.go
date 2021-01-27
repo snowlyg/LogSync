@@ -456,7 +456,7 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 	if runtime.GOOS == "windows" {
 		// Tasklist /s 218.22.123.26 /u jtdd /p 12345678
 		// /FI "USERNAME ne NT AUTHORITY\SYSTEM" /FI "STATUS eq running"
-		args := []string{"/C", "tasklist", "/S", ip, "/U", account, "/P", password, "/FI", "IMAGENAME eq App.exe"}
+		args := []string{"/C", "tasklist.exe", "/S", ip, "/U", account, "/P", password, "/FI", "IMAGENAME eq App.exe"}
 		cmd := exec.Command("cmd.exe", args...)
 		loggerD.Infof(fmt.Sprintf("%+v", cmd))
 		var out bytes.Buffer
@@ -498,7 +498,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	}
 
 	if runtime.GOOS == "windows" {
-		args := []string{"/C", "pscp", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
+		args := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
 		cmd := exec.Command("cmd.exe", args...)
 		loggerD.Infof(fmt.Sprintf("%+v", cmd))
 		var out bytes.Buffer
