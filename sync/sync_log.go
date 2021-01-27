@@ -144,6 +144,7 @@ func SyncDeviceLog() {
 		logMsgs = append(logMsgs, logMsg)
 	}
 
+	// 分批发送
 	var loop = 0
 	devicesize := utils.Config.Devicesize
 	for loop < len(logMsgs)/devicesize+1 {
@@ -161,6 +162,22 @@ func SyncDeviceLog() {
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/device", data)
 			if err != nil {
+				for _, logMsgSub := range logMsgSubs {
+					loggerD.Infof(
+						logMsgSub.DeviceCode,
+						logMsgSub.StatusMsg,
+						logMsgSub.FaultMsg,
+						logMsgSub.Status,
+						logMsgSub.InterfaceError,
+						logMsgSub.StatusType,
+						logMsgSub.Call,
+						logMsgSub.Face,
+						logMsgSub.Iptv,
+						logMsgSub.Interf,
+						logMsgSub.Mqtt,
+						logMsgSub.Timestamp,
+					)
+				}
 				loggerD.Errorf("提交日志信息", "错误", err)
 			}
 			logCodes = nil
@@ -204,8 +221,10 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 				loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 				return
 			} else {
-				loggerD.Infof(fmt.Sprintf("设备%s;日志路径 %s 不存在", logMsg.DeviceCode, logPath))
-				checkLogOverFive(logMsg, loggerD) // 日志超时
+				msg := fmt.Sprintf("设备 %s 日志路径 %s 不存在;", logMsg.DeviceCode, logPath)
+				loggerD.Infof(msg)
+				logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
+				checkLogOverFive(logMsg, loggerD)
 				return
 			}
 		}
@@ -234,8 +253,10 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
 		} else {
-			loggerD.Infof(fmt.Sprintf("设备%s;没有日志文件", logMsg.DeviceCode))
-			checkLogOverFive(logMsg, loggerD) // 日志超时
+			msg := fmt.Sprintf("设备 %s 没有日志文件;", logMsg.DeviceCode)
+			loggerD.Infof(msg)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
+			checkLogOverFive(logMsg, loggerD)
 			return
 		}
 	}
@@ -363,7 +384,9 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
 		} else {
-			loggerD.Infof(fmt.Sprintf("设备%s;日志超时 %s", logMsg.DeviceCode, overTimeMsg))
+			msg := fmt.Sprintf("设备 %s 日志超时 %s;", logMsg.DeviceCode, overTimeMsg)
+			loggerD.Infof(msg)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
 			checkLogOverFive(logMsg, loggerD)
 			return
 		}
@@ -379,7 +402,9 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
 		} else {
-			loggerD.Infof(fmt.Sprintf("设备%s;没有生成插件日志", logMsg.DeviceCode))
+			msg := fmt.Sprintf("设备 %s 没有生成插件日志;", logMsg.DeviceCode)
+			loggerD.Infof(msg)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
 			checkLogOverFive(logMsg, loggerD)
 		}
 	}
@@ -424,7 +449,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	loggerD.Infof(fmt.Sprintf("开始执行远程复制日志操作"))
 	defer loggerD.Infof(fmt.Sprintf("结束执行远程复制日志操作"))
 	logMsg.Status = false
-	logMsg.StatusMsg = fmt.Sprintf("【%s】设备 %s(%s) 可以访问;", utils.Config.Faultmsg.Logsync, logMsg.DeviceCode, logMsg.DevIp)
+	logMsg.StatusMsg += fmt.Sprintf("设备 %s(%s) 可以访问;", logMsg.DeviceCode, logMsg.DevIp)
 	logMsg.StatusType = utils.Config.Faultmsg.Logsync
 	oDir, err := createOutDir(logMsg.DirName, logMsg.DeviceCode)
 	if err != nil {
@@ -713,6 +738,8 @@ func getBoolToString(b bool) string {
 	}
 }
 
+// 获取 error.txt 文件内容，解析错误数据
+// 提取 http 错误
 func readErrorTxtLine(c *ftp.ServerConn, name string) (int, error) {
 	var count int
 	if !strings.Contains(name, "error.txt") {
