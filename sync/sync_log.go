@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/snowlyg/LogSync/utils/logging"
 	"io"
 	"io/ioutil"
 	"math"
@@ -20,6 +19,7 @@ import (
 	"github.com/jlaffaye/ftp"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
+	"github.com/snowlyg/LogSync/utils/logging"
 )
 
 type FileInfo struct {
