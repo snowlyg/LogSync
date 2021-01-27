@@ -463,7 +463,7 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 		cmd.Stdout = &out
 		if err := cmd.Run(); err != nil {
 			loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
-			logMsg.StatusMsg += "执行 Tasklist 失败，请确认设备开启RPC服务的支持，并且允许远程连接"
+			logMsg.StatusMsg += "执行 Tasklist 失败，请确认应用程序是否已经开启;"
 			return false
 		}
 
@@ -472,7 +472,7 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 			logMsg.StatusMsg += "设备 App应用进程在运行中；"
 			return true
 		} else {
-			logMsg.StatusMsg += "设备 App应用进程未运行，请确认应用程序是否已经开启"
+			logMsg.StatusMsg += "设备 App应用进程未运行，请确认应用程序是否已经开启;"
 			return false
 		}
 	}
@@ -503,7 +503,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		cmd.Stdout = &out
 		if err := cmd.Run(); err != nil {
 			loggerD.Infof(fmt.Sprintf("%+v cmd.Run() %+v", cmd, err))
-			logMsg.StatusMsg += "执行 pscp 失败，请确认设备已经安装 scp 服务，并且允许远程连接"
+			logMsg.StatusMsg += "执行 pscp 失败;"
 			return
 		}
 
@@ -513,7 +513,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	logFiles, err := utils.ListDir(oDir, "log")
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("从路径 %s 获取日志文件出错 %v ", oDir, err))
-		logMsg.StatusMsg += "执行 pscp 没有获取到日志，请确认设备已经安装 scp 服务，并且允许远程连接"
+		logMsg.StatusMsg += "执行 pscp 没有获取到日志;"
 		return
 	}
 
