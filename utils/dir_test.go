@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetDeviceDir(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	InitConfig()
 	//names: nis,bis,webapp,nws
 	//codes: 1,2,3,4
@@ -52,7 +52,7 @@ func TestGetDeviceDir(t *testing.T) {
 }
 
 func Test_getDirs(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	InitConfig()
 	want := map[string]string{
 		"1": "nis",

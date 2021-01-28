@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/snowlyg/LogSync/utils"
 	"path/filepath"
 	"time"
+
+	"github.com/snowlyg/LogSync/utils"
 )
 
-const root = "/Users/snowlyg/ftp/admin/log"
+const root = "D:/env/FileZillaServer/share/log"
 
 type device struct {
 	Code              string

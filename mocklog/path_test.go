@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/snowlyg/LogSync/utils"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/snowlyg/LogSync/utils"
 )
 
 func TestGetPath(t *testing.T) {
@@ -20,11 +21,11 @@ func TestGetPath(t *testing.T) {
 		{
 			name: "日志文件路径A4580F48337E",
 			arg:  device1,
-			want: filepath.Join("/Users/snowlyg/ftp/admin/log/bis/A4580F48337E", time.Now().In(location).Format(utils.DateLayout)),
+			want: filepath.Join("D:/env/FileZillaServer/share/log/bis/A4580F48337E", time.Now().In(location).Format(utils.DateLayout)),
 		}, {
 			name: "日志文件路径A4580F48337F",
 			arg:  device2,
-			want: filepath.Join("/Users/snowlyg/ftp/admin/log/bis/A4580F48337F", time.Now().In(location).Format(utils.DateLayout)),
+			want: filepath.Join("D:/env/FileZillaServer/share/log/bis/A4580F48337F", time.Now().In(location).Format(utils.DateLayout)),
 		},
 	}
 	for _, tt := range tests {

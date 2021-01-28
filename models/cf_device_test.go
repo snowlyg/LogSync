@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetCfDevice(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	tests := []struct {
 		name    string

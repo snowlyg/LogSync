@@ -3,12 +3,13 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jlaffaye/ftp"
-	"github.com/snowlyg/LogSync/utils"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jlaffaye/ftp"
+	"github.com/snowlyg/LogSync/utils"
 )
 
 var location, _ = utils.GetLocation()
@@ -190,7 +191,7 @@ func Test_codeIsError(t *testing.T) {
 }
 
 func Test_getPluginsInfo_Text(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	type args struct {
 		fileName string
@@ -258,7 +259,7 @@ func Test_getPluginsInfo_Text(t *testing.T) {
 }
 
 func Test_getPluginsInfo_Log(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	type args struct {
 		fileName string
@@ -400,7 +401,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 }
 
 func Test_checkSyncTime(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	type args struct {
 		timetxt string
@@ -444,7 +445,7 @@ func Test_checkSyncTime(t *testing.T) {
 }
 
 func Test_checkOverTime(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	type args struct {
 		timeTxt string
@@ -487,7 +488,7 @@ func Test_checkOverTime(t *testing.T) {
 }
 
 func Test_getDeviceByCode(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	type args struct {
 		remoteDevices []*utils.Device
@@ -549,7 +550,7 @@ func Test_getInterfaceLog(t *testing.T) {
 }
 
 func Test_readInterfaceLogLine(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
@@ -579,7 +580,7 @@ func Test_readInterfaceLogLine(t *testing.T) {
 		args args
 		want int
 	}{
-		{name: "获取解析interface.log", args: args{c, "interface.log"}, want: 6},
+		{name: "获取解析interface.log", args: args{c, "interface.log"}, want: 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -596,7 +597,7 @@ func Test_readInterfaceLogLine(t *testing.T) {
 }
 
 func Test_readErrorTxtLine(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {

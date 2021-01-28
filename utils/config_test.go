@@ -7,7 +7,7 @@ import (
 )
 
 func TestInitConfig(t *testing.T) {
-	os.Setenv("LogSyncConfigPath", "/Users/snowlyg/go/src/github.com/snowlyg/LogSync")
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	InitConfig()
 
 	tests := []struct {
@@ -31,7 +31,7 @@ func TestInitConfig(t *testing.T) {
 					want: "sdfsdfsdfdsfsdfsdf",
 				}, {
 					key:  Config.DB,
-					want: "visible:Chindeo@tcp(127.0.0.1:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local",
+					want: "visible:Chindeo@tcp(10.0.0.23:3306)/dois?charset=utf8mb4&parseTime=True&loc=Local",
 				}, {
 					key:  strconv.FormatInt(Config.Timeout, 10),
 					want: "5",
@@ -40,7 +40,7 @@ func TestInitConfig(t *testing.T) {
 					want: "10",
 				}, {
 					key:  Config.Host,
-					want: "test.op.com",
+					want: "op.chindeo.com",
 				}, {
 					key:  Config.Exts,
 					want: "fault.log,interface.log,fault.txt,error.txt",
@@ -52,7 +52,7 @@ func TestInitConfig(t *testing.T) {
 					want: "log",
 				}, {
 					key:  Config.Outdir,
-					want: "/Users/snowlyg/go/src/github.com/snowlyg/LogSync",
+					want: "D:\\go\\src\\github.com\\snowlyg\\LogSync",
 				}, {
 					key:  strconv.FormatBool(Config.Isresizeimg),
 					want: "false",
