@@ -1,7 +1,7 @@
 # LogSync
 
 查询日志信息
-
+- 注意事项，注册为服务执行 tasklist 会报错用户名或密码错误
 #### 注册/卸载服务/启动/停止/重启
 
 ```shell script
@@ -103,7 +103,7 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 ```shell script
 go build -ldflags "-w -s -X main.Version=v1.9  -o ./cmd/LogSync.exe
 
-CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc CXX=/usr/local/bin/x86_64-w64-mingw32-g+ go build -ldflags " -w -s -X main.Version=v2.1" -race  -o ./cmd/LogSync.exe
+GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc CXX=/usr/local/bin/x86_64-w64-mingw32-g+ go build -ldflags " -w -s -X main.Version=v2.25"   -o ./cmd/LogSync.exe
 ```
 
 #### 模拟日志
@@ -135,3 +135,4 @@ go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
 - v2.23 增加日志文件时间字段，增加监控设备是否过滤判断
 - v2.24 重构日志同步监控程序
 - v2.25 修复护理大屏日志文件解析报错 增加 interface.log 统计  ，interf code -1 不报故障 ，大屏 mqtt 断开增加ping操作
+

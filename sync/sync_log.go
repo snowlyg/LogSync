@@ -223,7 +223,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			} else {
 				msg := fmt.Sprintf("设备 %s 日志路径 %s 不存在;", logMsg.DeviceCode, logPath)
 				loggerD.Infof(msg)
-				logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
+				logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
 				checkLogOverFive(logMsg, loggerD)
 				return
 			}
@@ -255,7 +255,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		} else {
 			msg := fmt.Sprintf("设备 %s 没有日志文件;", logMsg.DeviceCode)
 			loggerD.Infof(msg)
-			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
 			checkLogOverFive(logMsg, loggerD)
 			return
 		}
@@ -386,7 +386,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		} else {
 			msg := fmt.Sprintf("设备 %s 日志超时 %s;", logMsg.DeviceCode, overTimeMsg)
 			loggerD.Infof(msg)
-			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
 			checkLogOverFive(logMsg, loggerD)
 			return
 		}
@@ -404,7 +404,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 		} else {
 			msg := fmt.Sprintf("设备 %s 没有生成插件日志;", logMsg.DeviceCode)
 			loggerD.Infof(msg)
-			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", msg, utils.Config.Faultmsg.Logsync)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
 			checkLogOverFive(logMsg, loggerD)
 		}
 	}

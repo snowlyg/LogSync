@@ -156,9 +156,10 @@ func main() {
 	utils.InitConfig()
 	// 初始化日志目录
 	svcConfig := &service.Config{
-		Name:        "LogSync",  //服务显示名称
-		DisplayName: "LogSync",  //服务名称
-		Description: "同步错误日志信息", //服务描述
+		Name:             "LogSync",  //服务显示名称
+		DisplayName:      "LogSync",  //服务名称
+		Description:      "同步错误日志信息", //服务描述
+		WorkingDirectory: utils.Config.Outdir,
 	}
 
 	prg := &program{}
