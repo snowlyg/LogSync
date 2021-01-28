@@ -101,7 +101,7 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 #### 编译
 
 ```shell script
-go build -ldflags "-w -s -X main.Version=v1.9  -o ./cmd/LogSync.exe
+go build -ldflags "-w -s -X main.Version=v1.9"  -o ./cmd/LogSync.exe main.go
 
 GOOS=windows GOARCH=amd64 CC=/usr/local/bin/x86_64-w64-mingw32-gcc CXX=/usr/local/bin/x86_64-w64-mingw32-g+ go build -ldflags " -w -s -X main.Version=v2.25"   -o ./cmd/LogSync.exe
 ```

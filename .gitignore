@@ -18,6 +18,7 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 .idea/
+.vscode/
 logs/*
 other_logs/*
 
@@ -26,3 +27,4 @@ LogSync
 air.log
 .air.conf
 
+config.yaml
