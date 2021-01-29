@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +11,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kardianos/service"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
 	//_ "net/http/pprof"
@@ -43,6 +46,39 @@ func (p *program) run() {
 	}()
 	go func() {
 		syncDevice()
+	}()
+
+	// 定时推送内存，cpu 使用率
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				var memData [][]interface{}
+				var cpuData [][]interface{}
+				mem, _ := mem.VirtualMemory()
+				cpu, _ := cpu.Percent(0, false)
+				now := time.Now().Format(utils.TimeLayout)
+				memData = append(memData, []interface{}{now, mem.UsedPercent})
+				cpuData = append(cpuData, []interface{}{now, cpu[0]})
+
+				memJson, err := json.Marshal(memData)
+				if err != nil {
+					fmt.Println(err)
+				}
+				cpuJson, err := json.Marshal(cpuData)
+				if err != nil {
+					fmt.Println(err)
+				}
+				data := fmt.Sprintf("mem=%s&cpu=%s", string(memJson), string(cpuJson))
+				_, err = utils.SyncServices("platform/report/push", data)
+				if err != nil {
+					fmt.Println(err)
+				}
+
+			}
+		}
 	}()
 }
 

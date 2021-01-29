@@ -6,11 +6,14 @@ import (
 	"time"
 )
 
+// DateTime 自定义事件类型
 type DateTime time.Time
 
+//  日期格式
 const (
 	DateLayout      = "2006-01-02"
 	DateTimeLayout  = "2006-01-02 15:04:05"
+	TimeLayout      = "15:04:05"
 	BuildTimeLayout = "2006.0102.150405"
 	TimestampLayout = "20060102150405"
 )

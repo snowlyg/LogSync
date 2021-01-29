@@ -3,6 +3,8 @@ module github.com/snowlyg/LogSync
 go 1.14
 
 require (
+	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
+	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/jinzhu/configor v1.2.1
 	github.com/jinzhu/gorm v1.9.12
@@ -12,6 +14,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/shirou/gopsutil v3.20.12+incompatible // indirect
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
