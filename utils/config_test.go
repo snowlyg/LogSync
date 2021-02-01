@@ -86,6 +86,12 @@ func TestInitConfig(t *testing.T) {
 				}, {
 					key:  strconv.FormatInt(Config.Data.Timeduration, 10),
 					want: "5",
+				}, {}, {
+					key:  Config.System.Timetype,
+					want: "m",
+				}, {
+					key:  strconv.FormatInt(Config.System.Timeduration, 10),
+					want: "5",
 				}, {
 					key:  Config.Dir.Names,
 					want: "nis,bis,webapp,nws",

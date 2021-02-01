@@ -11,8 +11,9 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kardianos/service"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
 	//_ "net/http/pprof"
@@ -50,18 +51,23 @@ func (p *program) run() {
 
 	// 定时推送内存，cpu 使用率
 	go func() {
-		ticker := time.NewTicker(2 * time.Second)
+		t := utils.Config.System.Timeduration
+		v := utils.Config.System.Timetype
+		ticker := getTicker(t, v)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				var memData [][]interface{}
 				var cpuData [][]interface{}
-				mem, _ := mem.VirtualMemory()
-				cpu, _ := cpu.Percent(0, false)
+				var diskData [][]interface{}
+				m, _ := mem.VirtualMemory()
+				c, _ := cpu.Percent(0, false)
+				v, _ := disk.Usage("C:")
 				now := time.Now().Format(utils.TimeLayout)
-				memData = append(memData, []interface{}{now, mem.UsedPercent})
-				cpuData = append(cpuData, []interface{}{now, cpu[0]})
+				memData = append(memData, []interface{}{now, m.UsedPercent})
+				cpuData = append(cpuData, []interface{}{now, c[0]})
+				diskData = append(diskData, []interface{}{now, v.UsedPercent})
 
 				memJson, err := json.Marshal(memData)
 				if err != nil {
@@ -71,12 +77,15 @@ func (p *program) run() {
 				if err != nil {
 					fmt.Println(err)
 				}
-				data := fmt.Sprintf("mem=%s&cpu=%s", string(memJson), string(cpuJson))
+				diskJson, err := json.Marshal(diskData)
+				if err != nil {
+					fmt.Println(err)
+				}
+				data := fmt.Sprintf("mem=%s&cpu=%s&disk=%s", string(memJson), string(cpuJson), string(diskJson))
 				_, err = utils.SyncServices("platform/report/push", data)
 				if err != nil {
 					fmt.Println(err)
 				}
-
 			}
 		}
 	}()

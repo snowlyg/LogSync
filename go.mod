@@ -15,6 +15,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shirou/gopsutil v3.20.12+incompatible // indirect
+	github.com/shirou/gopsutil/v3 v3.20.12 // indirect
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd

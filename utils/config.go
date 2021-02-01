@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+
 	"github.com/jinzhu/configor"
 )
 
@@ -38,6 +39,10 @@ var Config = struct {
 	Restful struct {
 		Timetype     string `default:"m" env:"RestfulTimetype"`
 		Timeduration int64  `default:"3" env:"RestfulTimeduration"`
+	}
+	System struct {
+		Timetype     string `default:"m" env:"SystemTimetype"`
+		Timeduration int64  `default:"3" env:"SystemTimeduration"`
 	}
 	Web struct {
 		Account  string `default:"" env:"WebAccount"`
