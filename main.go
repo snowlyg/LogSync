@@ -11,9 +11,9 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kardianos/service"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/disk"
-	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
 	//_ "net/http/pprof"
@@ -91,6 +91,11 @@ func (p *program) run() {
 	}()
 }
 
+func (p *program) Stop(s service.Service) error {
+	defer log.Println("********** STOP **********")
+	return nil
+}
+
 func syncDevice() {
 	t := utils.Config.Data.Timeduration
 	v := utils.Config.Data.Timetype
@@ -160,11 +165,6 @@ func syncRestful() {
 		ch <- 1
 	}()
 	<-ch
-}
-
-func (p *program) Stop(s service.Service) error {
-	defer log.Println("********** STOP **********")
-	return nil
 }
 
 func getTicker(t int64, v string) *time.Ticker {
@@ -269,5 +269,4 @@ func main() {
 	}
 
 	s.Run()
-
 }
