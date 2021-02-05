@@ -1,188 +1,257 @@
 package main
 
 import (
-	"encoding/json"
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/kardianos/service"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// Config is the runner app config structure.
-type Config struct {
-	Name, DisplayName, Description string
-
-	Dir  string
-	Exec string
-	Args []string
-	Env  []string
-
-	Stderr, Stdout string
-}
-
-var logger service.Logger
-
 type program struct {
-	exit    chan struct{}
-	service service.Service
-
-	*Config
-
-	cmd *exec.Cmd
 }
 
 func (p *program) Start(s service.Service) error {
-	// Look for exec.
-	// Verify home directory.
-	fullExec, err := exec.LookPath(p.Exec)
-	if err != nil {
-		return fmt.Errorf("Failed to find executable %q: %v", p.Exec, err)
-	}
-
-	p.cmd = exec.Command(fullExec, p.Args...)
-	p.cmd.Dir = p.Dir
-	p.cmd.Env = append(os.Environ(), p.Env...)
-
 	go p.run()
 	return nil
 }
-func (p *program) run() {
-	logger.Info("Starting ", p.DisplayName)
-	defer func() {
-		if service.Interactive() {
-			p.Stop(p.service)
-		} else {
-			p.service.Stop()
-		}
-	}()
 
-	if p.Stderr != "" {
-		f, err := os.OpenFile(p.Stderr, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-		if err != nil {
-			logger.Warningf("Failed to open std err %q: %v", p.Stderr, err)
-			return
-		}
-		defer f.Close()
-		p.cmd.Stderr = f
-	}
-	if p.Stdout != "" {
-		f, err := os.OpenFile(p.Stdout, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-		if err != nil {
-			logger.Warningf("Failed to open std out %q: %v", p.Stdout, err)
-			return
-		}
-		defer f.Close()
-		p.cmd.Stdout = f
-	}
-
-	err := p.cmd.Run()
-	if err != nil {
-		logger.Warningf("Error running: %v", err)
-	}
-
-	return
-}
 func (p *program) Stop(s service.Service) error {
-	close(p.exit)
-	logger.Info("Stopping ", p.DisplayName)
-	if p.cmd.Process != nil {
-		p.cmd.Process.Kill()
-	}
-	if service.Interactive() {
-		os.Exit(0)
-	}
+	defer log.Println("********** STOP **********")
 	return nil
 }
 
-func getConfigPath() (string, error) {
-	fullexecpath, err := os.Executable()
-	if err != nil {
-		return "", err
+func (p *program) run() {
+	hook := lumberjack.Logger{
+		Filename:   "D:\\go\\src\\github.com\\snowlyg\\LogSync\\cmd\\service\\logs\\info.log", // 日志文件路径
+		MaxSize:    128,                                                                       // 每个日志文件保存的最大尺寸 单位：M
+		MaxBackups: 30,                                                                        // 日志文件最多保存多少个备份
+		MaxAge:     7,                                                                         // 文件最多保存多少天
+		Compress:   true,                                                                      // 是否压缩
 	}
 
-	dir, execname := filepath.Split(fullexecpath)
-	ext := filepath.Ext(execname)
-	name := execname[:len(execname)-len(ext)]
+	encoderConfig := zapcore.EncoderConfig{
+		TimeKey:        "time",
+		LevelKey:       "level",
+		NameKey:        "logger",
+		CallerKey:      "linenum",
+		MessageKey:     "msg",
+		StacktraceKey:  "stacktrace",
+		LineEnding:     zapcore.DefaultLineEnding,
+		EncodeLevel:    zapcore.LowercaseLevelEncoder,  // 小写编码器
+		EncodeTime:     zapcore.ISO8601TimeEncoder,     // ISO8601 UTC 时间格式
+		EncodeDuration: zapcore.SecondsDurationEncoder, //
+		EncodeCaller:   zapcore.FullCallerEncoder,      // 全路径编码器
+		EncodeName:     zapcore.FullNameEncoder,
+	}
 
-	return filepath.Join(dir, name+".json"), nil
+	// 设置日志级别
+	atomicLevel := zap.NewAtomicLevel()
+	atomicLevel.SetLevel(zap.InfoLevel)
+
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderConfig),                                           // 编码器配置
+		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(&hook)), // 打印到控制台和文件
+		atomicLevel, // 日志级别
+	)
+
+	// 开启开发模式，堆栈跟踪
+	caller := zap.AddCaller()
+	// 开启文件及行号
+	development := zap.Development()
+	// 设置初始化字段
+	filed := zap.Fields(zap.String("serviceName", "serviceName"))
+	// 构造日志
+	logger := zap.New(core, caller, development, filed)
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			logger.Info("tasklist")
+			args := []string{"/C", "tasklist", "/s", "10.0.0.174", "/u", "Administrator", "/p", "123456", "/fi", "IMAGENAME eq App.exe"}
+			cmd := exec.Command("cmd.exe", args...)
+			logger.Info(fmt.Sprintf("%+v", cmd))
+			var out bytes.Buffer
+			var outErr bytes.Buffer
+			cmd.Stdout = &out
+			cmd.Stderr = &outErr
+			if err := cmd.Run(); err != nil {
+				utf8Data := outErr.Bytes()
+				if isGBK(outErr.Bytes()) {
+					utf8Data, _ = simplifiedchinese.GBK.NewDecoder().Bytes(outErr.Bytes())
+					logger.Info(fmt.Sprintf("outErr isUtf8 %v", isUtf8(utf8Data)))
+				}
+				logger.Info(fmt.Sprintf("outErr isGBK %v", isGBK(outErr.Bytes())))
+				logger.Info(fmt.Sprintf("outErr isUtf8 %v", isUtf8(outErr.Bytes())))
+				logger.Info(fmt.Sprintf("tasklist %v", string(utf8Data)))
+			}
+			logger.Info(fmt.Sprintf("out isGBK %v", isGBK(out.Bytes())))
+			logger.Info(fmt.Sprintf("out isUtf8 %v", isUtf8(out.Bytes())))
+			logger.Info(fmt.Sprintf("%v", out.String()))
+			logger.Info("info app count", zap.Int("count:", strings.Count(out.String(), "App.exe")))
+
+		}
+	}
+
 }
 
-func getConfig(path string) (*Config, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
+func preNUm(data byte) int {
+	var mask byte = 0x80
+	var num int = 0
+	//8bit中首个0bit前有多少个1bits
+	for i := 0; i < 8; i++ {
+		if (data & mask) == mask {
+			num++
+			mask = mask >> 1
+		} else {
+			break
+		}
 	}
-	defer f.Close()
-
-	conf := &Config{}
-
-	r := json.NewDecoder(f)
-	err = r.Decode(&conf)
-	if err != nil {
-		return nil, err
+	return num
+}
+func isUtf8(data []byte) bool {
+	i := 0
+	for i < len(data) {
+		if (data[i] & 0x80) == 0x00 {
+			// 0XXX_XXXX
+			i++
+			continue
+		} else if num := preNUm(data[i]); num > 2 {
+			// 110X_XXXX 10XX_XXXX
+			// 1110_XXXX 10XX_XXXX 10XX_XXXX
+			// 1111_0XXX 10XX_XXXX 10XX_XXXX 10XX_XXXX
+			// 1111_10XX 10XX_XXXX 10XX_XXXX 10XX_XXXX 10XX_XXXX
+			// 1111_110X 10XX_XXXX 10XX_XXXX 10XX_XXXX 10XX_XXXX 10XX_XXXX
+			// preNUm() 返回首个字节的8个bits中首个0bit前面1bit的个数，该数量也是该字符所使用的字节数
+			i++
+			for j := 0; j < num-1; j++ {
+				//判断后面的 num - 1 个字节是不是都是10开头
+				if (data[i] & 0xc0) != 0x80 {
+					return false
+				}
+				i++
+			}
+		} else {
+			//其他情况说明不是utf-8
+			return false
+		}
 	}
-	return conf, nil
+	return true
+}
+
+func isGBK(data []byte) bool {
+	length := len(data)
+	var i int = 0
+	for i < length {
+		if data[i] <= 0x7f {
+			//编码0~127,只有一个字节的编码，兼容ASCII码
+			i++
+			continue
+		} else {
+			//大于127的使用双字节编码，落在gbk编码范围内的字符
+			if data[i] >= 0x81 &&
+				data[i] <= 0xfe &&
+				data[i+1] >= 0x40 &&
+				data[i+1] <= 0xfe &&
+				data[i+1] != 0xf7 {
+				i += 2
+				continue
+			} else {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func main() {
-	svcFlag := flag.String("service", "", "Control the system service.")
+	// action 程序操作指令 install remove start stop version restart
+	var action = flag.String("action", "", "程序操作指令")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: %s [options] [command]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Commands:\n")
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "  -action <install remove start stop restart version>\n")
+		fmt.Fprintf(os.Stderr, "    程序操作指令\n")
+		fmt.Fprintf(os.Stderr, "\n")
+	}
 	flag.Parse()
 
-	configPath, err := getConfigPath()
-	if err != nil {
-		log.Fatal(err)
-	}
-	config, err := getConfig(configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	// 初始化日志目录
 	svcConfig := &service.Config{
-		Name:        config.Name,
-		DisplayName: config.DisplayName,
-		Description: config.Description,
+		Name:             "TTL",            //服务显示名称//服务显示名称
+		DisplayName:      "TestTaskList",   //服务名称
+		Description:      "test task list", //服务描述
+		WorkingDirectory: "D:\\go\\src\\github.com\\snowlyg\\LogSync\\cmd\\service",
 	}
 
-	prg := &program{
-		exit: make(chan struct{}),
-
-		Config: config,
-	}
+	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
-	prg.service = s
 
-	errs := make(chan error, 5)
-	logger, err = s.Logger(errs)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
-	go func() {
-		for {
-			err := <-errs
-			if err != nil {
-				log.Print(err)
-			}
-		}
-	}()
-
-	if len(*svcFlag) != 0 {
-		err := service.Control(s, *svcFlag)
+	if *action == "install" {
+		err = s.Install()
 		if err != nil {
-			log.Printf("Valid actions: %q\n", service.ControlAction)
-			log.Fatal(err)
+			panic(err)
 		}
+		fmt.Println(fmt.Sprintf("服务安装成功"))
 		return
 	}
-	err = s.Run()
-	if err != nil {
-		logger.Error(err)
+
+	if *action == "remove" {
+		err = s.Uninstall()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(fmt.Sprintf("服务卸载成功"))
+		return
 	}
+
+	if *action == "start" {
+		err = s.Start()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(fmt.Sprintf("服务启动成功"))
+		return
+	}
+
+	if *action == "stop" {
+		err = s.Stop()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(fmt.Sprintf("服务停止成功"))
+		return
+	}
+
+	if *action == "restart" {
+		err = s.Restart()
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(fmt.Sprintf("服务重启成功"))
+		return
+	}
+
+	s.Run()
 }

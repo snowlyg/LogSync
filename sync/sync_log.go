@@ -20,6 +20,7 @@ import (
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 type FileInfo struct {
@@ -464,7 +465,11 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 		cmd.Stdout = &out
 		cmd.Stderr = &outErr
 		if err := cmd.Run(); err != nil {
-			loggerD.Infof(fmt.Sprintf("%+v error %+v", cmd, outErr.String()))
+			utf8Data := outErr.Bytes()
+			if utils.IsGBK(outErr.Bytes()) {
+				utf8Data, _ = simplifiedchinese.GBK.NewDecoder().Bytes(outErr.Bytes())
+			}
+			loggerD.Infof(fmt.Sprintf("tasklist get %+v", string(utf8Data)))
 			logMsg.StatusMsg += "执行 Tasklist 失败，请确认应用程序是否已经开启;"
 			return false
 		}
@@ -506,8 +511,12 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		cmd.Stdout = &out
 		cmd.Stderr = &outErr
 		if err := cmd.Run(); err != nil {
-			loggerD.Infof(fmt.Sprintf("%+v error %+v", cmd, outErr.String()))
-			logMsg.StatusMsg += "执行 pscp 失败;"
+			utf8Data := outErr.Bytes()
+			if utils.IsGBK(outErr.Bytes()) {
+				utf8Data, _ = simplifiedchinese.GBK.NewDecoder().Bytes(outErr.Bytes())
+			}
+			loggerD.Infof(fmt.Sprintf("pscp copy files get %+v", string(utf8Data)))
+			logMsg.StatusMsg += fmt.Sprintf("执行 pscp 失败 【%s】;", string(utf8Data))
 			return
 		}
 		loggerD.Infof(fmt.Sprintf("out put %+v", out.String()))

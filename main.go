@@ -19,6 +19,7 @@ import (
 	//_ "net/http/pprof"
 )
 
+// Version 版本
 var Version string
 
 type program struct {
@@ -69,19 +70,19 @@ func (p *program) run() {
 				cpuData = append(cpuData, []interface{}{now, c[0]})
 				diskData = append(diskData, []interface{}{now, v.UsedPercent})
 
-				memJson, err := json.Marshal(memData)
+				memJSON, err := json.Marshal(memData)
 				if err != nil {
 					fmt.Println(err)
 				}
-				cpuJson, err := json.Marshal(cpuData)
+				cpuJSON, err := json.Marshal(cpuData)
 				if err != nil {
 					fmt.Println(err)
 				}
-				diskJson, err := json.Marshal(diskData)
+				diskJSON, err := json.Marshal(diskData)
 				if err != nil {
 					fmt.Println(err)
 				}
-				data := fmt.Sprintf("mem=%s&cpu=%s&disk=%s", string(memJson), string(cpuJson), string(diskJson))
+				data := fmt.Sprintf("mem=%s&cpu=%s&disk=%s", string(memJSON), string(cpuJSON), string(diskJSON))
 				_, err = utils.SyncServices("platform/report/push", data)
 				if err != nil {
 					fmt.Println(err)
@@ -182,6 +183,7 @@ func getTicker(t int64, v string) *time.Ticker {
 	return ticker
 }
 
+// Action 程序操作指令 install remove start stop version restart
 var Action = flag.String("action", "", "程序操作指令")
 
 func main() {

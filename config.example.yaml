@@ -44,7 +44,7 @@ android:
 faultmsg:
   device: 设备异常
   plugin: 插件异常
-  logsync: 日志同步异常
+  logsync: 日志异常
 log:
   overtime: 15
   synctime: 5
