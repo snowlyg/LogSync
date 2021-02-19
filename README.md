@@ -134,4 +134,5 @@ go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
 - v2.23 增加日志文件时间字段，增加监控设备是否过滤判断
 - v2.24 重构日志同步监控程序
 - v2.25 修复护理大屏日志文件解析报错 增加 interface.log 统计  ，interf code -1 不报故障 ，大屏 mqtt 断开增加ping操作
+- v2.26 修复日志超时插件状态还是正常问题，设备日志超时后置空日志插件内容
 

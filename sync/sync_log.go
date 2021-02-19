@@ -158,27 +158,27 @@ func SyncDeviceLog() {
 		}
 
 		if len(logMsgSubs) > 0 {
-			serverMsgJson, _ := json.Marshal(logMsgSubs)
-			data := fmt.Sprintf("log_msgs=%s", string(serverMsgJson))
+			serverMsgJSON, _ := json.Marshal(logMsgSubs)
+			data := fmt.Sprintf("log_msgs=%s", string(serverMsgJSON))
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/device", data)
 			if err != nil {
-				for _, logMsgSub := range logMsgSubs {
-					loggerD.Infof(
-						logMsgSub.DeviceCode,
-						logMsgSub.StatusMsg,
-						logMsgSub.FaultMsg,
-						logMsgSub.Status,
-						logMsgSub.InterfaceError,
-						logMsgSub.StatusType,
-						logMsgSub.Call,
-						logMsgSub.Face,
-						logMsgSub.Iptv,
-						logMsgSub.Interf,
-						logMsgSub.Mqtt,
-						logMsgSub.Timestamp,
-					)
-				}
+				// for _, logMsgSub := range logMsgSubs {
+				// 	loggerD.Infof(
+				// 		logMsgSub.DeviceCode,
+				// 		logMsgSub.StatusMsg,
+				// 		logMsgSub.FaultMsg,
+				// 		logMsgSub.Status,
+				// 		logMsgSub.InterfaceError,
+				// 		logMsgSub.StatusType,
+				// 		logMsgSub.Call,
+				// 		logMsgSub.Face,
+				// 		logMsgSub.Iptv,
+				// 		logMsgSub.Interf,
+				// 		logMsgSub.Mqtt,
+				// 		logMsgSub.Timestamp,
+				// 	)
+				// }
 				loggerD.Errorf("提交日志信息", "错误", err)
 			}
 			logCodes = nil
@@ -375,8 +375,18 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 	}
 
 	// 超时尝试 ping 设备
-	// 日志异常
+	// 日志异常 ,日志内容不可用。插件信息置空
 	if isOverTime {
+		logMsg.Call = ""
+		logMsg.Face = ""
+		logMsg.Interf = ""
+		logMsg.Iptv = ""
+		logMsg.IsBackground = ""
+		logMsg.IsEmptyBed = ""
+		logMsg.IsMainActivity = ""
+		logMsg.Mqtt = ""
+		logMsg.Timestamp = ""
+
 		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
 			msg := fmt.Sprintf("【%s】%s;%s", utils.Config.Faultmsg.Device, overTimeMsg, pingMsg)
 			logMsg.StatusMsg = msg
@@ -384,13 +394,14 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 			logMsg.StatusType = utils.Config.Faultmsg.Device
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
-		} else {
-			msg := fmt.Sprintf("设备 %s 日志超时 %s;", logMsg.DeviceCode, overTimeMsg)
-			loggerD.Infof(msg)
-			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
-			checkLogOverFive(logMsg, loggerD)
-			return
 		}
+
+		msg := fmt.Sprintf("设备 %s 日志超时 %s;", logMsg.DeviceCode, overTimeMsg)
+		loggerD.Infof(msg)
+		logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
+		checkLogOverFive(logMsg, loggerD)
+		return
+
 	}
 
 	if logMsg.FaultMsg == "" {
@@ -691,11 +702,11 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		logMsg.Mqtt = faultLog.Mqtt.Reason
 		logMsg.Timestamp = faultLog.Timestamp
 		if logMsg.DevType == 0 {
-			deviceTypeId, err := utils.GetDeviceTypeId(faultLog.AppType)
+			deviceTypeID, err := utils.GetDeviceTypeId(faultLog.AppType)
 			if err != nil {
 				return err
 			}
-			logMsg.DevType = deviceTypeId
+			logMsg.DevType = deviceTypeID
 		}
 		if logMsg.DevType >= 5 && logMsg.DevType <= 10 {
 			return nil
