@@ -524,7 +524,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	}
 
 	if runtime.GOOS == "windows" {
-		args := []string{"/C", "echo", "y", "|", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
+		args := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
 		cmd := exec.Command("cmd.exe", args...)
 		loggerD.Infof(fmt.Sprintf("%+v", cmd))
 		var out bytes.Buffer
