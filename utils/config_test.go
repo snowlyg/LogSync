@@ -124,7 +124,7 @@ func TestInitConfig(t *testing.T) {
 					want: "插件异常",
 				}, {
 					key:  Config.Faultmsg.Logsync,
-					want: "日志同步异常",
+					want: "日志异常",
 				}, {
 					key:  strconv.FormatInt(int64(Config.Log.Overtime), 10),
 					want: "15",

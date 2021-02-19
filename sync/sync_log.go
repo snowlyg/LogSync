@@ -366,6 +366,16 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 	// 设备与服务器时间不一致
 	// 设备异常
 	if !isSyncTime {
+		logMsg.Call = ""
+		logMsg.Face = ""
+		logMsg.Interf = ""
+		logMsg.Iptv = ""
+		logMsg.IsBackground = ""
+		logMsg.IsEmptyBed = ""
+		logMsg.IsMainActivity = ""
+		logMsg.Mqtt = ""
+		logMsg.Timestamp = ""
+
 		msg := fmt.Sprintf("【%s】服务器时间和日志记录时间不一致; %s", utils.Config.Faultmsg.Device, syncTimeMsg)
 		logMsg.StatusMsg = msg
 		logMsg.Status = false
@@ -514,7 +524,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	}
 
 	if runtime.GOOS == "windows" {
-		args := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
+		args := []string{"/C", "echo", "y", "|", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
 		cmd := exec.Command("cmd.exe", args...)
 		loggerD.Infof(fmt.Sprintf("%+v", cmd))
 		var out bytes.Buffer
