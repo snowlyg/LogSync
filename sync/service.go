@@ -3,14 +3,15 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
 )
 
-// 监控服务
-func CheckService() {
-	logger := logging.GetMyLogger("service")
+// CheckService 监控服务
+func CheckService(logger *logging.Logger) {
+	// logger := logging.GetMyLogger("service")
 	// 监控服务
 	// platform_service_id ，service_type_id，create_at，fault_msg
 	// http://xxxx/platform/report/service  服务故障上报url

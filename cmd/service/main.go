@@ -121,6 +121,7 @@ func preNUm(data byte) int {
 	}
 	return num
 }
+
 func isUtf8(data []byte) bool {
 	i := 0
 	for i < len(data) {

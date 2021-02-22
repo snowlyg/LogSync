@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	_ "net/http/pprof"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kardianos/service"
 	"github.com/shirou/gopsutil/cpu"
@@ -16,7 +18,7 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
-	//_ "net/http/pprof"
+	"github.com/snowlyg/LogSync/utils/logging"
 )
 
 // Version 版本
@@ -103,9 +105,11 @@ func syncDevice() {
 	var ch chan int
 	tickerSync := getTicker(t, v)
 	defer tickerSync.Stop()
+	logger := logging.GetMyLogger("sync")
 	go func() {
+		sync.SyncDevice(logger)
 		for range tickerSync.C {
-			sync.SyncDevice()
+			sync.SyncDevice(logger)
 			fmt.Println(fmt.Sprintf("设备数据同步"))
 		}
 		ch <- 1
@@ -120,12 +124,14 @@ func syncDeviceLog() {
 		v := utils.Config.Device.Timetype
 		ticker := getTicker(t, v)
 		defer ticker.Stop()
-
-		sync.SyncDeviceLog()
+		loggerD := logging.GetMyLogger("device")
+		var logMsgs []*sync.LogMsg
+		var logCodes []string
+		sync.SyncDeviceLog(logMsgs, logCodes, loggerD)
 		for range ticker.C {
 			// 进入当天目录,跳过 23点45 当天凌晨 0点59 分钟，给设备创建目录的时间
 			if !((time.Now().Hour() == 0 && time.Now().Minute() < 59) || (time.Now().Hour() == 23 && time.Now().Minute() > 45)) {
-				sync.SyncDeviceLog()
+				sync.SyncDeviceLog(logMsgs, logCodes, loggerD)
 			}
 			fmt.Println(fmt.Sprintf("设备日志监控同步"))
 		}
@@ -140,10 +146,11 @@ func syncService() {
 	v := utils.Config.Device.Timetype
 	ticker := getTicker(t, v)
 	defer ticker.Stop()
+	logger := logging.GetMyLogger("service")
 	go func() {
-		sync.CheckService()
+		sync.CheckService(logger)
 		for range ticker.C {
-			sync.CheckService()
+			sync.CheckService(logger)
 			fmt.Println(fmt.Sprintf("服务数据同步"))
 		}
 		ch <- 1
@@ -157,10 +164,13 @@ func syncRestful() {
 	v := utils.Config.Restful.Timetype
 	ticker := getTicker(t, v)
 	defer ticker.Stop()
+	logger := logging.GetMyLogger("restful")
+	var restfulMsgs []*sync.RestfulMsg
+	var restfulURL []string
 	go func() {
-		sync.CheckRestful()
+		sync.CheckRestful(restfulMsgs, restfulURL, logger)
 		for range ticker.C {
-			sync.CheckRestful()
+			sync.CheckRestful(restfulMsgs, restfulURL, logger)
 			fmt.Println(fmt.Sprintf("接口监控同步"))
 		}
 		ch <- 1
@@ -188,9 +198,9 @@ var Action = flag.String("action", "", "程序操作指令")
 
 func main() {
 
-	//go func() {
-	//	http.ListenAndServe("localhost:6061", nil)
-	//}()
+	go func() {
+		http.ListenAndServe("localhost:6061", nil)
+	}()
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [command]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Commands:\n")

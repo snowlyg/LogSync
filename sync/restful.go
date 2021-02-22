@@ -3,11 +3,12 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/jinzhu/gorm"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
-	"time"
 )
 
 type RestfulMsg struct {
@@ -16,10 +17,11 @@ type RestfulMsg struct {
 	ErrMsg string `json:"err_msg" gorm:"column:err_msg"`
 }
 
-func CheckRestful() {
-	logger := logging.GetMyLogger("restful")
-	var restfulMsgs []*RestfulMsg
-	var restfulUrl []string
+// CheckRestful 接口监控
+func CheckRestful(restfulMsgs []*RestfulMsg, restfulURL []string, logger *logging.Logger) {
+	// logger := logging.GetMyLogger("restful")
+	// var restfulMsgs []*RestfulMsg
+	// var restfulUrl []string
 
 	logger.Info("<========================>")
 	logger.Info("接口监控开始")
@@ -42,7 +44,7 @@ func CheckRestful() {
 			getRestful(restfulMsg, logger)
 			restfulMsgResponse := &RestfulMsg{restful.Url, restfulMsg.Status, restfulMsg.ErrMsg}
 			restfulMsgs = append(restfulMsgs, restfulMsgResponse)
-			restfulUrl = append(restfulUrl, restful.Url)
+			restfulURL = append(restfulURL, restful.Url)
 		}()
 
 	}
@@ -60,7 +62,9 @@ func CheckRestful() {
 	}
 
 	logger.Infof("推送返回信息: %v\n", res)
-	logger.Info(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulUrl))
+	logger.Info(fmt.Sprintf("%d 个接口监控推送完成 : %v", len(restfulMsgs), restfulURL))
+	restfulMsgs = nil
+	restfulURL = nil
 	logger.Info("接口监控结束")
 }
 

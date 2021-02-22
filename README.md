@@ -94,6 +94,8 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
  windows系统下，程序以服务形式运行，执行 tasklist 命令提示账号密码错误，直接运行程序能够正常执行。
  经过测试后发现，需要在服务注冊后设置登录账号和密码，才能正常执行 tasklist pscp 等命令。
 
+ 更新应用后需要设置账号密码，（容易忘记）
+
  同时，tasklist 等命令返回的错误信息编码为 gbk 需要转码才能显示
 ```
 
@@ -134,5 +136,5 @@ go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
 - v2.23 增加日志文件时间字段，增加监控设备是否过滤判断
 - v2.24 重构日志同步监控程序
 - v2.25 修复护理大屏日志文件解析报错 增加 interface.log 统计  ，interf code -1 不报故障 ，大屏 mqtt 断开增加ping操作
-- v2.26 修复日志超时插件状态还是正常问题，设备日志超时后置空日志插件内容
+- v2.26 修复日志超时插件状态还是正常问题，设备日志超时后置空日志插件内容，优化程序内存使用减少变量重复创建摧毁
 

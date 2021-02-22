@@ -92,10 +92,10 @@ type FaultTxt struct {
 }
 
 // 扫描设备日志
-func SyncDeviceLog() {
-	loggerD := logging.GetMyLogger("device")
-	var logMsgs []*LogMsg
-	var logCodes []string
+func SyncDeviceLog(logMsgs []*LogMsg, logCodes []string, loggerD *logging.Logger) {
+	// loggerD := logging.GetMyLogger("device")
+	// var logMsgs []*LogMsg
+	// var logCodes []string
 	loggerD.Infof("<========================>")
 	loggerD.Infof("日志监控开始")
 
@@ -190,10 +190,12 @@ func SyncDeviceLog() {
 		}
 		loop++
 	}
+	logMsgs = nil
+	logCodes = nil
 	loggerD.Infof("日志监控结束")
 }
 
-// 循环扫描日志目录
+// getDirs 循环扫描日志目录
 func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
@@ -490,12 +492,12 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 			if utils.IsGBK(outErr.Bytes()) {
 				utf8Data, _ = simplifiedchinese.GBK.NewDecoder().Bytes(outErr.Bytes())
 			}
-			loggerD.Infof(fmt.Sprintf("tasklist get %+v", string(utf8Data)))
+			loggerD.Infof(fmt.Sprintf("tasklist get error %+v", string(utf8Data)))
 			logMsg.StatusMsg += "执行 Tasklist 失败，请确认应用程序是否已经开启;"
 			return false
 		}
 
-		loggerD.Infof(fmt.Sprintf("out put %+v", out.String()))
+		loggerD.Infof(fmt.Sprintf("tasklist get  %+v", out.String()))
 		if strings.Count(out.String(), "App.exe") == 5 {
 			logMsg.StatusMsg += "设备 App应用进程在运行中；"
 			return true
@@ -536,11 +538,11 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 			if utils.IsGBK(outErr.Bytes()) {
 				utf8Data, _ = simplifiedchinese.GBK.NewDecoder().Bytes(outErr.Bytes())
 			}
-			loggerD.Infof(fmt.Sprintf("pscp copy files get %+v", string(utf8Data)))
+			loggerD.Infof(fmt.Sprintf("pscp get error %+v", string(utf8Data)))
 			logMsg.StatusMsg += fmt.Sprintf("执行 pscp 失败 【%s】;", string(utf8Data))
 			return
 		}
-		loggerD.Infof(fmt.Sprintf("out put %+v", out.String()))
+		loggerD.Infof(fmt.Sprintf("pscp get  %+v", out.String()))
 	}
 
 	logFiles, err := utils.ListDir(oDir, "log")

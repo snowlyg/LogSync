@@ -3,14 +3,15 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/jinzhu/gorm"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
 )
 
-func SyncDevice() {
-	logger := logging.GetMyLogger("sync")
+func SyncDevice(logger *logging.Logger) {
+	// logger := logging.GetMyLogger("sync")
 	// 同步设备和通讯录
 	// http://fyxt.t.chindeo.com/platform/report/syncdevice 同步设备 post
 	// http://fyxt.t.chindeo.com/platform/report/synctelgroup   同步通讯录组 post
