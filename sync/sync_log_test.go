@@ -10,6 +10,7 @@ import (
 
 	"github.com/jlaffaye/ftp"
 	"github.com/snowlyg/LogSync/utils"
+	"github.com/snowlyg/LogSync/utils/logging"
 )
 
 var location, _ = utils.GetLocation()
@@ -552,7 +553,7 @@ func Test_getInterfaceLog(t *testing.T) {
 func Test_readInterfaceLogLine(t *testing.T) {
 	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
-	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
+	c, err := ftp.Dial("127.0.0.1:21", ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		t.Errorf("ftp con error = %v", err)
 		return
@@ -599,7 +600,7 @@ func Test_readInterfaceLogLine(t *testing.T) {
 func Test_readErrorTxtLine(t *testing.T) {
 	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
-	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
+	c, err := ftp.Dial("127.0.0.1:21", ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		t.Errorf("ftp con error = %v", err)
 		return
@@ -638,6 +639,78 @@ func Test_readErrorTxtLine(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("readErrorTxtLine() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_commandTimeout(t *testing.T) {
+	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
+	utils.InitConfig()
+
+	argsTasklist := []string{"/C", "tasklist.exe", "/S", "10.0.0.174", "/U", utils.Config.Web.Account, "/P", utils.Config.Web.Password, "/FI", "IMAGENAME eq App.exe"}
+
+	dir := fmt.Sprintf("%s/%s/%s/%s/", utils.Config.Web.Indir, "nis", "4CEDFB5F7187", time.Now().Format(utils.DateLayout))
+	oDir, err := createOutDir("nis", "4CEDFB5F7187")
+	if err != nil {
+		return
+	}
+	os.RemoveAll(oDir)
+	argsPscp := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", utils.Config.Web.Password, "-P", "22", fmt.Sprintf("%s@%s:%s", utils.Config.Web.Account, "10.0.0.174", dir), oDir}
+
+	logger := logging.GetMyLogger("test")
+
+	type args struct {
+		args    []string
+		timeout int
+		logger  *logging.Logger
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "测试 tasklist 命令", args: args{argsTasklist, 3, logger}, want: "信息: 没有运行的任务匹配指定标准。"},
+		{name: "测试 pscp 命令", args: args{argsPscp, 3, logger}, want: "action.txt                | 0 kB |   0.5 kB/s | ETA: 00:00:00 | 100%"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr := commandTimeout(tt.args.args, tt.args.timeout, tt.args.logger)
+			if stderr != "" {
+				t.Errorf("commandTimeout() stderr = %v", stderr)
+				return
+			}
+			if stdout != tt.want {
+				t.Errorf("commandTimeout() stdout = %v ,want = %v", stdout, tt.want)
+			}
+		})
+	}
+}
+
+func Test_createOutDir(t *testing.T) {
+
+	type args struct {
+		dirName    string
+		deviceCode string
+	}
+	dir := fmt.Sprintf("D:\\go\\src\\github.com\\snowlyg\\LogSync/other_logs/nis/4CEDFB5F7187/%s", time.Now().Format(utils.DateLayout))
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "测试 tasklist 命令", args: args{"nis", "4CEDFB5F7187"}, want: dir},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, err := createOutDir(tt.args.dirName, tt.args.deviceCode)
+			if err != nil {
+				t.Errorf("commandTimeout() stderr = %v", err)
+				return
+			}
+			if dir != tt.want {
+				t.Errorf("commandTimeout() stdout = %v ,want = %v", dir, tt.want)
 			}
 		})
 	}

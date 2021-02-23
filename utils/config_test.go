@@ -40,7 +40,7 @@ func TestInitConfig(t *testing.T) {
 					want: "10",
 				}, {
 					key:  Config.Host,
-					want: "op.chindeo.com",
+					want: "op.t.chindeo.com",
 				}, {
 					key:  Config.Exts,
 					want: "fault.log,interface.log,fault.txt,error.txt",
@@ -61,7 +61,7 @@ func TestInitConfig(t *testing.T) {
 					want: "10",
 				}, {
 					key:  Config.Ftp.Ip,
-					want: "127.0.0.1",
+					want: "10.0.0.23",
 				}, {
 					key:  Config.Ftp.Username,
 					want: "admin",
@@ -85,7 +85,7 @@ func TestInitConfig(t *testing.T) {
 					want: "m",
 				}, {
 					key:  strconv.FormatInt(Config.Data.Timeduration, 10),
-					want: "5",
+					want: "30",
 				}, {}, {
 					key:  Config.System.Timetype,
 					want: "m",

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jlaffaye/ftp"
@@ -481,30 +482,17 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 		// Tasklist /s 218.22.123.26 /u jtdd /p 12345678
 		// /FI "USERNAME ne NT AUTHORITY\SYSTEM" /FI "STATUS eq running"
 		args := []string{"/C", "tasklist.exe", "/S", ip, "/U", account, "/P", password, "/FI", "IMAGENAME eq App.exe"}
-		cmd := exec.Command("cmd.exe", args...)
-		loggerD.Infof(fmt.Sprintf("%+v", cmd))
-		var out bytes.Buffer
-		var outErr bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &outErr
-		if err := cmd.Run(); err != nil {
-			utf8Data := outErr.Bytes()
-			if utils.IsGBK(outErr.Bytes()) {
-				utf8Data, _ = simplifiedchinese.GBK.NewDecoder().Bytes(outErr.Bytes())
-			}
-			loggerD.Infof(fmt.Sprintf("tasklist get error %+v", string(utf8Data)))
-			logMsg.StatusMsg += "执行 Tasklist 失败，请确认应用程序是否已经开启;"
-			return false
-		}
-
-		loggerD.Infof(fmt.Sprintf("tasklist get  %+v", out.String()))
-		if strings.Count(out.String(), "App.exe") == 5 {
+		stdout, stderr := commandTimeout(args, 3, loggerD)
+		if strings.Count(string(stdout), "App.exe") == 5 {
 			logMsg.StatusMsg += "设备 App应用进程在运行中；"
 			return true
-		} else {
-			logMsg.StatusMsg += "设备 App应用进程未运行，请确认应用程序是否已经开启;"
-			return false
 		}
+		logMsg.StatusMsg += "设备App应用进程未运行，请确认应用程序是否已经开启;"
+		if len(stderr) > 0 {
+			logMsg.StatusMsg += string(stderr)
+		}
+		return false
+
 	}
 
 	return false
@@ -527,22 +515,8 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 
 	if runtime.GOOS == "windows" {
 		args := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
-		cmd := exec.Command("cmd.exe", args...)
-		loggerD.Infof(fmt.Sprintf("%+v", cmd))
-		var out bytes.Buffer
-		var outErr bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &outErr
-		if err := cmd.Run(); err != nil {
-			utf8Data := outErr.Bytes()
-			if utils.IsGBK(outErr.Bytes()) {
-				utf8Data, _ = simplifiedchinese.GBK.NewDecoder().Bytes(outErr.Bytes())
-			}
-			loggerD.Infof(fmt.Sprintf("pscp get error %+v", string(utf8Data)))
-			logMsg.StatusMsg += fmt.Sprintf("执行 pscp 失败 【%s】;", string(utf8Data))
-			return
-		}
-		loggerD.Infof(fmt.Sprintf("pscp get  %+v", out.String()))
+		_, stderr := commandTimeout(args, 3, loggerD)
+		logMsg.StatusMsg += fmt.Sprintf("执行%s失败: %s;", args[1], string(stderr))
 	}
 
 	logFiles, err := utils.ListDir(oDir, "log")
@@ -598,6 +572,55 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	}
 
 	logMsg.StatusMsg += "设备内正常生成了日志"
+}
+
+// commandTimeout 可设定超时的 cmd 命令
+func commandTimeout(args []string, timeout int, loggerD *logging.Logger) (stdout, stderr string) {
+	cmd := exec.Command("cmd.exe", args...)
+	loggerD.Infof(fmt.Sprintf("%+v", cmd))
+	var out bytes.Buffer
+	var outErr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &outErr
+	cmd.Start()
+	// 启动routine等待结束
+	done := make(chan error)
+	go func() { done <- cmd.Wait() }()
+	// 设定超时时间，并select它
+	after := time.After(time.Duration(timeout) * time.Second)
+	select {
+	case <-after:
+		cmd.Process.Signal(syscall.SIGINT)
+		time.Sleep(time.Second)
+		cmd.Process.Kill()
+		loggerD.Errorf("运行命令（%s）超时，超时设定：%v 秒。", fmt.Sprintf(`%s %s`, cmd, strings.Join(args, " ")), timeout)
+	case <-done:
+		if done != nil {
+			loggerD.Infof(fmt.Sprintf("%s get error %+v", args[1], done))
+		}
+	}
+
+	tOut := trimOutput(out)
+	tOutErr := trimOutput(outErr)
+	if len(tOut) > 0 {
+		loggerD.Infof(fmt.Sprintf("%s get %s", args[1], tOut))
+	}
+	if len(tOut) > 0 {
+		loggerD.Infof(fmt.Sprintf("执行 %s 失败 %s", args[1], tOutErr))
+	}
+	return tOut, tOutErr
+}
+
+// trimOutput 处理输入数据
+func trimOutput(buffer bytes.Buffer) string {
+	b := bytes.TrimRight(buffer.Bytes(), "\x00")
+	if utils.IsGBK(b) {
+		b, _ = simplifiedchinese.GBK.NewDecoder().Bytes(b)
+	}
+	if strings.Contains(string(b), "警告: ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.ReplaceAll(string(b), "\n", ""))
 }
 
 // 创建目录
