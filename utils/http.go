@@ -185,7 +185,7 @@ func SyncServices(path, data string) (interface{}, error) {
 	}
 
 	if re.Code == 200 {
-		return re.Data, nil
+		return re, nil
 	} else if re.Code == 401 {
 		err = GetToken()
 		if err != nil {

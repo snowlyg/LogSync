@@ -50,7 +50,7 @@ func createDevices(logger *logging.Logger) {
 		if err != nil {
 			logger.Error(err)
 		}
-		logger.Infof("数据提交返回信息:%v", res)
+		logger.Infof("设备数据提交返回信息:%v", res)
 	}
 }
 
