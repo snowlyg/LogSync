@@ -52,7 +52,7 @@ func TestInitConfig(t *testing.T) {
 					want: "log",
 				}, {
 					key:  Config.Outdir,
-					want: "D:\\go\\src\\github.com\\snowlyg\\LogSync",
+					want: "D:/go/src/github.com/snowlyg/LogSync",
 				}, {
 					key:  strconv.FormatBool(Config.Isresizeimg),
 					want: "false",

@@ -676,7 +676,7 @@ func Test_commandTimeout(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr := commandTimeout(tt.args.args, tt.args.timeout, tt.args.logger)
+			stdout, stderr := commandTimeout(tt.args.args, tt.args.timeout, tt.args.logger, nil)
 			if stderr != "" {
 				t.Errorf("commandTimeout() stderr = %v", stderr)
 				return
@@ -694,13 +694,13 @@ func Test_createOutDir(t *testing.T) {
 		dirName    string
 		deviceCode string
 	}
-	dir := fmt.Sprintf("D:\\go\\src\\github.com\\snowlyg\\LogSync/other_logs/nis/4CEDFB5F7187/%s", time.Now().Format(utils.DateLayout))
+	dir := fmt.Sprintf("D:/go/src/github.com/snowlyg/LogSync/other_logs/nis/4CEDFB5F7187/%s", time.Now().Format(utils.DateLayout))
 	tests := []struct {
 		name string
 		args args
 		want string
 	}{
-		{name: "测试 tasklist 命令", args: args{"nis", "4CEDFB5F7187"}, want: dir},
+		{name: "测试 createOutDir", args: args{"nis", "4CEDFB5F7187"}, want: dir},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
