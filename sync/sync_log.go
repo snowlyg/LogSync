@@ -516,7 +516,10 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 	if runtime.GOOS == "windows" {
 		args := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
 		_, stderr := commandTimeout(args, 3, loggerD)
-		logMsg.StatusMsg += fmt.Sprintf("执行%s失败: %s;", args[1], string(stderr))
+		if len(stderr) > 0 {
+			logMsg.StatusMsg += fmt.Sprintf("执行%s失败: %s;", args[1], string(stderr))
+			return
+		}
 	}
 
 	logFiles, err := utils.ListDir(oDir, "log")
