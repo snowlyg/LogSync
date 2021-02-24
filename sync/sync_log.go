@@ -482,7 +482,7 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 		// Tasklist /s 218.22.123.26 /u jtdd /p 12345678
 		// /FI "USERNAME ne NT AUTHORITY\SYSTEM" /FI "STATUS eq running"
 		args := []string{"/C", "tasklist.exe", "/S", ip, "/U", account, "/P", password, "/FI", "IMAGENAME eq App.exe"}
-		stdout, stderr := commandTimeout(args, 3, loggerD)
+		stdout, stderr := commandTimeout(args, 3, loggerD, nil)
 		if strings.Count(string(stdout), "App.exe") == 5 {
 			logMsg.StatusMsg += "设备 App应用进程在运行中；"
 			return true
@@ -515,7 +515,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 
 	if runtime.GOOS == "windows" {
 		args := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
-		_, stderr := commandTimeout(args, 3, loggerD)
+		_, stderr := commandTimeout(args, 3, loggerD, nil)
 		if len(stderr) > 0 {
 			logMsg.StatusMsg += fmt.Sprintf("执行%s失败: %s;", args[1], string(stderr))
 			return
@@ -578,8 +578,11 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 }
 
 // commandTimeout 可设定超时的 cmd 命令
-func commandTimeout(args []string, timeout int, loggerD *logging.Logger) (stdout, stderr string) {
+func commandTimeout(args []string, timeout int, loggerD *logging.Logger, stdin *bytes.Buffer) (stdout, stderr string) {
 	cmd := exec.Command("cmd.exe", args...)
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
 	loggerD.Infof(fmt.Sprintf("%+v", cmd))
 	var out bytes.Buffer
 	var outErr bytes.Buffer
@@ -608,7 +611,10 @@ func commandTimeout(args []string, timeout int, loggerD *logging.Logger) (stdout
 	if len(tOut) > 0 {
 		loggerD.Infof(fmt.Sprintf("%s get %s", args[1], tOut))
 	}
-	if len(tOut) > 0 {
+	if len(tOutErr) > 0 {
+		if strings.Contains(tOutErr, "The server's host key is not cached in the registry") {
+			return commandTimeout(args, timeout, loggerD, bytes.NewBufferString("y"))
+		}
 		loggerD.Infof(fmt.Sprintf("执行 %s 失败 %s", args[1], tOutErr))
 	}
 	return tOut, tOutErr
