@@ -768,7 +768,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 
 		// 护士站主机,门旁没有iptv,interf
 		if logMsg.DevType != 4 && logMsg.DevType != 3 {
-			if codeIsError(faultLog.Interf.Code) && faultLog.Face.Code != "-1" {
+			if codeIsError(faultLog.Interf.Code) && faultLog.Interf.Code != "-1" {
 				pluginError = false
 				statusMsg += fmt.Sprintf("插件(interf): (%s)%s;", faultLog.Interf.Code, faultLog.Interf.Reason)
 			}

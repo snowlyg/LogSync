@@ -25,6 +25,7 @@ var faultLogErrorNis = &FaultLog{"nis", Plugin{"8", "连接失败"}, Plugin{"8",
 var faultLogErrorWebApp = &FaultLog{"webapp", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogErrorNws = &FaultLog{"nws", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "已就绪"}, Plugin{"1", "OK"}, Plugin{"1", "已就绪"}, Plugin{"200", "已就绪"}, true, false, false, timestamp}
+var faultLogWithInterfNullSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "已就绪"}, Plugin{"-1", "null"}, Plugin{"1", "已就绪"}, Plugin{"200", "已就绪"}, true, false, false, timestamp}
 
 var interfaceLog = &InterfaceLog{"Service Unavailable", "", 1, "", 1, time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout), "http://10.0.0.23/app/verify/cipherText"}
 
@@ -276,6 +277,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 	bLogErrorWebApp, _ := json.Marshal(faultLogErrorWebApp)
 	bLogErrorNws, _ := json.Marshal(faultLogErrorNws)
 	bLogSuccess, _ := json.Marshal(faultLogSuccess)
+	bLogWithInterfNullSuccess, _ := json.Marshal(faultLogWithInterfNullSuccess)
 	tests := []struct {
 		name string
 		args args
@@ -301,6 +303,18 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 				iptv      plugin
 				timestamp string
 			}{true, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"200", "OK"}, plugin{"1", "已就绪"}, timestamp},
+		}, {
+			name: "fault_log_success_with_interf_null",
+			args: args{"fault.log", bLogWithInterfNullSuccess, &LogMsg{Status: true}},
+			want: struct {
+				status    bool
+				mqtt      plugin
+				call      plugin
+				face      plugin
+				interf    plugin
+				iptv      plugin
+				timestamp string
+			}{true, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"-1", "null"}, plugin{"1", "已就绪"}, timestamp},
 		}, {
 			name: "fault_log_error_nis",
 			args: args{"fault.log", bLogErrorNis, &LogMsg{Status: true}},
@@ -379,16 +393,16 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.mqtt)
 			}
 			if tt.args.logMsg.Call != tt.want.call.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.call)
+				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Call, tt.want.call)
 			}
 			if tt.args.logMsg.Face != tt.want.face.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.face)
+				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Face, tt.want.face)
 			}
 			if tt.args.logMsg.Interf != tt.want.interf.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.interf)
+				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Interf, tt.want.interf)
 			}
 			if tt.args.logMsg.Iptv != tt.want.iptv.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.iptv)
+				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Iptv, tt.want.iptv)
 			}
 			if tt.args.logMsg.Timestamp != tt.want.timestamp {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Timestamp, tt.want.timestamp)
