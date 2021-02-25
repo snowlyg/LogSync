@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jlaffaye/ftp"
+	"github.com/patrickmn/go-cache"
 	"github.com/snowlyg/LogSync/models"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
@@ -92,11 +93,8 @@ type FaultTxt struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// 扫描设备日志
-func SyncDeviceLog(logMsgs []*LogMsg, logCodes []string, loggerD *logging.Logger) {
-	// loggerD := logging.GetMyLogger("device")
-	// var logMsgs []*LogMsg
-	// var logCodes []string
+// SyncDeviceLog 扫描设备日志
+func SyncDeviceLog(logMsgs []*LogMsg, logCodes []string, loggerD *logging.Logger, ca *cache.Cache) {
 	loggerD.Infof("<========================>")
 	loggerD.Infof("日志监控开始")
 
@@ -142,7 +140,7 @@ func SyncDeviceLog(logMsgs []*LogMsg, logCodes []string, loggerD *logging.Logger
 			continue
 		}
 		// 扫描日志
-		getDirs(logMsg, loggerD)
+		getDirs(logMsg, loggerD, ca)
 		logMsgs = append(logMsgs, logMsg)
 	}
 
@@ -164,22 +162,6 @@ func SyncDeviceLog(logMsgs []*LogMsg, logCodes []string, loggerD *logging.Logger
 			var res interface{}
 			res, err = utils.SyncServices("platform/report/device", data)
 			if err != nil {
-				// for _, logMsgSub := range logMsgSubs {
-				// 	loggerD.Infof(
-				// 		logMsgSub.DeviceCode,
-				// 		logMsgSub.StatusMsg,
-				// 		logMsgSub.FaultMsg,
-				// 		logMsgSub.Status,
-				// 		logMsgSub.InterfaceError,
-				// 		logMsgSub.StatusType,
-				// 		logMsgSub.Call,
-				// 		logMsgSub.Face,
-				// 		logMsgSub.Iptv,
-				// 		logMsgSub.Interf,
-				// 		logMsgSub.Mqtt,
-				// 		logMsgSub.Timestamp,
-				// 	)
-				// }
 				loggerD.Errorf("提交日志信息", "错误", err)
 			}
 			logCodes = nil
@@ -197,7 +179,7 @@ func SyncDeviceLog(logMsgs []*LogMsg, logCodes []string, loggerD *logging.Logger
 }
 
 // getDirs 循环扫描日志目录
-func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
+func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 	c, err := ftp.Dial(fmt.Sprintf("%s:21", utils.Config.Ftp.Ip), ftp.DialWithTimeout(15*time.Second))
 	if err != nil {
 		loggerD.Errorf(fmt.Sprintf("ftp 连接错误 %v", err))
@@ -305,7 +287,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger) {
 					continue
 				}
 				logMsg.FaultMsg = string(fileData)
-				err = getPluginsInfo(s.Name, fileData, logMsg)
+				err = getPluginsInfo(s.Name, fileData, logMsg, ca)
 				if err != nil {
 					loggerD.Infof(fmt.Sprintf("解析日志文件 %s 错误 %+v", s.Name, err))
 					continue
@@ -545,7 +527,7 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		if err != nil {
 			continue
 		}
-		err = getPluginsInfo(fileName, file, logMsg)
+		err = getPluginsInfo(fileName, file, logMsg, nil)
 		if err != nil {
 			continue
 		}
@@ -720,13 +702,13 @@ func checkSyncTime(timetxt string, txtTime time.Time) (bool, int64, error) {
 }
 
 //1.isEmptyBed 空城就不报错，
-//2.code：状态码 1 200,999 都算正常 ，
+//2.code：状态码 1 200,999 都算正常，（999的逻辑是初始化，如果10分钟还没有初始化好，就是故障） ，
 //3.1 设备类型是护士站主机 没有插件是face 或 iptv  或 interf  ，
 //3.2 设备类型是门旁 没有插件是iptv 或mqtt 或 interf
 //4.1 code：3， 插件是call 正常
 //4.2 code:0 , 插件是face 正常
-//4.3 code:-1 , interf 正常
-func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
+//4.3 code:-1（未安装，call face mqtt iptv 才有的状态） , interf 正常
+func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg, ca *cache.Cache) error {
 	if !strings.Contains(fileName, "fault.log") && !strings.Contains(fileName, "fault.txt") {
 		return nil
 	}
@@ -760,6 +742,10 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 		statusMsg := fmt.Sprintf("【%s】", utils.Config.Faultmsg.Plugin)
 		// 门旁 没有 mqtt
 		if logMsg.DevType != 3 {
+			if code999OverTenMinutes(logMsg.DeviceCode, faultLog.Mqtt.Code, "mqtt", logMsg.DevType, ca) {
+				pluginError = false
+				statusMsg += fmt.Sprintf("插件(mqtt): (%s)%s;", faultLog.Mqtt.Code, "已经初始化超过10分钟")
+			}
 			if codeIsError(faultLog.Mqtt.Code) {
 				pluginError = false
 				statusMsg += fmt.Sprintf("插件(mqtt): (%s)%s;", faultLog.Mqtt.Code, faultLog.Mqtt.Reason)
@@ -772,6 +758,10 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 				pluginError = false
 				statusMsg += fmt.Sprintf("插件(interf): (%s)%s;", faultLog.Interf.Code, faultLog.Interf.Reason)
 			}
+			if code999OverTenMinutes(logMsg.DeviceCode, faultLog.Iptv.Code, "iptv", logMsg.DevType, ca) {
+				pluginError = false
+				statusMsg += fmt.Sprintf("插件(iptv): (%s)%s;", faultLog.Mqtt.Code, "已经初始化超过10分钟")
+			}
 			if codeIsError(faultLog.Iptv.Code) {
 				pluginError = false
 				statusMsg += fmt.Sprintf("插件(iptv): (%s)%s;", faultLog.Iptv.Code, faultLog.Iptv.Reason)
@@ -780,12 +770,20 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 
 		// 护士站主机没有face
 		if logMsg.DevType != 4 {
+			if code999OverTenMinutes(logMsg.DeviceCode, faultLog.Face.Code, "face", logMsg.DevType, ca) {
+				pluginError = false
+				statusMsg += fmt.Sprintf("插件(face): (%s)%s;", faultLog.Mqtt.Code, "已经初始化超过10分钟")
+			}
 			if codeIsError(faultLog.Face.Code) && faultLog.Face.Code != "0" {
 				pluginError = false
 				statusMsg += fmt.Sprintf("插件(face): (%s)%s;", faultLog.Face.Code, faultLog.Face.Reason)
 			}
 		}
 
+		if code999OverTenMinutes(logMsg.DeviceCode, faultLog.Call.Code, "call", logMsg.DevType, ca) {
+			pluginError = false
+			statusMsg += fmt.Sprintf("插件(call): (%s)%s;", faultLog.Mqtt.Code, "已经初始化超过10分钟")
+		}
 		if codeIsError(faultLog.Call.Code) && faultLog.Call.Code != "3" {
 			pluginError = false
 			statusMsg += fmt.Sprintf("插件(call): (%s)%s;", faultLog.Call.Code, faultLog.Call.Reason)
@@ -821,7 +819,29 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg) error {
 	return nil
 }
 
-//设备状态码不是:1,200,999 的时候报错
+// code999OverTenMinutes 999状态码 初始化超时10分钟
+func code999OverTenMinutes(deviceCode, code, pluginType string, devType int64, ca *cache.Cache) bool {
+	index := fmt.Sprintf("%s_%d_%s", deviceCode, devType, pluginType)
+	if code == "999" {
+		mqttCodeTime, b := ca.Get(index)
+		if b {
+			location, _ := utils.GetLocation()
+			subT := time.Now().In(location).Sub(mqttCodeTime.(time.Time))
+			abs := int64(math.Abs(math.Ceil(subT.Minutes())))
+			if abs > 10 {
+				return true
+			}
+		} else {
+			ca.Set(index, time.Now(), cache.DefaultExpiration)
+		}
+	} else {
+		ca.Delete(index)
+	}
+
+	return false
+}
+
+// codeIsError 设备状态码不是:1,200,999 的时候报错
 func codeIsError(code string) bool {
 	if code != "1" && code != "200" && code != "999" {
 		return true
@@ -829,7 +849,7 @@ func codeIsError(code string) bool {
 	return false
 }
 
-// bool to string
+// getBoolToString bool to string
 func getBoolToString(b bool) string {
 	if b {
 		return "1"

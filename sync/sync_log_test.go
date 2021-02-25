@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jlaffaye/ftp"
+	"github.com/patrickmn/go-cache"
 	"github.com/snowlyg/LogSync/utils"
 	"github.com/snowlyg/LogSync/utils/logging"
 )
@@ -28,6 +29,8 @@ var faultLogSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "�
 var faultLogWithInterfNullSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "已就绪"}, Plugin{"-1", "null"}, Plugin{"1", "已就绪"}, Plugin{"200", "已就绪"}, true, false, false, timestamp}
 
 var interfaceLog = &InterfaceLog{"Service Unavailable", "", 1, "", 1, time.Now().Add(30 * time.Minute).In(location).Format(utils.DateTimeLayout), "http://10.0.0.23/app/verify/cipherText"}
+
+var ca = cache.New(20*time.Minute, 24*time.Hour)
 
 func Test_getTimestamp(t *testing.T) {
 	type args struct {
@@ -234,7 +237,7 @@ func Test_getPluginsInfo_Text(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := getPluginsInfo(tt.args.fileName, tt.args.file, tt.args.logMsg); err != nil {
+			if err := getPluginsInfo(tt.args.fileName, tt.args.file, tt.args.logMsg, ca); err != nil {
 				t.Errorf("getPluginsInfo() error = %v", err)
 			}
 			if tt.args.logMsg.Status != tt.want.status {
@@ -367,7 +370,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := getPluginsInfo(tt.args.fileName, tt.args.file, tt.args.logMsg); err != nil {
+			if err := getPluginsInfo(tt.args.fileName, tt.args.file, tt.args.logMsg, ca); err != nil {
 				t.Errorf("getPluginsInfo() error = %v", err)
 			}
 			if tt.args.logMsg.Status != tt.want.status {
@@ -703,7 +706,6 @@ func Test_commandTimeout(t *testing.T) {
 }
 
 func Test_createOutDir(t *testing.T) {
-
 	type args struct {
 		dirName    string
 		deviceCode string
@@ -725,6 +727,44 @@ func Test_createOutDir(t *testing.T) {
 			}
 			if dir != tt.want {
 				t.Errorf("commandTimeout() stdout = %v ,want = %v", dir, tt.want)
+			}
+		})
+	}
+}
+
+func Test_code999OverTenMinutes(t *testing.T) {
+	type args struct {
+		deviceCode string
+		code       string
+		pluginType string
+		devType    int64
+		ca         *cache.Cache
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "测试mqtt_code999超时10分钟", args: args{"4CEDFB5F7187", "999", "mqtt", 1, ca}, want: false},
+		{name: "测试iptv_code999超时10分钟", args: args{"4CEDFB5F7187", "999", "iptv", 1, ca}, want: false},
+		{name: "测试face_code999超时10分钟", args: args{"4CEDFB5F7187", "999", "face", 1, ca}, want: false},
+		{name: "测试call_code999超时10分钟", args: args{"4CEDFB5F7187", "999", "call", 1, ca}, want: false},
+		{name: "测试interf_code999超时10分钟", args: args{"4CEDFB5F7187", "999", "interf", 1, ca}, want: false},
+		{name: "测试mqtt_code999_true超时10分钟", args: args{"4CEDFB5F7187", "999", "mqtt", 1, ca}, want: true},
+		{name: "测试iptv_code999_true超时10分钟", args: args{"4CEDFB5F7187", "999", "iptv", 1, ca}, want: true},
+		{name: "测试face_code999_true超时10分钟", args: args{"4CEDFB5F7187", "999", "face", 1, ca}, want: true},
+		{name: "测试call_code999_true超时10分钟", args: args{"4CEDFB5F7187", "999", "call", 1, ca}, want: true},
+		{name: "测试interf_code999_true超时10分钟", args: args{"4CEDFB5F7187", "999", "interf", 1, ca}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.want {
+				index := fmt.Sprintf("%s_%d_%s", tt.args.deviceCode, tt.args.devType, tt.args.pluginType)
+				ca.Set(index, time.Now().Add(-11*time.Minute), cache.DefaultExpiration)
+			}
+			b := code999OverTenMinutes(tt.args.deviceCode, tt.args.code, tt.args.pluginType, tt.args.devType, tt.args.ca)
+			if b != tt.want {
+				t.Errorf("commandTimeout() stdout = %v ,want = %v", b, tt.want)
 			}
 		})
 	}
