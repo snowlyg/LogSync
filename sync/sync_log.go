@@ -760,7 +760,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg, ca *cache.Cach
 			}
 			if code999OverTenMinutes(logMsg.DeviceCode, faultLog.Iptv.Code, "iptv", logMsg.DevType, ca) {
 				pluginError = false
-				statusMsg += fmt.Sprintf("插件(iptv): (%s)%s;", faultLog.Mqtt.Code, "已经初始化超过10分钟")
+				statusMsg += fmt.Sprintf("插件(iptv): (%s)%s;", faultLog.Iptv.Code, "已经初始化超过10分钟")
 			}
 			if codeIsError(faultLog.Iptv.Code) {
 				pluginError = false
@@ -772,7 +772,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg, ca *cache.Cach
 		if logMsg.DevType != 4 {
 			if code999OverTenMinutes(logMsg.DeviceCode, faultLog.Face.Code, "face", logMsg.DevType, ca) {
 				pluginError = false
-				statusMsg += fmt.Sprintf("插件(face): (%s)%s;", faultLog.Mqtt.Code, "已经初始化超过10分钟")
+				statusMsg += fmt.Sprintf("插件(face): (%s)%s;", faultLog.Face.Code, "已经初始化超过10分钟")
 			}
 			if codeIsError(faultLog.Face.Code) && faultLog.Face.Code != "0" {
 				pluginError = false
@@ -782,7 +782,7 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg, ca *cache.Cach
 
 		if code999OverTenMinutes(logMsg.DeviceCode, faultLog.Call.Code, "call", logMsg.DevType, ca) {
 			pluginError = false
-			statusMsg += fmt.Sprintf("插件(call): (%s)%s;", faultLog.Mqtt.Code, "已经初始化超过10分钟")
+			statusMsg += fmt.Sprintf("插件(call): (%s)%s;", faultLog.Call.Code, "已经初始化超过10分钟")
 		}
 		if codeIsError(faultLog.Call.Code) && faultLog.Call.Code != "3" {
 			pluginError = false

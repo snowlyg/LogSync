@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ var faultTxtSuccess = &FaultTxt{"已连接", true, timestamp}
 var faultLogErrorBis = &FaultLog{"bis", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogErrorNis = &FaultLog{"nis", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogErrorWebApp = &FaultLog{"webapp", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
+var faultLogCode999OverTenMinutesErrorWebApps = &FaultLog{"webapp", Plugin{"999", "连接失败"}, Plugin{"999", "连接失败"}, Plugin{"999", "连接失败"}, Plugin{"999", "连接失败"}, Plugin{"999", "连接失败"}, true, false, false, timestamp}
 var faultLogErrorNws = &FaultLog{"nws", Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"8", "连接失败"}, Plugin{"500", "连接失败"}, true, false, false, timestamp}
 var faultLogSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "已就绪"}, Plugin{"1", "OK"}, Plugin{"1", "已就绪"}, Plugin{"200", "已就绪"}, true, false, false, timestamp}
 var faultLogWithInterfNullSuccess = &FaultLog{"bis", Plugin{"1", "已就绪"}, Plugin{"1", "已就绪"}, Plugin{"-1", "null"}, Plugin{"1", "已就绪"}, Plugin{"200", "已就绪"}, true, false, false, timestamp}
@@ -270,6 +272,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 		fileName string
 		file     []byte
 		logMsg   *LogMsg
+		is999    bool
 	}
 	type plugin struct {
 		code   string
@@ -279,6 +282,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 	bLogErrorBis, _ := json.Marshal(faultLogErrorBis)
 	bLogErrorWebApp, _ := json.Marshal(faultLogErrorWebApp)
 	bLogErrorNws, _ := json.Marshal(faultLogErrorNws)
+	bLogCode999OverTenMinutesErrorWebApps, _ := json.Marshal(faultLogCode999OverTenMinutesErrorWebApps)
 	bLogSuccess, _ := json.Marshal(faultLogSuccess)
 	bLogWithInterfNullSuccess, _ := json.Marshal(faultLogWithInterfNullSuccess)
 	tests := []struct {
@@ -296,7 +300,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 	}{
 		{
 			name: "fault_log_success",
-			args: args{"fault.log", bLogSuccess, &LogMsg{Status: true}},
+			args: args{"fault.log", bLogSuccess, &LogMsg{Status: true}, false},
 			want: struct {
 				status    bool
 				mqtt      plugin
@@ -308,7 +312,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 			}{true, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"200", "OK"}, plugin{"1", "已就绪"}, timestamp},
 		}, {
 			name: "fault_log_success_with_interf_null",
-			args: args{"fault.log", bLogWithInterfNullSuccess, &LogMsg{Status: true}},
+			args: args{"fault.log", bLogWithInterfNullSuccess, &LogMsg{Status: true}, false},
 			want: struct {
 				status    bool
 				mqtt      plugin
@@ -320,7 +324,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 			}{true, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"1", "已就绪"}, plugin{"-1", "null"}, plugin{"1", "已就绪"}, timestamp},
 		}, {
 			name: "fault_log_error_nis",
-			args: args{"fault.log", bLogErrorNis, &LogMsg{Status: true}},
+			args: args{"fault.log", bLogErrorNis, &LogMsg{Status: true}, false},
 			want: struct {
 				status    bool
 				mqtt      plugin
@@ -332,7 +336,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		}, {
 			name: "fault_log_error_bis",
-			args: args{"fault.log", bLogErrorBis, &LogMsg{Status: true}},
+			args: args{"fault.log", bLogErrorBis, &LogMsg{Status: true}, false},
 			want: struct {
 				status    bool
 				mqtt      plugin
@@ -344,7 +348,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		}, {
 			name: "fault_log_error_webapp",
-			args: args{"fault.log", bLogErrorWebApp, &LogMsg{Status: true}},
+			args: args{"fault.log", bLogErrorWebApp, &LogMsg{Status: true}, false},
 			want: struct {
 				status    bool
 				mqtt      plugin
@@ -356,7 +360,7 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		}, {
 			name: "fault_log_error_nws",
-			args: args{"fault.log", bLogErrorNws, &LogMsg{Status: true}},
+			args: args{"fault.log", bLogErrorNws, &LogMsg{Status: true}, false},
 			want: struct {
 				status    bool
 				mqtt      plugin
@@ -367,9 +371,32 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 				timestamp string
 			}{false, plugin{"500", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, plugin{"8", "连接失败"}, timestamp},
 		},
+		{
+			name: "fault_log_code999_over_ten_minutes_error_webapps",
+			args: args{"fault.log", bLogCode999OverTenMinutesErrorWebApps, &LogMsg{Status: true, DeviceCode: "DeviceCode", DevType: 4}, true},
+			want: struct {
+				status    bool
+				mqtt      plugin
+				call      plugin
+				face      plugin
+				interf    plugin
+				iptv      plugin
+				timestamp string
+			}{false, plugin{"999", "已经初始化超过10分钟"}, plugin{"999", "已经初始化超过10分钟"}, plugin{"999", "已经初始化超过10分钟"}, plugin{"999", "已经初始化超过10分钟"}, plugin{"999", "已经初始化超过10分钟"}, timestamp},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.args.is999 {
+				index := fmt.Sprintf("%s_%d_%s", tt.args.logMsg.DeviceCode, tt.args.logMsg.DevType, "mqtt")
+				ca.Set(index, time.Now().Add(-11*time.Minute), cache.DefaultExpiration)
+				index = fmt.Sprintf("%s_%d_%s", tt.args.logMsg.DeviceCode, tt.args.logMsg.DevType, "call")
+				ca.Set(index, time.Now().Add(-11*time.Minute), cache.DefaultExpiration)
+				index = fmt.Sprintf("%s_%d_%s", tt.args.logMsg.DeviceCode, tt.args.logMsg.DevType, "iptv")
+				ca.Set(index, time.Now().Add(-11*time.Minute), cache.DefaultExpiration)
+				index = fmt.Sprintf("%s_%d_%s", tt.args.logMsg.DeviceCode, tt.args.logMsg.DevType, "face")
+				ca.Set(index, time.Now().Add(-11*time.Minute), cache.DefaultExpiration)
+			}
 			if err := getPluginsInfo(tt.args.fileName, tt.args.file, tt.args.logMsg, ca); err != nil {
 				t.Errorf("getPluginsInfo() error = %v", err)
 			}
@@ -392,24 +419,27 @@ func Test_getPluginsInfo_Log(t *testing.T) {
 				statusMsg += fmt.Sprintf("插件(call): (%s)%s;", tt.want.call.code, tt.want.call.reason)
 
 			}
-			if tt.args.logMsg.Mqtt != tt.want.mqtt.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.mqtt)
+			if !tt.args.is999 {
+				if tt.args.logMsg.Mqtt != tt.want.mqtt.reason {
+					t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.mqtt)
+				}
+				if tt.args.logMsg.Call != tt.want.call.reason {
+					t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Call, tt.want.call)
+				}
+				if tt.args.logMsg.Face != tt.want.face.reason {
+					t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Face, tt.want.face)
+				}
+				if tt.args.logMsg.Interf != tt.want.interf.reason {
+					t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Interf, tt.want.interf)
+				}
+				if tt.args.logMsg.Iptv != tt.want.iptv.reason {
+					t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Iptv, tt.want.iptv)
+				}
+				if tt.args.logMsg.Timestamp != tt.want.timestamp {
+					t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Timestamp, tt.want.timestamp)
+				}
 			}
-			if tt.args.logMsg.Call != tt.want.call.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Call, tt.want.call)
-			}
-			if tt.args.logMsg.Face != tt.want.face.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Face, tt.want.face)
-			}
-			if tt.args.logMsg.Interf != tt.want.interf.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Interf, tt.want.interf)
-			}
-			if tt.args.logMsg.Iptv != tt.want.iptv.reason {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Iptv, tt.want.iptv)
-			}
-			if tt.args.logMsg.Timestamp != tt.want.timestamp {
-				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Timestamp, tt.want.timestamp)
-			}
+
 			if tt.args.logMsg.StatusMsg != statusMsg {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.StatusMsg, statusMsg)
 			}
@@ -665,15 +695,15 @@ func Test_commandTimeout(t *testing.T) {
 	os.Setenv("LogSyncConfigPath", "D:/go/src/github.com/snowlyg/LogSync")
 	utils.InitConfig()
 
-	argsTasklist := []string{"/C", "tasklist.exe", "/S", "10.0.0.174", "/U", utils.Config.Web.Account, "/P", utils.Config.Web.Password, "/FI", "IMAGENAME eq App.exe"}
+	argsTasklist := []string{"/C", "tasklist.exe", "/S", "10.0.0.146", "/U", utils.Config.Web.Account, "/P", utils.Config.Web.Password, "/FI", "IMAGENAME eq App.exe"}
 
-	dir := fmt.Sprintf("%s/%s/%s/%s/", utils.Config.Web.Indir, "nis", "4CEDFB5F7187", time.Now().Format(utils.DateLayout))
-	oDir, err := createOutDir("nis", "4CEDFB5F7187")
+	dir := fmt.Sprintf("%s/%s/%s/%s/", utils.Config.Web.Indir, "nis", "4CEDFB6982BB", time.Now().Format(utils.DateLayout))
+	oDir, err := createOutDir("nis", "4CEDFB6982BB")
 	if err != nil {
 		return
 	}
 	os.RemoveAll(oDir)
-	argsPscp := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", utils.Config.Web.Password, "-P", "22", fmt.Sprintf("%s@%s:%s", utils.Config.Web.Account, "10.0.0.174", dir), oDir}
+	argsPscp := []string{"/C", "pscp.exe", "-scp", "-r", "-pw", utils.Config.Web.Password, "-P", "22", fmt.Sprintf("%s@%s:%s", utils.Config.Web.Account, "10.0.0.146", dir), oDir}
 
 	logger := logging.GetMyLogger("test")
 
@@ -688,8 +718,8 @@ func Test_commandTimeout(t *testing.T) {
 		args args
 		want string
 	}{
-		{name: "测试 tasklist 命令", args: args{argsTasklist, 3, logger}, want: "信息: 没有运行的任务匹配指定标准。"},
-		{name: "测试 pscp 命令", args: args{argsPscp, 3, logger}, want: "action.txt                | 0 kB |   0.5 kB/s | ETA: 00:00:00 | 100%"},
+		{name: "测试 tasklist 命令", args: args{argsTasklist, 3, logger}, want: "App.exe"},
+		{name: "测试 pscp 命令", args: args{argsPscp, 3, logger}, want: "action.txt"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -698,7 +728,7 @@ func Test_commandTimeout(t *testing.T) {
 				t.Errorf("commandTimeout() stderr = %v", stderr)
 				return
 			}
-			if stdout != tt.want {
+			if !strings.Contains(stdout, tt.want) {
 				t.Errorf("commandTimeout() stdout = %v ,want = %v", stdout, tt.want)
 			}
 		})
