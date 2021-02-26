@@ -99,6 +99,11 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
  同时，tasklist 等命令返回的错误信息编码为 gbk 需要转码才能显示
 ```
 
+4.warning: remote host tried to write to a file called '2021-02-26' when we requested a file called ''. If this is a wildcard, consider upgrading to SSH-2 or using the '-unsafe' option. Renaming of this file has been disallowed.
+```text
+ ssh-1 版本情况下复制多个文件的时候会提示警告，需要增加 -unsafe 选项解决。或者升级为 ssh-2 版本。
+```
+
 #### 编译
 
 ```shell script
