@@ -286,7 +286,6 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 					loggerD.Infof(fmt.Sprintf("获取日志文件内容 %s 错误 %+v", s.Name, err))
 					continue
 				}
-				logMsg.FaultMsg = string(fileData)
 				err = getPluginsInfo(s.Name, fileData, logMsg, ca)
 				if err != nil {
 					loggerD.Infof(fmt.Sprintf("解析日志文件 %s 错误 %+v", s.Name, err))
@@ -521,33 +520,35 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 
 	isOverTime := false
 	overTimeMsg := ""
-	var faultMags []*FileInfo
 	for _, fileName := range logFiles {
-		file, err := utils.OpenFile(fileName)
-		if err != nil {
-			continue
-		}
-		err = getPluginsInfo(fileName, file, logMsg, nil)
-		if err != nil {
-			continue
-		}
-		if !isOverTime {
-			var subT int64
-			isOverTime, subT, err = checkOverTime(logMsg.Timestamp)
+		if strings.Contains(fileName, "fault.log") || strings.Contains(fileName, "fault.txt") {
+			file, err := utils.OpenFile(fileName)
 			if err != nil {
 				continue
 			}
-			location, err := utils.GetLocation()
+			err = getPluginsInfo(fileName, file, logMsg, nil)
 			if err != nil {
-				loggerD.Errorf("get location ", err)
+				continue
 			}
-			overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+			if !isOverTime {
+				var subT int64
+				isOverTime, subT, err = checkOverTime(logMsg.Timestamp)
+				if err != nil {
+					continue
+				}
+				location, err := utils.GetLocation()
+				if err != nil {
+					loggerD.Errorf("get location ", err)
+				}
+				overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+			}
 		}
+	}
 
-		faultMsg := new(FileInfo)
-		faultMsg.Name = fileName
-		faultMsg.Content = string(file)
-		faultMags = append(faultMags, faultMsg)
+	if logMsg.FaultMsg == "" {
+		logMsg.StatusMsg += "设备没有生成插件日志"
+		logMsg.Status = false
+		return
 	}
 
 	if isOverTime {
@@ -709,9 +710,10 @@ func checkSyncTime(timetxt string, txtTime time.Time) (bool, int64, error) {
 //4.2 code:0 , 插件是face 正常
 //4.3 code:-1（未安装，call face mqtt iptv 才有的状态） , interf 正常
 func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg, ca *cache.Cache) error {
-	if !strings.Contains(fileName, "fault.log") && !strings.Contains(fileName, "fault.txt") {
-		return nil
-	}
+	// if !strings.Contains(fileName, "fault.log") && !strings.Contains(fileName, "fault.txt") {
+	// 	return nil
+	// }
+	logMsg.FaultMsg = string(file)
 	if strings.Contains(fileName, "fault.log") {
 		faultLog, err := getFaultLog(file)
 		if err != nil {
