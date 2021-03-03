@@ -16,54 +16,7 @@ LogSync.exe version 查看版本号
 ```
 
 #### 配置
-
-```ini
-[config]
-;exts 后缀
-exts = .log,.txt
-
-;根目录名称，默认 log
-root = log
-
-;外网服务器配置
-host = test.ims.com:80
-appid = wxcw846rde12w3fb9p
-appsecret = 489r67esrqa341vcnb1m16azfm789nbmnhj8
-
-[ftp]
-;ftp 服务器ip,账号，密码
-ip = 10.0.0.23
-username = admin
-password = Chindeo
-
-[time]
-;h,m,s 对应时分秒
-;扫描日志
-sync_log_time = 4
-sync_log = m
-;同步数据到外网
-sync_data_time = 1
-sync_data = h
-
-[web]
-; 大屏ip 多个大屏用 , 分隔
-ip = 10.0.0.149,
-account = administrator
-password = chindeo888
-
-[android]
-account = root
-password = Chindeo
-
-[http]
-port = 8001
-
-
-[mysql]
-;只有访问权限的账号密码
-account=visible
-pwd=Chindeo
-```
+- 见 config.example.yaml 
 
 ##### 手动执行（已去除）
 
@@ -103,6 +56,11 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 ```text
  ssh-1 版本情况下复制多个文件的时候会提示警告，需要增加 -unsafe 选项解决。或者升级为 ssh-2 版本。
 ```
+
+#### 热重启
+- 暂时无法热重启，推荐方案endless,grace;都是用于http 服务热更新。
+- 热重启无法自动设置 windows 账号密码。
+- 可选方案：下载 update.exe 文件并执行，然后由 update.exe 完成程序更新（停止-删除文件-下载文件-启动）。
 
 #### 编译
 
@@ -144,4 +102,5 @@ go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
 - v2.26 修复日志超时插件状态还是正常问题，设备日志超时后置空日志插件内容，优化程序内存使用减少变量重复创建摧毁
 - v2.27 增加 cmd 命令执行超时逻辑，防止程序进程阻塞,合并了执行 cmd 命令逻辑为一个方法，增加单元测试，修改同步服务返回数据显示
 - v2.28 修复 interf 插件 code -1 还会报故障问题,优化超时扫描日志逻辑
+- v2.29 去除 time.Ticker 定时处理，改为 time sleep。 增加 3 点钟，重启服务，跳过 30 分钟。
 
