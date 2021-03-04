@@ -46,17 +46,18 @@ func syncDeviceLog() {
 		var logCodes []string
 		ca := cache.New(20*time.Minute, 24*time.Hour)
 		for {
+			// TODO：运维后台增加运维时间段，跳过微信报警
 			// 进入当天目录,跳过 23点45 当天凌晨 0点59 分钟，给设备创建目录的时间
 			// 当天 3 点会重启 apache，mysql，emqx，rabbitmq，音视频，数据服务，接口服务，暂停 30 分钟
-			if time.Now().Hour() == 0 {
-				time.Sleep(time.Minute * 40)
-			}
-			if time.Now().Hour() == 23 && time.Now().Minute() >= 45 {
-				time.Sleep(time.Minute * 15)
-			}
-			if time.Now().Hour() == 3 {
-				time.Sleep(time.Minute * 30)
-			}
+			// if time.Now().Hour() == 0 {
+			// 	time.Sleep(time.Minute * 40)
+			// }
+			// if time.Now().Hour() == 23 && time.Now().Minute() >= 45 {
+			// 	time.Sleep(time.Minute * 15)
+			// }
+			// if time.Now().Hour() == 3 {
+			// 	time.Sleep(time.Minute * 30)
+			// }
 			sync.SyncDeviceLog(logMsgs, logCodes, loggerD, ca)
 			fmt.Println(fmt.Sprintf("设备日志监控同步"))
 			time.Sleep(duration)
