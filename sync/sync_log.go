@@ -51,10 +51,15 @@ type LogMsg struct {
 	Face           string `json:"face"`
 	Interf         string `json:"interf"`
 	Iptv           string `json:"iptv"`
+	Mqtt           string `json:"mqtt"`
+	CallCode       string `json:"call_code"`
+	FaceCode       string `json:"face_code"`
+	InterfCode     string `json:"interf_code"`
+	IptvCode       string `json:"iptv_code"`
+	MqttCode       string `json:"mqtt_code"`
 	IsBackground   string `json:"is_background"`
 	IsEmptyBed     string `json:"is_empty_bed"`
 	IsMainActivity string `json:"is_main_activity"`
-	Mqtt           string `json:"mqtt"`
 	Timestamp      string `json:"timestamp"`
 }
 
@@ -350,16 +355,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 	// 设备与服务器时间不一致
 	// 设备异常
 	if !isSyncTime {
-		logMsg.Call = ""
-		logMsg.Face = ""
-		logMsg.Interf = ""
-		logMsg.Iptv = ""
-		logMsg.IsBackground = ""
-		logMsg.IsEmptyBed = ""
-		logMsg.IsMainActivity = ""
-		logMsg.Mqtt = ""
-		logMsg.Timestamp = ""
-
+		emptyPluginsInfo(logMsg)
 		msg := fmt.Sprintf("【%s】服务器时间和日志记录时间不一致; %s", utils.Config.Faultmsg.Device, syncTimeMsg)
 		logMsg.StatusMsg = msg
 		logMsg.Status = false
@@ -371,16 +367,7 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 	// 超时尝试 ping 设备
 	// 日志异常 ,日志内容不可用。插件信息置空
 	if isOverTime {
-		logMsg.Call = ""
-		logMsg.Face = ""
-		logMsg.Interf = ""
-		logMsg.Iptv = ""
-		logMsg.IsBackground = ""
-		logMsg.IsEmptyBed = ""
-		logMsg.IsMainActivity = ""
-		logMsg.Mqtt = ""
-		logMsg.Timestamp = ""
-
+		emptyPluginsInfo(logMsg)
 		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
 			msg := fmt.Sprintf("【%s】%s;%s", utils.Config.Faultmsg.Device, overTimeMsg, pingMsg)
 			logMsg.StatusMsg = msg
@@ -407,12 +394,12 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 			logMsg.StatusType = utils.Config.Faultmsg.Device
 			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
 			return
-		} else {
-			msg := fmt.Sprintf("设备 %s 没有生成插件日志;", logMsg.DeviceCode)
-			loggerD.Infof(msg)
-			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
-			checkLogOverFive(logMsg, loggerD)
 		}
+		msg := fmt.Sprintf("设备 %s 没有生成插件日志;", logMsg.DeviceCode)
+		loggerD.Infof(msg)
+		logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
+		checkLogOverFive(logMsg, loggerD)
+
 	}
 
 }
@@ -702,6 +689,24 @@ func checkSyncTime(timetxt string, txtTime time.Time) (bool, int64, error) {
 	return true, abs, nil
 }
 
+// emptyPluginsInfo 置空插件信息
+func emptyPluginsInfo(logMsg *LogMsg) {
+	logMsg.CallCode = ""
+	logMsg.FaceCode = ""
+	logMsg.InterfCode = ""
+	logMsg.IptvCode = ""
+	logMsg.MqttCode = ""
+	logMsg.Call = ""
+	logMsg.Face = ""
+	logMsg.Interf = ""
+	logMsg.Iptv = ""
+	logMsg.IsBackground = ""
+	logMsg.IsEmptyBed = ""
+	logMsg.IsMainActivity = ""
+	logMsg.Mqtt = ""
+	logMsg.Timestamp = ""
+}
+
 //1.isEmptyBed 空城就不报错，
 //2.code：状态码 1 200,999 都算正常，（999的逻辑是初始化，如果10分钟还没有初始化好，就是故障） ，
 //3.1 设备类型是护士站主机 没有插件是face 或 iptv  或 interf  ，
@@ -720,14 +725,19 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg, ca *cache.Cach
 			return err
 		}
 
+		logMsg.CallCode = faultLog.Call.Code
+		logMsg.FaceCode = faultLog.Face.Code
+		logMsg.InterfCode = faultLog.Interf.Code
+		logMsg.IptvCode = faultLog.Iptv.Code
+		logMsg.MqttCode = faultLog.Mqtt.Code
 		logMsg.Call = faultLog.Call.Reason
 		logMsg.Face = faultLog.Face.Reason
 		logMsg.Interf = faultLog.Interf.Reason
 		logMsg.Iptv = faultLog.Iptv.Reason
+		logMsg.Mqtt = faultLog.Mqtt.Reason
 		logMsg.IsBackground = getBoolToString(faultLog.IsBackground)
 		logMsg.IsEmptyBed = getBoolToString(faultLog.IsEmptyBed)
 		logMsg.IsMainActivity = getBoolToString(faultLog.IsMainActivity)
-		logMsg.Mqtt = faultLog.Mqtt.Reason
 		logMsg.Timestamp = faultLog.Timestamp
 		if logMsg.DevType == 0 {
 			deviceTypeID, err := utils.GetDeviceTypeId(faultLog.AppType)

@@ -102,5 +102,5 @@ go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
 - v2.26 修复日志超时插件状态还是正常问题，设备日志超时后置空日志插件内容，优化程序内存使用减少变量重复创建摧毁
 - v2.27 增加 cmd 命令执行超时逻辑，防止程序进程阻塞,合并了执行 cmd 命令逻辑为一个方法，增加单元测试，修改同步服务返回数据显示
 - v2.28 修复 interf 插件 code -1 还会报故障问题,优化超时扫描日志逻辑
-- v2.29 去除 time.Ticker 定时处理，改为 time sleep。 增加 3 点钟，重启服务，跳过 30 分钟。
+- v2.29 去除 time.Ticker 定时处理，改为 time sleep。 增加 3 点钟，重启服务，跳过 30 分钟。去除注冊服务依赖包，改用 nssm.exe 注冊 windows 服务。
 

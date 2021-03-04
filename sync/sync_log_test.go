@@ -799,3 +799,75 @@ func Test_code999OverTenMinutes(t *testing.T) {
 		})
 	}
 }
+
+func Test_emptyPluginsInfo(t *testing.T) {
+	type args struct {
+		logMsg *LogMsg
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "empty", args: args{&LogMsg{
+			CallCode:       "CallCode",
+			FaceCode:       "CallCode",
+			InterfCode:     "CallCode",
+			IptvCode:       "CallCode",
+			MqttCode:       "CallCode",
+			Call:           "CallCode",
+			Face:           "CallCode",
+			Interf:         "CallCode",
+			Iptv:           "CallCode",
+			IsBackground:   "CallCode",
+			IsEmptyBed:     "CallCode",
+			IsMainActivity: "CallCode",
+			Mqtt:           "CallCode",
+			Timestamp:      "CallCode",
+		}}, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			emptyPluginsInfo(tt.args.logMsg)
+			if tt.args.logMsg.CallCode != tt.want {
+				t.Errorf("emptyPluginsInfo() CallCode = %v ,want = %v", tt.args.logMsg.CallCode, tt.want)
+			}
+			if tt.args.logMsg.FaceCode != tt.want {
+				t.Errorf("emptyPluginsInfo() FaceCode = %v ,want = %v", tt.args.logMsg.FaceCode, tt.want)
+			}
+			if tt.args.logMsg.InterfCode != tt.want {
+				t.Errorf("emptyPluginsInfo() InterfCode = %v ,want = %v", tt.args.logMsg.InterfCode, tt.want)
+			}
+			if tt.args.logMsg.IptvCode != tt.want {
+				t.Errorf("emptyPluginsInfo() IptvCode = %v ,want = %v", tt.args.logMsg.IptvCode, tt.want)
+			}
+			if tt.args.logMsg.MqttCode != tt.want {
+				t.Errorf("emptyPluginsInfo() MqttCode = %v ,want = %v", tt.args.logMsg.MqttCode, tt.want)
+			}
+			if tt.args.logMsg.Call != tt.want {
+				t.Errorf("emptyPluginsInfo() Call = %v ,want = %v", tt.args.logMsg.Call, tt.want)
+			}
+			if tt.args.logMsg.Face != tt.want {
+				t.Errorf("emptyPluginsInfo() Face = %v ,want = %v", tt.args.logMsg.Face, tt.want)
+			}
+			if tt.args.logMsg.Interf != tt.want {
+				t.Errorf("emptyPluginsInfo() Interf = %v ,want = %v", tt.args.logMsg.Interf, tt.want)
+			}
+			if tt.args.logMsg.Iptv != tt.want {
+				t.Errorf("emptyPluginsInfo() Iptv = %v ,want = %v", tt.args.logMsg.Iptv, tt.want)
+			}
+			if tt.args.logMsg.IsBackground != tt.want {
+				t.Errorf("emptyPluginsInfo() IsBackground = %v ,want = %v", tt.args.logMsg.IsBackground, tt.want)
+			}
+			if tt.args.logMsg.IsEmptyBed != tt.want {
+				t.Errorf("emptyPluginsInfo() IsEmptyBed = %v ,want = %v", tt.args.logMsg.IsEmptyBed, tt.want)
+			}
+			if tt.args.logMsg.IsMainActivity != tt.want {
+				t.Errorf("emptyPluginsInfo() IsMainActivity = %v ,want = %v", tt.args.logMsg.IsMainActivity, tt.want)
+			}
+			if tt.args.logMsg.Timestamp != tt.want {
+				t.Errorf("emptyPluginsInfo() Timestamp = %v ,want = %v", tt.args.logMsg.Timestamp, tt.want)
+			}
+		})
+	}
+}
