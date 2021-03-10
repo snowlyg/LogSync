@@ -144,6 +144,17 @@ func SyncDeviceLog(logMsgs []*LogMsg, logCodes []string, loggerD *logging.Logger
 			logMsgs = append(logMsgs, logMsg)
 			continue
 		}
+
+		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
+			msg := fmt.Sprintf("【%s】 %s", utils.Config.Faultmsg.Device, pingMsg)
+			logMsg.StatusMsg = msg
+			logMsg.StatusType = utils.Config.Faultmsg.Device
+			logMsg.Status = false
+			logMsgs = append(logMsgs, logMsg)
+			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
+			continue
+		}
+
 		// 扫描日志
 		getDirs(logMsg, loggerD, ca)
 		logMsgs = append(logMsgs, logMsg)
@@ -202,23 +213,11 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 	err = cmdDir(c, logPath)
 	if err != nil {
 		loggerD.Infof("ftp 进入路径 ", logPath, " 出错 ", err)
-		// 进入当天目录,跳过 23点45 当天凌晨 0点15 分钟，给设备创建目录的时间
-		if !(time.Now().Hour() == 0 && time.Now().Minute() < 15) || !(time.Now().Hour() == 23 && time.Now().Minute() > 45) {
-			if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
-				msg := fmt.Sprintf("【%s】ftp日志路径 %s 访问失败; %s", utils.Config.Faultmsg.Device, logPath, pingMsg)
-				logMsg.StatusMsg = msg
-				logMsg.StatusType = utils.Config.Faultmsg.Device
-				logMsg.Status = false
-				loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
-				return
-			} else {
-				msg := fmt.Sprintf("设备 %s 日志路径 %s 不存在;", logMsg.DeviceCode, logPath)
-				loggerD.Infof(msg)
-				logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
-				checkLogOverFive(logMsg, loggerD)
-				return
-			}
-		}
+		msg := fmt.Sprintf("设备 %s 日志路径 %s 不存在;", logMsg.DeviceCode, logPath)
+		loggerD.Infof(msg)
+		logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
+		checkLogOverFive(logMsg, loggerD)
+		return
 	}
 
 	dir, err := getCurrentDir(c)
@@ -236,26 +235,13 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 	}
 
 	if len(ss) == 0 {
-		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
-			msg := fmt.Sprintf("【%s】服务器日志没有文件 %s", utils.Config.Faultmsg.Device, pingMsg)
-			logMsg.StatusMsg = msg
-			logMsg.Status = false
-			logMsg.StatusType = utils.Config.Faultmsg.Device
-			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
-			return
-		} else {
-			msg := fmt.Sprintf("设备 %s 没有日志文件;", logMsg.DeviceCode)
-			loggerD.Infof(msg)
-			logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
-			checkLogOverFive(logMsg, loggerD)
-			return
-		}
+		msg := fmt.Sprintf("设备 %s 没有日志文件;", logMsg.DeviceCode)
+		loggerD.Infof(msg)
+		logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
+		checkLogOverFive(logMsg, loggerD)
+		return
 	}
 
-	location, err := utils.GetLocation()
-	if err != nil {
-		loggerD.Errorf("get location ", err)
-	}
 	isOverTime := false
 	isSyncTime := true
 	syncTimeMsg := ""
@@ -303,16 +289,16 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 						loggerD.Infof(fmt.Sprintf("检查时间同步错误 %+v", err))
 						continue
 					}
-					syncTimeMsg = fmt.Sprintf("日志记录时间 %s ;服务器时间 %s ;偏差 %d 分钟", logMsg.Timestamp, s.Time.In(location).Format(utils.DateTimeLayout), subT)
+					syncTimeMsg = fmt.Sprintf("设备与服务器的时间偏差 %d 分钟", subT)
 				}
-				//有超时跳过检查
+				//有超时,跳过检查
 				if !isOverTime && isSyncTime {
 					var subT int64
 					if isOverTime, subT, err = checkOverTime(logMsg.Timestamp); err != nil {
 						loggerD.Infof(fmt.Sprintf("检查时间超时错误 %+v", err))
 						continue
 					}
-					overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+					overTimeMsg = fmt.Sprintf("日志已经超时 %d 分钟未更新", subT)
 				}
 			}
 
@@ -356,48 +342,26 @@ func getDirs(logMsg *LogMsg, loggerD *logging.Logger, ca *cache.Cache) {
 	// 设备异常
 	if !isSyncTime {
 		emptyPluginsInfo(logMsg)
-		msg := fmt.Sprintf("【%s】服务器时间和日志记录时间不一致; %s", utils.Config.Faultmsg.Device, syncTimeMsg)
-		logMsg.StatusMsg = msg
+		logMsg.StatusMsg = fmt.Sprintf("【%s】 %s", utils.Config.Faultmsg.Device, syncTimeMsg)
 		logMsg.Status = false
 		logMsg.StatusType = utils.Config.Faultmsg.Device
-		loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
+		loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, syncTimeMsg))
 		return
 	}
 
-	// 超时尝试 ping 设备
 	// 日志异常 ,日志内容不可用。插件信息置空
 	if isOverTime {
 		emptyPluginsInfo(logMsg)
-		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
-			msg := fmt.Sprintf("【%s】%s;%s", utils.Config.Faultmsg.Device, overTimeMsg, pingMsg)
-			logMsg.StatusMsg = msg
-			logMsg.Status = false
-			logMsg.StatusType = utils.Config.Faultmsg.Device
-			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
-			return
-		}
-
-		msg := fmt.Sprintf("设备 %s 日志超时 %s;", logMsg.DeviceCode, overTimeMsg)
-		loggerD.Infof(msg)
-		logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
+		loggerD.Infof(fmt.Sprintf("设备 %s 日志超时 %s;", logMsg.DeviceCode, overTimeMsg))
+		logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, overTimeMsg)
 		checkLogOverFive(logMsg, loggerD)
 		return
 
 	}
 
 	if logMsg.FaultMsg == "" {
-		// 日志异常
-		if ok, pingMsg := utils.GetPingMsg(logMsg.DevIp); !ok { // ping 不通
-			msg := fmt.Sprintf("【%s】没有生成插件日志;%s", utils.Config.Faultmsg.Device, pingMsg)
-			logMsg.StatusMsg = msg
-			logMsg.Status = false
-			logMsg.StatusType = utils.Config.Faultmsg.Device
-			loggerD.Infof(fmt.Sprintf("设备%s;%s", logMsg.DeviceCode, msg))
-			return
-		}
-		msg := fmt.Sprintf("设备 %s 没有生成插件日志;", logMsg.DeviceCode)
-		loggerD.Infof(msg)
-		logMsg.StatusMsg = fmt.Sprintf("【%s】%s", utils.Config.Faultmsg.Logsync, msg)
+		loggerD.Infof(fmt.Sprintf("设备 %s 没有生成插件日志;", logMsg.DeviceCode))
+		logMsg.StatusMsg = fmt.Sprintf("【%s】没有生成插件日志", utils.Config.Faultmsg.Logsync)
 		checkLogOverFive(logMsg, loggerD)
 
 	}
@@ -418,8 +382,6 @@ func checkLogOverFive(logMsg *LogMsg, loggerD *logging.Logger) {
 	loggerD.Infof(fmt.Sprintf(">>> 日志记录超时,开始排查错误"))
 	loggerD.Infof(fmt.Sprintf("dev_id : %s /dev_code : %s", logMsg.DevIp, logMsg.DeviceCode))
 	logMsg.Status = false
-	logMsg.StatusMsg += fmt.Sprintf("设备 %s(%s) 可以访问;", logMsg.DeviceCode, logMsg.DevIp)
-	logMsg.StatusType = utils.Config.Faultmsg.Logsync
 	if logMsg.DirName == "nis" { // 大屏
 		loggerD.Infof(fmt.Sprintf(">>> 开始排查大屏"))
 		if tasklistDevice(logMsg, loggerD, utils.Config.Web.Password, utils.Config.Web.Account, logMsg.DevIp) {
@@ -452,10 +414,10 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 		args := []string{"/C", "tasklist.exe", "/S", ip, "/U", account, "/P", password, "/FI", "IMAGENAME eq App.exe"}
 		stdout, stderr := commandTimeout(args, 3, loggerD, nil)
 		if strings.Count(string(stdout), "App.exe") == 5 {
-			logMsg.StatusMsg += "设备 App应用进程在运行中；"
+			logMsg.StatusMsg = fmt.Sprintf("【%s】设备App应用进程在运行中(%d);", utils.Config.Faultmsg.Logsync, strings.Count(string(stdout), "App.exe"))
 			return true
 		}
-		logMsg.StatusMsg += "设备App应用进程未运行，请确认应用程序是否已经开启;"
+		logMsg.StatusMsg = fmt.Sprintf("【%s】设备App应用进程未运行(%d);", utils.Config.Faultmsg.Logsync, strings.Count(string(stdout), "App.exe"))
 		if len(stderr) > 0 {
 			logMsg.StatusMsg += string(stderr)
 		}
@@ -481,27 +443,27 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 		return
 	}
 
-	if runtime.GOOS == "windows" {
-		args := []string{"/C", "pscp.exe", "-unsafe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
-		_, stderr := commandTimeout(args, 3, loggerD, nil)
-		if len(stderr) > 0 {
-			logMsg.StatusMsg += fmt.Sprintf("执行%s失败: %s;", args[1], string(stderr))
-			return
-		}
+	if runtime.GOOS != "windows" {
+		return
+	}
+	args := []string{"/C", "pscp.exe", "-unsafe", "-scp", "-r", "-pw", password, "-P", "22", fmt.Sprintf("%s@%s:%s", account, ip, iDir), oDir}
+	_, stderr := commandTimeout(args, 3, loggerD, nil)
+	if len(stderr) > 0 {
+		logMsg.StatusMsg = fmt.Sprintf("【%s】执行%s失败: %s;", utils.Config.Faultmsg.Logsync, args[1], string(stderr))
+		return
 	}
 
 	logFiles, err := utils.ListDir(oDir, "log")
 	if err != nil {
 		loggerD.Infof(fmt.Sprintf("从路径 %s 获取日志文件出错 %v ", oDir, err))
-		logMsg.StatusMsg += "执行 pscp 没有获取到日志;"
+		logMsg.StatusMsg = fmt.Sprintf("【%s】执行%s没有获取到日志;", utils.Config.Faultmsg.Logsync, args[1])
 		return
 	}
 
 	// 没有文件
 	if len(logFiles) == 0 {
-		msg := "设备内没有生成新的日志"
-		logMsg.StatusMsg += msg
-		loggerD.Infof(msg)
+		logMsg.StatusMsg = fmt.Sprintf("【%s】设备内没有生成日志;", utils.Config.Faultmsg.Logsync)
+		loggerD.Infof("设备内没有生成日志")
 		return
 	}
 
@@ -523,28 +485,22 @@ func pscpDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, iDir
 				if err != nil {
 					continue
 				}
-				location, err := utils.GetLocation()
-				if err != nil {
-					loggerD.Errorf("get location ", err)
-				}
-				overTimeMsg = fmt.Sprintf("日志记录时间 %s ;当前时间 %s ;日志已经超时 %d 分钟未更新", logMsg.Timestamp, time.Now().In(location).Format(utils.DateTimeLayout), subT)
+				overTimeMsg = fmt.Sprintf("日志已经超时 %d 分钟未更新", subT)
 			}
 		}
 	}
 
 	if logMsg.FaultMsg == "" {
-		logMsg.StatusMsg += "设备没有生成插件日志"
-		logMsg.Status = false
+		logMsg.StatusMsg = fmt.Sprintf("【%s】设备没有生成插件日志;", utils.Config.Faultmsg.Logsync)
 		return
 	}
 
 	if isOverTime {
-		logMsg.StatusMsg += overTimeMsg
-		logMsg.Status = false
+		logMsg.StatusMsg = fmt.Sprintf("【%s】%s;", utils.Config.Faultmsg.Logsync, overTimeMsg)
 		return
 	}
 
-	logMsg.StatusMsg += "设备内正常生成了日志"
+	logMsg.StatusMsg = fmt.Sprintf("【%s】%s;", utils.Config.Faultmsg.Logsync, "设备日志未同步到ftp")
 }
 
 // commandTimeout 可设定超时的 cmd 命令
@@ -817,14 +773,11 @@ func getPluginsInfo(fileName string, file []byte, logMsg *LogMsg, ca *cache.Cach
 		if err != nil {
 			return err
 		}
-
 		if !faultTxt.Mqtt {
-			_, pingMsg := utils.GetPingMsg(logMsg.DevIp)
 			logMsg.Status = false
-			logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s;%s", utils.Config.Faultmsg.Plugin, faultTxt.Reason, pingMsg)
+			logMsg.StatusMsg = fmt.Sprintf("【%s】插件(mqtt): %s", utils.Config.Faultmsg.Plugin, faultTxt.Reason)
 			logMsg.StatusType = utils.Config.Faultmsg.Plugin
 		}
-
 		logMsg.Mqtt = faultTxt.Reason
 		logMsg.Timestamp = faultTxt.Timestamp
 	}

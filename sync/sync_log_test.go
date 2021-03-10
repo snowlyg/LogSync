@@ -249,7 +249,7 @@ func Test_getPluginsInfo_Text(t *testing.T) {
 			reason := tt.want.reason
 			if !tt.want.status {
 				reason = fmt.Sprintf("【%s】插件(mqtt): %s", utils.Config.Faultmsg.Plugin, tt.want.reason)
-				statusMsg = reason + ";设备ip为空，请检查设备是否绑定ip"
+				statusMsg = reason
 			}
 			if tt.args.logMsg.Mqtt != tt.want.reason {
 				t.Errorf("getPluginsInfo() = %v, want %v", tt.args.logMsg.Mqtt, tt.want.reason)

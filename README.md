@@ -63,6 +63,8 @@ http://localhost:8001/sync_device_log?sync_log=1 // 设备日志
 - 可选方案：下载 update.exe 文件并执行，然后由 update.exe 完成程序更新（停止-删除文件-下载文件-启动）。
 
 #### 编译
+-w 忽略DWARFv3调试信息，使用该选项后将无法使用gdb进行调试。
+-s 忽略符号表和调试信息。
 
 ```shell script
 go build -ldflags "-w -s -X main.Version=v1.9"  -o ./cmd/LogSync.exe main.go
@@ -105,5 +107,6 @@ go run ./mocklog/main.go ./mocklog/path.go ./mocklog/fault.go  -action del
 - v2.29 去除 time.Ticker 定时处理，改为 time sleep。
      增加 3 点钟，重启服务，跳过 30 分钟（改为后台运维时间控制报警）。
      去除注冊服务依赖包，改用 nssm.exe 注冊 windows 服务。增加插件状态码code参数值。
+- v2.30 简化日志错误消息，调整ip检查位置到最开始
 
 
