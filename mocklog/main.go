@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/snowlyg/LogSync/sync"
-	"github.com/snowlyg/LogSync/utils"
 	"os"
 	"time"
+
+	"github.com/snowlyg/LogSync/sync"
+	"github.com/snowlyg/LogSync/utils"
 )
 
 var Action = flag.String("action", "", "程序操作指令")

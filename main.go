@@ -20,7 +20,7 @@ import (
 )
 
 // Version 版本
-var Version string
+var Version = "<UNDEFINED>"
 
 func syncDevice() {
 	t := utils.Config.Data.Timeduration
@@ -127,7 +127,7 @@ func main() {
 	utils.InitConfig()
 
 	if *Action == "version" {
-		fmt.Println(fmt.Sprintf(fmt.Sprintf("版本号：%s", Version)))
+		fmt.Println(Version)
 		return
 	}
 

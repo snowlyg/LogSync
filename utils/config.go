@@ -66,7 +66,8 @@ var Config = struct {
 }{}
 
 func InitConfig() {
-	if err := configor.Load(&Config, ConfigFile()); err != nil {
-		panic(fmt.Sprintf("Config Path:%s ,Error:%+v\n", ConfigFile(), err))
+	configDir := ConfigFile("config.yaml")
+	if err := configor.Load(&Config, configDir); err != nil {
+		panic(fmt.Sprintf("Config Path:%s ,Error:%+v\n", configDir, err))
 	}
 }

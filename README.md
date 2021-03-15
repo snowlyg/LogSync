@@ -5,13 +5,7 @@
 #### 注册/卸载服务/启动/停止/重启
 
 ```shell script
-
-LogSync.exe install 
-LogSync.exe remove 
-LogSync.exe start
-LogSync.exe stop
-LogSync.exe restart
-LogSync.exe version 查看版本号
+LogSync.exe -action version 查看版本号
 
 ```
 

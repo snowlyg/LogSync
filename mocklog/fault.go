@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/snowlyg/LogSync/sync"
-	"github.com/snowlyg/LogSync/utils"
 	"path/filepath"
 	"strconv"
+
+	"github.com/snowlyg/LogSync/sync"
+	"github.com/snowlyg/LogSync/utils"
 )
 
 func CreateFaultFile(device device, plugin, interf sync.Plugin, timestamp, mqtt, reason string) error {

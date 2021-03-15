@@ -382,6 +382,7 @@ func checkLogOverFive(logMsg *LogMsg, loggerD *logging.Logger) {
 	loggerD.Infof(fmt.Sprintf(">>> 日志记录超时,开始排查错误"))
 	loggerD.Infof(fmt.Sprintf("dev_id : %s /dev_code : %s", logMsg.DevIp, logMsg.DeviceCode))
 	logMsg.Status = false
+	logMsg.StatusType = utils.Config.Faultmsg.Logsync
 	if logMsg.DirName == "nis" { // 大屏
 		loggerD.Infof(fmt.Sprintf(">>> 开始排查大屏"))
 		if tasklistDevice(logMsg, loggerD, utils.Config.Web.Password, utils.Config.Web.Account, logMsg.DevIp) {
@@ -413,7 +414,7 @@ func tasklistDevice(logMsg *LogMsg, loggerD *logging.Logger, password, account, 
 		// /FI "USERNAME ne NT AUTHORITY\SYSTEM" /FI "STATUS eq running"
 		args := []string{"/C", "tasklist.exe", "/S", ip, "/U", account, "/P", password, "/FI", "IMAGENAME eq App.exe"}
 		stdout, stderr := commandTimeout(args, 3, loggerD, nil)
-		if strings.Count(string(stdout), "App.exe") == 5 {
+		if strings.Count(string(stdout), "App.exe") > 0 {
 			logMsg.StatusMsg = fmt.Sprintf("【%s】设备App应用进程在运行中(%d);", utils.Config.Faultmsg.Logsync, strings.Count(string(stdout), "App.exe"))
 			return true
 		}

@@ -21,8 +21,8 @@ func CWD() string {
 	return filepath.Dir(path)
 }
 
-func ConfigFile() string {
-	return filepath.Join(CWD(), "config.yaml")
+func ConfigFile(fielname string) string {
+	return filepath.Join(CWD(), fielname)
 }
 
 func Exist(path string) bool {

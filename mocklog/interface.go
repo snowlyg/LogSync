@@ -3,9 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
+
 	"github.com/snowlyg/LogSync/sync"
 	"github.com/snowlyg/LogSync/utils"
-	"path/filepath"
 )
 
 func CreateInterfaceFile(device device, infos []map[string]string) error {
